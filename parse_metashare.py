@@ -1,6 +1,7 @@
 """Parse Meta Share files and store info as json."""
 
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
+STATIC_DIR = "metadata/static"
 
 import os
 from xml.etree import ElementTree as etree
@@ -69,6 +70,10 @@ def parse_metashare(directory, type=None):
 
 
 if __name__ == '__main__':
+
+    # Create static dir if it does not exist
+    if not os.path.isdir(STATIC_DIR):
+        os.makedirs(STATIC_DIR)
 
     corpora = parse_metashare("meta-share/corpus", type="corpus")
     with open("metadata/static/corpora.json", "w") as f:
