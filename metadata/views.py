@@ -14,8 +14,9 @@ def metadata():
     corpora = read_static_json(current_app.config.get("CORPORA_FILE"))
     lexicons = read_static_json(current_app.config.get("LEXICONS_FILE"))
 
-    metadata = {"corpora": corpora,
-                "lexicons": lexicons}
+    metadata = corpora
+    metadata.update(lexicons)
+
 
     return jsonify(metadata)
 
