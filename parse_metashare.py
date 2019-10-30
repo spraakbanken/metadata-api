@@ -74,6 +74,6 @@ if __name__ == '__main__':
     with open("metadata/static/corpora.json", "w") as f:
         json.dump(corpora, f)
 
-    lexicons = parse_metashare("meta-share/lexicon")
+    lexicons = parse_metashare("meta-share/lexicon", type="lexicon")
     with open("metadata/static/lexicons.json", "w") as f:
         json.dump(lexicons, f)
