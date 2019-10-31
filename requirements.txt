@@ -5,9 +5,11 @@
 #    pip-compile requirements.in
 #
 click==7.0                # via flask
+flask-cors==3.0.8
 flask==1.1.1
 gunicorn==19.9.0
 itsdangerous==1.1.0       # via flask
 jinja2==2.10.3            # via flask
 markupsafe==1.1.1         # via jinja2
+six==1.12.0               # via flask-cors
 werkzeug==0.16.0          # via flask
