@@ -2,6 +2,7 @@
 
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
 STATIC_DIR = "metadata/static"
+METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
 
 import os
 from xml.etree import ElementTree as etree
@@ -16,7 +17,6 @@ def parse_metashare(directory, type=None):
     for filename in os.listdir(directory):
         if not filename.endswith(".xml"):
             continue
-        # print(filename)
 
         path = os.path.join(directory, filename)
         resource = {}
@@ -41,6 +41,11 @@ def parse_metashare(directory, type=None):
 
         resource["type"] = type
 
+        # Get language
+        lang = xml.find(".//" + ns + "languageId")
+        if lang is not None:
+            resource["lang"] = lang.text
+
         # Get name
         for i in identificationInfo.findall(ns + "resourceName"):
             if i.attrib["lang"] == "eng" and i.text:
@@ -59,13 +64,46 @@ def parse_metashare(directory, type=None):
         resource["description_sv"] = description_sv
         resource["description_en"] = description_en
 
-        # Get language
-        lang = xml.find(".//" + ns + "languageId")
-        if lang is not None:
-            resource["lang"] = lang.text
+        # Get distribution info
+        distributionInfo = xml.find(ns + "distributionInfo")
+        resource["downloads"] = []
+        resource["interface"] = []
+        for i in distributionInfo.findall(ns + "licenceInfo"):
+            if i.find(ns + "downloadLocation") is not None:
+                distro = {}
+                resource["downloads"].append(distro)
+                distro["licence"] = i.find(ns + "licence").text
+                distro["restriction"] = i.find(ns + "restrictionsOfUse").text
+                distro["download"] = i.find(ns + "downloadLocation").text
+                if i.find(ns + "attributionText") is not None:
+                    distro["info"] = i.find(ns + "attributionText").text
+            if i.find(ns + "executionLocation") is not None:
+                distro = {}
+                resource["interface"].append(distro)
+                distro["licence"] = i.find(ns + "licence").text
+                distro["restriction"] = i.find(ns + "restrictionsOfUse").text
+                distro["access"] = i.find(ns + "executionLocation").text
 
-    # for i in resources:
-    #     print(i)
+        # Get contact person
+        contactPerson = xml.find(ns + "contactPerson")
+        resource["contact_info"] = {}
+        resource["contact_info"]["surname"] = contactPerson.find(ns + "surname").text
+        resource["contact_info"]["givenName"] = contactPerson.find(ns + "givenName").text
+        resource["contact_info"]["email"] = contactPerson.find(ns + "communicationInfo").find(ns + "email").text
+        resource["contact_info"]["affiliation"] = {}
+        resource["contact_info"]["affiliation"]["organisation"] = contactPerson.find(ns + "affiliation").find(ns + "organizationName").text
+        resource["contact_info"]["affiliation"]["email"] = contactPerson.find(ns + "affiliation").find(ns + "communicationInfo").find(ns + "email").text
+
+        # Get size info
+        sizes = xml.findall(".//" + ns + "sizeInfo")
+        resource["size"] = {}
+        for i in sizes:
+            unit = i.find(ns + "sizeUnit").text
+            resource["size"][unit] = i.find(ns + "size").text
+
+        # Add location of meta data file
+        resource["meta_share_location"] = METASHAREURL + type + "/" + filename
+
     return resources
 
 
