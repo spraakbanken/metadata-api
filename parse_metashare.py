@@ -39,6 +39,7 @@ def parse_metashare(directory, type=None):
         # Get identifier
         shortname = identificationInfo.find(ns + "resourceShortName")
         resources[shortname.text] = resource
+        resources[shortname.text]["id"] = shortname.text
 
         resource["type"] = type
 
