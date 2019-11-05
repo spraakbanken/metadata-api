@@ -1,13 +1,14 @@
 """Parse Meta Share files and store info as json."""
 
-# https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
-STATIC_DIR = "metadata/static"
-METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
-
+import json
 import os
 from xml.etree import ElementTree as etree
 
-import json
+from translate_lang import translate
+
+# https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
+STATIC_DIR = "metadata/static"
+METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
 
 
 def parse_metashare(directory, type=None):
@@ -42,9 +43,14 @@ def parse_metashare(directory, type=None):
         resource["type"] = type
 
         # Get language
-        lang = xml.find(".//" + ns + "languageId")
-        if lang is not None:
-            resource["lang"] = lang.text
+        lang = xml.findall(".//" + ns + "languageInfo")
+        resource["lang"] = []
+        for i in lang:
+            l = {}
+            l["code"] = i.find(ns + "languageId").text
+            l["name_en"] = i.find(ns + "languageName").text
+            l["name_sv"] = translate(i.find(ns + "languageName").text)
+            resource["lang"].append(l)
 
         # Get name
         for i in identificationInfo.findall(ns + "resourceName"):
