@@ -9,6 +9,8 @@ from translate_lang import translate
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
 STATIC_DIR = "metadata/static"
 METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
+METASHARE_LICENCE = "CC-BY"
+METASHARE_RESTRICTION = "attribution"
 
 
 def parse_metashare(directory, type=None):
@@ -47,11 +49,11 @@ def parse_metashare(directory, type=None):
         lang = xml.findall(".//" + ns + "languageInfo")
         resource["lang"] = []
         for i in lang:
-            l = {}
-            l["code"] = i.find(ns + "languageId").text
-            l["name_en"] = i.find(ns + "languageName").text
-            l["name_sv"] = translate(i.find(ns + "languageName").text)
-            resource["lang"].append(l)
+            lang_dict = {}
+            lang_dict["code"] = i.find(ns + "languageId").text
+            lang_dict["name_en"] = i.find(ns + "languageName").text
+            lang_dict["name_sv"] = translate(i.find(ns + "languageName").text)
+            resource["lang"].append(lang_dict)
 
         # Get name
         for i in identificationInfo.findall(ns + "resourceName"):
@@ -84,12 +86,26 @@ def parse_metashare(directory, type=None):
                 distro["download"] = i.find(ns + "downloadLocation").text
                 if i.find(ns + "attributionText") is not None:
                     distro["info"] = i.find(ns + "attributionText").text
+                if i.find(ns + "downloadLocation").text:
+                    type, format = get_download_type(i.find(ns + "downloadLocation").text)
+                    distro["type"] = type
+                    distro["format"] = format
             if i.find(ns + "executionLocation") is not None:
                 distro = {}
                 resource["interface"].append(distro)
                 distro["licence"] = i.find(ns + "licence").text
                 distro["restriction"] = i.find(ns + "restrictionsOfUse").text
                 distro["access"] = i.find(ns + "executionLocation").text
+
+        # Add location of meta data file
+        metashare = {
+            "licence": METASHARE_LICENCE,
+            "restriction": METASHARE_RESTRICTION,
+            "download": METASHAREURL + type + "/" + filename,
+            "type": "metadata",
+            "format": "METASHARE"
+        }
+        resource["downloads"].append(metashare)
 
         # Get contact person
         contactPerson = xml.find(ns + "contactPerson")
@@ -108,10 +124,19 @@ def parse_metashare(directory, type=None):
             unit = i.find(ns + "sizeUnit").text
             resource["size"][unit] = i.find(ns + "size").text
 
-        # Add location of meta data file
-        resource["meta_share_location"] = METASHAREURL + type + "/" + filename
-
     return resources
+
+
+def get_download_type(download_path):
+    """Get type and format of downloadable from pathname."""
+    if "/meningsmangder/" in download_path:
+        return "corpus", "XML"
+    elif "/frekvens/" in download_path:
+        return "token frequencies", "CSV"
+    elif "/pub/lmf/" in download_path:
+        return "lexicon", "LMF"
+    else:
+        return "other", None
 
 
 if __name__ == '__main__':
