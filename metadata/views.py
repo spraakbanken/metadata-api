@@ -37,5 +37,6 @@ def read_static_json(jsonfile):
 
 
 def dict_to_list(input):
-    """Convert resource dict into list, sorted by name_sv."""
-    return sorted(input.values(), key=lambda x: locale.strxfrm(x.get("name_sv")))
+    """Convert resource dict into list."""
+    # return sorted(input.values(), key=lambda x: locale.strxfrm(x.get("name_sv")))
+    return list(input.values())
