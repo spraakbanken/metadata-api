@@ -87,8 +87,8 @@ def parse_metashare(directory, type=None):
                 if i.find(ns + "attributionText") is not None:
                     distro["info"] = i.find(ns + "attributionText").text
                 if i.find(ns + "downloadLocation").text:
-                    type, format = get_download_type(i.find(ns + "downloadLocation").text)
-                    distro["type"] = type
+                    download_type, format = get_download_type(i.find(ns + "downloadLocation").text)
+                    distro["type"] = download_type
                     distro["format"] = format
             if i.find(ns + "executionLocation") is not None:
                 distro = {}
