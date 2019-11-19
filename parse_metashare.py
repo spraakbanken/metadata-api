@@ -5,6 +5,7 @@ import os
 from xml.etree import ElementTree as etree
 
 from translate_lang import translate
+from resource_text_mapping import resource_mappings
 
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
 STATIC_DIR = "metadata/static"
@@ -139,16 +140,76 @@ def get_download_type(download_path):
         return "other", None
 
 
+def read_resource_texts(directory="meta-share/resource-texts"):
+    """Read all resource texts into a dictionary."""
+    resource_texts = {}
+    for res_id, res in resource_mappings.items():
+        new_dict = {}
+        # Collect Swedish texts
+        for i in res.get("sv", []):
+            new_list = []
+            path = os.path.join(directory, i)
+            with open(path, "r") as f:
+                new_list.append(f.read())
+        new_dict["sv"] = "\n".join(new_list)
+        # Collect English texts
+        for i in res.get("en", []):
+            new_list = []
+            path = os.path.join(directory, i)
+            with open(path, "r") as f:
+                new_list.append(f.read())
+        new_dict["en"] = "\n".join(new_list)
+        resource_texts[res_id] = new_dict
+
+    return resource_texts
+
+
+def get_resource_texts_files(directory="meta-share/resource-texts"):
+    """Get list of resource text files."""
+    resource_text_files = set()
+    for filename in sorted(os.listdir(directory)):
+        resource_text_files.add(filename)
+    return resource_text_files
+
+
+def extend_resource_text_mapping(resource_ids):
+    """Extend resource_mappings with files that follow naming standard."""
+    resource_text_files = get_resource_texts_files()
+    for i in resource_ids:
+        if i not in resource_mappings:
+            name_sv = i + "_swe.html"
+            name_en = i + "_eng.html"
+            new_dict = {}
+            if name_sv in resource_text_files:
+                new_dict["sv"] = [name_sv]
+            if name_en in resource_text_files:
+                new_dict["en"] = [name_en]
+            if new_dict:
+                resource_mappings[i] = new_dict
+
+
 if __name__ == '__main__':
 
     # Create static dir if it does not exist
     if not os.path.isdir(STATIC_DIR):
         os.makedirs(STATIC_DIR)
 
+    # Get corpora from metashare
     corpora = parse_metashare("meta-share/corpus", type="corpus")
     with open("metadata/static/corpora.json", "w") as f:
         json.dump(corpora, f)
 
+    # Get lexicons from metashare
     lexicons = parse_metashare("meta-share/lexicon", type="lexicon")
     with open("metadata/static/lexicons.json", "w") as f:
         json.dump(lexicons, f)
+
+    # Extend resource-text-mapping
+    resource_ids = list(corpora.keys())
+    resource_ids.extend(lexicons.keys())
+    extend_resource_text_mapping(resource_ids)
+
+    # Get resource texts and dump them as json
+    resource_texts = read_resource_texts()
+    with open("metadata/static/resource-texts.json", "w") as f:
+        json.dump(resource_texts, f)
