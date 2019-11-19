@@ -36,7 +36,8 @@ def get_single_resource(resource_id, corpora, lexicons):
     else:
         resource = {}
 
-    resource["long_description"] = long_description
+    resource["long_description_sv"] = long_description.get("sv", "")
+    resource["long_description_en"] = long_description.get("en", "")
     return jsonify(resource)
 
 

@@ -48,3 +48,6 @@ and stored in the above SVN repository. In this case it will automatically be de
 
 If the naming convention cannot be met for some reason or if the description needs to be split in multiple files,
 a new entry must be added in `resource_text_mapping.py` before the description is served by the API.
+
+Please note that the mapping given in `resource_text_mapping.py` has precedence over existing files following the naming convention
+(i.e. if there is an entry `my-resource` in `resource_text_mapping.py` then the description `my-resource_eng.html` will not be considered).
