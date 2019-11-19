@@ -27,17 +27,19 @@ def metadata():
 def get_single_resource(resource_id, corpora, lexicons):
     """Get lexicon or corpus from resource dictionaries and add resource text (if available)."""
     resource_texts = read_static_json(current_app.config.get("RESOURCE_TEXTS_FILE"))
-    long_description = resource_texts.get(resource_id, "")
+    long_description = resource_texts.get(resource_id, {})
 
     if corpora.get(resource_id):
         resource = corpora[resource_id]
+        resource["long_description_sv"] = long_description.get("sv", "")
+        resource["long_description_en"] = long_description.get("en", "")
     elif lexicons.get(resource_id):
         resource = lexicons[resource_id]
+        resource["long_description_sv"] = long_description.get("sv", "")
+        resource["long_description_en"] = long_description.get("en", "")
     else:
         resource = {}
 
-    resource["long_description_sv"] = long_description.get("sv", "")
-    resource["long_description_en"] = long_description.get("en", "")
     return jsonify(resource)
 
 
