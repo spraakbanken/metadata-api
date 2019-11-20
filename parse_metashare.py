@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 from xml.etree import ElementTree as etree
 
 from translate_lang import translate
@@ -124,6 +125,11 @@ def parse_metashare(directory, type=None):
         for i in sizes:
             unit = i.find(ns + "sizeUnit").text
             resource["size"][unit] = i.find(ns + "size").text
+
+
+        # Get file change date
+        date = time.strftime('%Y-%m-%d', time.gmtime(os.path.getmtime(os.path.join(directory, filename))))
+        resource["change_date"] = date
 
     return resources
 
