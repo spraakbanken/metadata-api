@@ -21,6 +21,11 @@ Available API calls:
   pip install -r requirements.txt
   ```
 
+- Get an initial copy of the META-SHARE files and resource descriptions:
+  ```
+   ./get_metadata.sh
+  ```
+
 - Add entry in supervisord config:
   ```
   [program:metadata]
