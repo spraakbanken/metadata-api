@@ -126,11 +126,6 @@ def parse_metashare(directory, type=None):
             unit = i.find(ns + "sizeUnit").text
             resource["size"][unit] = i.find(ns + "size").text
 
-
-        # Get file change date
-        date = time.strftime('%Y-%m-%d', time.gmtime(os.path.getmtime(os.path.join(directory, filename))))
-        resource["change_date"] = date
-
     return resources
 
 
