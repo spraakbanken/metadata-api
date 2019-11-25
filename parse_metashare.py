@@ -147,19 +147,21 @@ def read_resource_texts(directory="meta-share/resource-texts"):
     for res_id, res in resource_mappings.items():
         new_dict = {}
         # Collect Swedish texts
+        sv_list = []
         for i in res.get("sv", []):
-            new_list = []
             path = os.path.join(directory, i)
             with open(path, "r") as f:
-                new_list.append(f.read())
-        new_dict["sv"] = "\n".join(new_list)
+                sv_list.append(f.read())
+        if sv_list:
+            new_dict["sv"] = "\n".join(sv_list)
         # Collect English texts
+        en_list = []
         for i in res.get("en", []):
-            new_list = []
             path = os.path.join(directory, i)
             with open(path, "r") as f:
-                new_list.append(f.read())
-        new_dict["en"] = "\n".join(new_list)
+                en_list.append(f.read())
+        if en_list:
+            new_dict["en"] = "\n".join(en_list)
         resource_texts[res_id] = new_dict
 
     return resource_texts
