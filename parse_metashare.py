@@ -191,21 +191,23 @@ def extend_resource_text_mapping(resource_ids):
                 resource_mappings[i] = new_dict
 
 
+def set_description_bool(resource, resource_texts):
+    """Add bool 'has_description' for every resource."""
+    for i in resource:
+        resource[i]["has_description"] = False
+        if resource_texts.get(i):
+            resource[i]["has_description"] = True
+
+
 if __name__ == '__main__':
 
     # Create static dir if it does not exist
     if not os.path.isdir(STATIC_DIR):
         os.makedirs(STATIC_DIR)
 
-    # Get corpora from metashare
+    # Get corpora and lexicons from metashare
     corpora = parse_metashare("meta-share/corpus", type="corpus")
-    with open("metadata/static/corpora.json", "w") as f:
-        json.dump(corpora, f)
-
-    # Get lexicons from metashare
     lexicons = parse_metashare("meta-share/lexicon", type="lexicon")
-    with open("metadata/static/lexicons.json", "w") as f:
-        json.dump(lexicons, f)
 
     # Extend resource-text-mapping
     resource_ids = list(corpora.keys())
@@ -216,3 +218,11 @@ if __name__ == '__main__':
     resource_texts = read_resource_texts()
     with open("metadata/static/resource-texts.json", "w") as f:
         json.dump(resource_texts, f)
+
+    # Set has_description for every resource and save json
+    set_description_bool(corpora, resource_texts)
+    with open("metadata/static/corpora.json", "w") as f:
+        json.dump(corpora, f)
+    set_description_bool(lexicons, resource_texts)
+    with open("metadata/static/lexicons.json", "w") as f:
+        json.dump(lexicons, f)

@@ -21,6 +21,14 @@ def metadata():
         return get_single_resource(resource, corpora, lexicons)
 
     metadata = {"corpora": dict_to_list(corpora), "lexicons": dict_to_list(lexicons)}
+
+    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
+    if has_description:
+        metadata = {
+            "corpora": [c for c in metadata["corpora"] if c["has_description"]],
+            "lexicons": [c for c in metadata["lexicons"] if c["has_description"]]
+        }
+
     return jsonify(metadata)
 
 

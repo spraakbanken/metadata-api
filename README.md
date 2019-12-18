@@ -10,7 +10,8 @@ REST-API that serves meta data for SB's corpora and lexicons
 Available API calls:
 
 - `https://ws.spraakbanken.gu.se/ws/metadata`: List all resources in two dictionaries (`corpora` and `lexicons`)
-- `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from
+- `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
+- `https://ws.spraakbanken.gu.se/ws/metadata?has-description=true`: List only resources that have a long description
 
 ## Installation (SB-specific)
 
