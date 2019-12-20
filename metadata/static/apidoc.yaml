@@ -16,11 +16,22 @@ servers:
   - url: https://ws.spraakbanken.gu.se/ws/metadata
     description: Production server
 
+tags:
+  - name: General
+    description: |
+      The purpose of this very basic API is to quickly get a list of the language resources (corpora and lexicons) available at Språkbanken.
+      At the moment it it used to list resources on SB's web page. Future uses may include resource selection in Korp, Karp and Strix.
+
+      Some resources have long descriptions that are only displayed when using the `resource` parameter. For additional information about long
+      descriptions please refer to the [git repository](https://github.com/spraakbanken/sb-metadata).
+
 paths:
   /:
     get:
       summary: List resources
       description: Show meta data for all corpora and lexicons.
+      tags:
+        - General
       parameters:
         - name: resource
           in: query
@@ -31,7 +42,7 @@ paths:
           schema:
             type: boolean
           in: query
-          description: set to True to only show resources that have long descriptions
+          description: set to `true` to only show resources that have long descriptions
       responses:
         '200':
           description: OK
