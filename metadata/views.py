@@ -32,6 +32,12 @@ def metadata():
     return jsonify(metadata)
 
 
+@general.route("/doc")
+def documentation():
+    """Serve API documentation yaml file."""
+    return current_app.send_static_file('apidoc.yaml')
+
+
 def get_single_resource(resource_id, corpora, lexicons):
     """Get lexicon or corpus from resource dictionaries and add resource text (if available)."""
     resource_texts = read_static_json(current_app.config.get("RESOURCE_TEXTS_FILE"))

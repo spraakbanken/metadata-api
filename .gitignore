@@ -1,6 +1,8 @@
 # Static files and meta data
 meta-share
-metadata/static
+metadata/static/corpora.json
+metadata/static/lexicons.json
+metadata/static/resource-texts.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

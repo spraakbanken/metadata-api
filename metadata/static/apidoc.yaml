@@ -1,0 +1,162 @@
+openapi: "3.0.2"
+
+info:
+  title: SB Metadata
+  description: API for serving meta data for corpora and lexicons
+  version: "1.0"
+  contact:
+    name: Språkbanken
+    url: https://spraakbanken.gu.se/
+    email: sb-info@svenska.gu.se
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://ws.spraakbanken.gu.se/ws/metadata
+    description: Production server
+
+paths:
+  /:
+    get:
+      summary: Show meta data for all corpora and lexicons
+      description: Show meta data for all corpora and lexicons.
+      parameters:
+        - name: resource
+          in: query
+          description: ID of the resource to display
+          schema:
+            type: string
+        - name: has-description
+          schema:
+            type: boolean
+          in: query
+          description: set to True to only show resources that have long descriptions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  corpora:
+                    type: array
+                    description: List of all corpora
+                    items:
+                      $ref: '#/components/schemas/resource'
+                  lexicons:
+                    type: array
+                    description: List of all lexicons
+                    items:
+                      $ref: '#/components/schemas/resource'
+
+components:
+  schemas:
+    resource:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID (machine name) of the resource
+          example: saldo
+        type:
+          type: string
+          description: type of the resource
+        lang:
+          type: array
+          description: language(s) of the resource
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: three-letter language code
+                example: swe
+              name_en:
+                type: string
+                description: English name of the language
+                example: Swedish
+              name_sv:
+                type: string
+                description: Swedish name of the language
+                example: svenska
+        name_sv:
+          type: string
+          description: resource name in Swedish
+          example: Saldo
+        name_en:
+          type: string
+          description: resource name in English
+          example: Saldo
+        description_sv:
+          type: string
+          description: Short description in Swedish
+        description_en:
+          type: string
+          description: Short description in English
+        downloads:
+          type: array
+          description: list of downloadable files
+          items:
+            type: object
+            properties:
+              licence:
+                type: string
+                description: license of the file
+                example: CC-BY
+              restriction:
+                type: string
+                example: attribution
+              download:
+                type: string
+                description: URL of the downloadable file
+              type:
+                type: string
+                description: type of the file
+                example: token frequencies
+              format:
+                type: string
+                description: format of the file
+                example: XML
+              info:
+                type: string
+                description: additional info
+        interface:
+          type: array
+          description: list of URLs to resource interfaces
+          items:
+            type: object
+            properties:
+              licence:
+                type: string
+                description: license of the file
+                example: CC-BY
+              restriction:
+                type: string
+                example: attribution
+              access:
+                type: string
+                description: URL to interface
+        size:
+          type: object
+          description: Size of the resource (number of entries or tokens and sentences)
+        contact_info:
+          type: object
+          properties:
+            surname:
+              type: string
+            givenName:
+              type: string
+            email:
+              type: string
+            affiliation:
+              type: object
+              properties:
+                organisation:
+                  type: string
+                email:
+                  type: string
+        has_description:
+          type: boolean
+          description: States whether the resource has a long description
