@@ -19,7 +19,7 @@ servers:
 paths:
   /:
     get:
-      summary: Show meta data for all corpora and lexicons
+      summary: List resources
       description: Show meta data for all corpora and lexicons.
       parameters:
         - name: resource
