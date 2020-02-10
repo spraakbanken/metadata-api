@@ -1,0 +1,10 @@
+# TAB- (or at least double whitespace) separated table with corpus information to be used with script "create_metadata.py"
+# corpus                                       name_en                  						name_sv                           					mode        description_en                                           						description_sv
+
+ub-kvt-dagny        Dagny                   Dagny                 all_hist    A corpus with texts from the women's newspaper Dagny                En korpus med texter från kvinnotidningen Dagny
+ub-kvt-hertha       Hertha                  Hertha                all_hist    A corpus with texts from the women's newspaper Hertha               En korpus med texter från kvinnotidningen Hertha
+ub-kvt-idun         Idun                    Idun                  all_hist    A corpus with texts from the women's newspaper Idun                 En korpus med texter från kvinnotidningen Idun
+ub-kvt-kvt          Kvinnornas Tidning      Kvinnornas Tidning    all_hist    A corpus with texts from the women's newspaper Kvinnornas Tidning   En korpus med texter från Kvinnornas Tidning
+ub-kvt-morgonbris   Morgonbris              Morgonbris            all_hist    A corpus with texts from the women's newspaper Morgonbris           En korpus med texter från kvinnotidningen Morgonbris
+ub-kvt-rostratt     Rösträtt för Kvinnor    Rösträtt för Kvinnor  all_hist    A corpus with texts from the women's newspaper Rösträtt för Kvinnor  En korpus med texter från kvinnotidningen Rösträtt för Kvinnor
+ub-kvt-tidevarvet   Tidevarvet              Tidevarvet            all_hist    A corpus with texts from the women's newspaper Tidevarvet           En korpus med texter från kvinnotidningen Tidevarvet

@@ -1,0 +1,38 @@
+# corpus                    name_en                                name_sv                                  mode                  description_en     description_sv                                  
+
+eddan                       Äldre Eddan                            Äldre Eddan                              eddan                  
+ekeblad                     Ekeblad's letters                      Ekeblads brev                            all_hist                   
+interfra                    InterFra                               InterFra                                 interfra                   
+interfra-sv                 InterFra Swedish                       InterFra svenska                         interfra                   
+kioping                     Nils Matsson Kiöping's journeys        Nils Matsson Kiöpings resor              kioping_books                  
+lag1800                     Laws from the 1800's                   Lagar från 1800-talet                    law                  
+runeberg-diverse            Diverse tidningar                      Diverse tidningar                        all_hist                  
+runeberg-rost               Rösträtt för kvinnor                   Rösträtt för kvinnor                     all_hist               
+runeberg-svtidskr           Svensk Tidskrift                       Svensk Tidskrift                         all_hist                  
+runeberg-tiden              Tiden                                  Tiden                                    all_hist                  
+runeberg-urdagkron          Ur Dagens Krönika                      Ur Dagens Krönika                        all_hist                 
+siberiangermandialogs       Sibirian-German                        Sibirientyska                            siberian_german                   
+siberiangermanwomen         Sibirientyska kvinnor                  Sibirientyska kvinnor                    siberian_german                   
+sou                         Statens offentliga utredningar         Statens offentliga utredningar           modern                   
+swefn                       Swedish framenet (SweFN)               Svenskt frasnät (SweFN)                  modern                  
+tankebok                    Stockholms stads tänkeböcker           Stockholms stads tänkeböcker             law                 
+akerbruk                    Agriculture                            Åkerbruk                                 all_hist 
+kvah                        KVAH                                   KVAH                                     all_hist 
+bibel1873dalin              Swedish Bible 1873                     Bibeln 1873                              all_hist 
+bibel1917                   Swedish Bible 1917                     Bibeln 1917                              all_hist 
+runeberg-biblblad           Biblioteksbladet                       Biblioteksbladet                         all_hist 
+runeberg-folkbbl            Folkbiblioteksbladet                   Folkbiblioteksbladet                     all_hist 
+ansokningar                 Applications                           Ansökningar                              modern 
+coctaill                    COCTAILL                               COCTAILL                                 modern 
+forhor                      Hearings                               Förhör                                   modern 
+gdc                         Gothenburg Dialogue Corpus (GDC)       Gothenburg Dialogue Corpus (GDC)         modern 
+soexempel                   Språkprov SO 2009                      Språkprov SO 2009                        modern 
+sw1203                      SW1203-essays                          SW1203-uppsatser                         modern 
+forarbeten1734              Preperatory work                       Förarbeten                               law
+lag1734                     Laws of 1734                           1734 års lag                             law
+moderntdv                   Judgements                             Domar                                    law
+sdhk-latin                  Medieval letters - Latin               Medeltidsbrev - Latin                    old_swedish
+sdhk-norska                 Medieval letters - Norwegian           Medeltidsbrev - Norska                   old_swedish
+sdhk-ovrigt                 Medieval letters - Other languages     Medeltidsbrev - Övriga språk             old_swedish
+sdhk-svenska                Medieval letters - Swedish             Medeltidsbrev - Svenska                  old_swedish
+sdhk-tyska                  Medieval letters - German              Medeltidsbrev - Tyska                    old_swedish
