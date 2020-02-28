@@ -23,4 +23,4 @@ For more info run:
 
 The following cron job is run on bark:
 
-`5 0 * * * ./home/fksparv/sb-metadata/update-metashare/update-corpus-stats.sh`
+`5 0 * * * /home/fksparv/sb-metadata/update-meta-share/update-corpus-stats.sh`
