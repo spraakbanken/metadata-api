@@ -23,4 +23,4 @@ For more info run:
 
 The following cron job is run on bark:
 
-`5 0 * * * cd /home/fksparv/sb-metadata/update-meta-share/ && source venv/bin/activate && python3 update-corpus-stats.py $(ls /home/fksparv/sb-metadata/meta-share/corpus/*.xml | tr '\n' ' ') && svn ci -m "cron update"`
+`5 0 * * * ./home/fksparv/sb-metadata/update-metashare/update-corpus-stats.sh`
