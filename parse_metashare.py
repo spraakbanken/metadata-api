@@ -138,7 +138,7 @@ def get_download_type(download_path):
     elif "/pub/lmf/" in download_path:
         return "lexicon", "LMF"
     # Display filename
-    elif "." in download_path:
+    elif "." in os.path.split(download_path)[-1]:
         filename = os.path.split(download_path)[-1]
         return filename, filename.split(".")[-1]
     else:
