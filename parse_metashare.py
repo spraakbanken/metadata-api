@@ -137,6 +137,9 @@ def get_download_type(download_path):
         return "token frequencies", "CSV"
     elif "/pub/lmf/" in download_path:
         return "lexicon", "LMF"
+    # Display filename
+    elif "." in download_path:
+        return os.path.split(download_path)[-1]
     else:
         return "other", None
 
