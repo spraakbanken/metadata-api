@@ -41,9 +41,13 @@ def parse_metashare(directory, type=None):
         identificationInfo = xml.find(ns + "identificationInfo")
 
         # Get identifier
-        shortname = identificationInfo.find(ns + "resourceShortName")
-        resources[shortname.text] = resource
-        resources[shortname.text]["id"] = shortname.text
+        # shortname = identificationInfo.find(ns + "resourceShortName")
+        # resources[shortname.text] = resource
+        # resources[shortname.text]["id"] = shortname.text
+        # Use file ID for now because things break for parallel corpora otherwiese
+        fileid = filename.split(".")[0]
+        resources[fileid] = resource
+        resources[fileid]["id"] = fileid
 
         resource["type"] = type
 
