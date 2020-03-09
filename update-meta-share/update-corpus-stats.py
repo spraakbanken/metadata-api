@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+"""Update number of sentences and tokens in META-SHARE corpus files."""
 
 import sys
 import os
-from urllib import request
+from urllib import request, parse
 import json
 from lxml import etree
 
@@ -11,11 +11,13 @@ BASE_URL = "https://ws.spraakbanken.gu.se/ws/korp/v8"
 
 def get_corpus_info(corpora=None):
     if corpora:
-        url = BASE_URL + "/corpus_info?corpus=" + ",".join(c.upper() for c in corpora)
+        corpora = [c.upper() for c in corpora]
+        data = {"corpus": ",".join(corpora)}
+        req = request.Request(BASE_URL + "/corpus_info", parse.urlencode(data).encode("UTF-8"), method="POST")
     else:
-        url = BASE_URL + "/info"
+        req = request.Request(BASE_URL + "/info")
 
-    response = request.urlopen(url).read()
+    response = request.urlopen(req).read()
     response = json.loads(response)
     return response["corpora"]
 
