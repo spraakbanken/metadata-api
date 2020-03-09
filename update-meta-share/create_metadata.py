@@ -28,6 +28,8 @@ import codecs
 import subprocess
 from xml.etree import ElementTree as etree
 
+# Where to store the created meta-share files (relative from where this script is run)
+OUTPATH = "../meta-share/corpus/"
 
 def main(argv):
     """Wrapper"""
@@ -80,9 +82,10 @@ Make sure to have the correct iprHolder and metadataCreator in your templatefile
     for args, line in corpuslist:
         corpus = make_meta_xml(templatexml, args, line)
 
-        # update corpus_statistics
-        outxml = "../" + corpus + ".xml"
-        os.system("python update-corpus-stats.py " + outxml)
+        # Must convert this script to python 3 before this can work 
+        # # update corpus_statistics
+        # outxml = "../" + corpus + ".xml"
+        # os.system("python update-corpus-stats.py " + outxml)
 
 
 def parse_config(configfile):
@@ -99,7 +102,7 @@ def parse_config(configfile):
 
 def has_export(exportfile):
     """Check if an exportfile is installed on k2."""
-    lscommand = 'ssh k2.spraakdata.gu.se ls -l /export/htdocs_sb/resurser/meningsmangder/*.bz2'
+    lscommand = 'ssh k2.spraakdata.gu.se ls -l /var/www/html_sb/resurser/meningsmangder/*.bz2'
     process = subprocess.Popen(lscommand.split(), stdout=subprocess.PIPE)
     output = process.communicate()[0].split("\n")
     files = set([line.strip().rsplit(" ", 3)[-1].split("/")[-1] for line in output if line.strip()])
@@ -233,12 +236,12 @@ def make_meta_xml(templatexml, args, line):
 
     # write new xml
     if parallel == "e":
-        outxml = "../" + filename + ".xml"
+        outxml = OUTPATH + filename + ".xml"
         print "writing file", outxml
         xml.write(outxml, encoding="utf8")
         return filename
     else:
-        outxml = "../" + corpus + ".xml"
+        outxml = OUTPATH + corpus + ".xml"
         print "writing file", outxml
         xml.write(outxml, encoding="utf8")
         return corpus
