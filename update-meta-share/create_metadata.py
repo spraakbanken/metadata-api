@@ -82,14 +82,14 @@ Make sure to have the correct iprHolder and metadataCreator in your templatefile
     for args, line in corpuslist:
         corpus = make_meta_xml(templatexml, args, line)
 
-        # Must convert this script to python 3 before this can work 
+        # Must convert this script to python 3 before this can work
         # # update corpus_statistics
         # outxml = "../" + corpus + ".xml"
         # os.system("python update-corpus-stats.py " + outxml)
 
 
 def parse_config(configfile):
-    with codecs.open(configfile, "r", "utf8") as c:
+    with codecs.open(configfile, "r", "UTF-8") as c:
         for n, line in enumerate(c.readlines()):
             if line.strip() and not line.startswith("#"):
                 line = line.replace("\t", "  ")
@@ -238,12 +238,12 @@ def make_meta_xml(templatexml, args, line):
     if parallel == "e":
         outxml = OUTPATH + filename + ".xml"
         print "writing file", outxml
-        xml.write(outxml, encoding="utf8")
+        xml.write(outxml, encoding="UTF-8")
         return filename
     else:
         outxml = OUTPATH + corpus + ".xml"
         print "writing file", outxml
-        xml.write(outxml, encoding="utf8")
+        xml.write(outxml, encoding="UTF-8")
         return corpus
 
 
