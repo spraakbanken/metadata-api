@@ -207,6 +207,13 @@ def set_description_bool(resource, resource_texts):
             resource[i]["has_description"] = True
 
 
+def write_json(filename, data):
+    """Write as json to a temporary file, and afterwards move the file into place."""
+    with open(filename + ".new", "w") as f:
+        json.dump(data, f)
+    os.rename(filename + ".new", filename)
+
+
 if __name__ == '__main__':
 
     # Create static dir if it does not exist
@@ -224,13 +231,10 @@ if __name__ == '__main__':
 
     # Get resource texts and dump them as json
     resource_texts = read_resource_texts()
-    with open("metadata/static/resource-texts.json", "w") as f:
-        json.dump(resource_texts, f)
+    write_json("metadata/static/resource-texts.json", resource_texts)
 
     # Set has_description for every resource and save json
     set_description_bool(corpora, resource_texts)
-    with open("metadata/static/corpora.json", "w") as f:
-        json.dump(corpora, f)
+    write_json("metadata/static/corpora.json", corpora)
     set_description_bool(lexicons, resource_texts)
-    with open("metadata/static/lexicons.json", "w") as f:
-        json.dump(lexicons, f)
+    write_json("metadata/static/lexicons.json", lexicons)
