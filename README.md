@@ -39,9 +39,9 @@ Available API calls:
   The following cron jobs are run on bark:
   ```
   # Fetch meta share from SVN
-  0 * * * * cd /home/fksparv/sb-metadata/meta-share/corpus && svn update > /dev/null
-  0 * * * * cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update > /dev/null
-  0 * * * * cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update > /dev/null
+  50 * * * * cd /home/fksparv/sb-metadata/meta-share/corpus && svn update > /dev/null
+  50 * * * * cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update > /dev/null
+  50 * * * * cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update > /dev/null
 
   # Parse meta share to json
   55 * * * * cd /home/fksparv/sb-metadata && source venv/bin/activate && python parse_metashare.py
