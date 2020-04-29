@@ -36,6 +36,7 @@ Available API calls:
 
 - Set up cron job that periodically updates the META-SHARE files and resource descriptions from SVN.
   Also run python script for parsing these files.
+  The following cron jobs are run on bark:
   ```
   # Fetch meta share from SVN
   0 * * * * cd /home/fksparv/sb-metadata/meta-share/corpus && svn update > /dev/null
@@ -43,7 +44,7 @@ Available API calls:
   0 * * * * cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update > /dev/null
 
   # Parse meta share to json
-  5 * * * * cd /home/fksparv/sb-metadata && source venv/bin/activate && python parse_metashare.py
+  55 * * * * cd /home/fksparv/sb-metadata && source venv/bin/activate && python parse_metashare.py
   ```
 
 ## Additional information

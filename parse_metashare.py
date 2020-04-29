@@ -2,7 +2,6 @@
 
 import json
 import os
-import time
 from xml.etree import ElementTree as etree
 
 from translate_lang import translate
