@@ -1,10 +1,12 @@
 """Collection of routes."""
 
-import os
-import locale
-
-from flask import current_app, jsonify, Blueprint, request
 import json
+import locale
+import os
+
+from flask import Blueprint, current_app, jsonify, request
+
+from .blacklist import BLACKLIST
 
 general = Blueprint("general", __name__)
 locale.setlocale(locale.LC_ALL, "sv_SE.utf8")
@@ -15,6 +17,10 @@ def metadata():
     """Return corpus and lexicon meta data as a JSON object."""
     corpora = read_static_json(current_app.config.get("CORPORA_FILE"))
     lexicons = read_static_json(current_app.config.get("LEXICONS_FILE"))
+
+    # Remove black-listed items
+    corpora = dict((k, v) for k, v in corpora.items() if k not in BLACKLIST["corpora"])
+    lexicons = dict((k, v) for k, v in lexicons.items() if k not in BLACKLIST["lexicons"])
 
     resource = request.args.get("resource")
     if resource:
