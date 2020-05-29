@@ -44,10 +44,11 @@ Available API calls:
   50 * * * * cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update > /dev/null
 
   # Parse meta share to json
-  55 * * * * cd /home/fksparv/sb-metadata && source venv/bin/activate && python parse_metashare.py
+  55 * * * * cd /home/fksparv/sb-metadata/parse && source ../venv/bin/activate && python parse_metashare.py > /dev/null
   ```
 
-## Additional information
+
+## Resource texts (long resource descriptions)
 
 Some resources have long descriptions that cannot be stored in the META-SHARE xml files.
 These descriptions are stored as html files in SVN (https://svn.spraakdata.gu.se/sb-arkiv/pub/resurstext).
@@ -59,3 +60,8 @@ a new entry must be added in `resource_text_mapping.py` before the description i
 
 Please note that the mapping given in `resource_text_mapping.py` has precedence over existing files following the naming convention
 (i.e. if there is an entry `my-resource` in `resource_text_mapping.py` then the description `my-resource_eng.html` will not be considered).
+
+
+## Blacklisted resources
+
+Some resources need to have META-SHARE files for technical reasons (e.g. because they are neede in the wsauth system), but we may not want to show them publicly in the API. For this purpose one can add resource IDs to the lists in `parse/blacklist.py`.

@@ -18,10 +18,6 @@ def metadata():
     corpora = read_static_json(current_app.config.get("CORPORA_FILE"))
     lexicons = read_static_json(current_app.config.get("LEXICONS_FILE"))
 
-    # Remove black-listed items
-    corpora = dict((k, v) for k, v in corpora.items() if k not in BLACKLIST["corpora"])
-    lexicons = dict((k, v) for k, v in lexicons.items() if k not in BLACKLIST["lexicons"])
-
     resource = request.args.get("resource")
     if resource:
         return get_single_resource(resource, corpora, lexicons)

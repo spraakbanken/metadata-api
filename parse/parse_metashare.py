@@ -4,17 +4,25 @@ import json
 import os
 from xml.etree import ElementTree as etree
 
-from translate_lang import translate
+from blacklist import BLACKLIST
 from resource_text_mapping import resource_mappings
+from translate_lang import translate
 
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
-STATIC_DIR = "metadata/static"
+STATIC_DIR = "../metadata/static"
+IN_RESOURCE_TEXTS = "../meta-share/resource-texts"
+IN_CORPUS = "../meta-share/corpus"
+IN_LEXICON = "../meta-share/lexicon"
+OUT_RESOURCE_TEXTS = "../metadata/static/resource-texts.json"
+OUT_CORPUS = "../metadata/static/corpora.json"
+OUT_LEXICON = "../metadata/static/lexicons.json"
+
 METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
 METASHARE_LICENCE = "CC-BY"
 METASHARE_RESTRICTION = "attribution"
 
 
-def parse_metashare(directory, type=None):
+def parse_metashare(directory, type_=None):
     """Parse the meta share files and return as JSON object."""
     resources = {}
 
@@ -45,10 +53,16 @@ def parse_metashare(directory, type=None):
         # resources[shortname.text]["id"] = shortname.text
         # Use file ID for now because things break for parallel corpora otherwiese
         fileid = filename.split(".")[0]
+
+        # Skip if item is blacklisted
+        if fileid in BLACKLIST[type_]:
+            print("Skipping black-listed resource", fileid)
+            continue
+
         resources[fileid] = resource
         resources[fileid]["id"] = fileid
 
-        resource["type"] = type
+        resource["type"] = type_
 
         # Get language
         lang = xml.findall(".//" + ns + "languageInfo")
@@ -106,7 +120,7 @@ def parse_metashare(directory, type=None):
         metashare = {
             "licence": METASHARE_LICENCE,
             "restriction": METASHARE_RESTRICTION,
-            "download": METASHAREURL + type + "/" + filename,
+            "download": METASHAREURL + type_ + "/" + filename,
             "type": "metadata",
             "format": "METASHARE"
         }
@@ -148,7 +162,7 @@ def get_download_type(download_path):
         return "other", None
 
 
-def read_resource_texts(directory="meta-share/resource-texts"):
+def read_resource_texts(directory=IN_RESOURCE_TEXTS):
     """Read all resource texts into a dictionary."""
     resource_texts = {}
     for res_id, res in resource_mappings.items():
@@ -174,7 +188,7 @@ def read_resource_texts(directory="meta-share/resource-texts"):
     return resource_texts
 
 
-def get_resource_texts_files(directory="meta-share/resource-texts"):
+def get_resource_texts_files(directory=IN_RESOURCE_TEXTS):
     """Get list of resource text files."""
     resource_text_files = set()
     for filename in sorted(os.listdir(directory)):
@@ -220,8 +234,8 @@ if __name__ == '__main__':
         os.makedirs(STATIC_DIR)
 
     # Get corpora and lexicons from metashare
-    corpora = parse_metashare("meta-share/corpus", type="corpus")
-    lexicons = parse_metashare("meta-share/lexicon", type="lexicon")
+    corpora = parse_metashare(IN_CORPUS, type_="corpus")
+    lexicons = parse_metashare(IN_LEXICON, type_="lexicon")
 
     # Extend resource-text-mapping
     resource_ids = list(corpora.keys())
@@ -230,10 +244,10 @@ if __name__ == '__main__':
 
     # Get resource texts and dump them as json
     resource_texts = read_resource_texts()
-    write_json("metadata/static/resource-texts.json", resource_texts)
+    write_json(OUT_RESOURCE_TEXTS, resource_texts)
 
     # Set has_description for every resource and save json
     set_description_bool(corpora, resource_texts)
-    write_json("metadata/static/corpora.json", corpora)
+    write_json(OUT_CORPUS, corpora)
     set_description_bool(lexicons, resource_texts)
-    write_json("metadata/static/lexicons.json", lexicons)
+    write_json(OUT_LEXICON, lexicons)
