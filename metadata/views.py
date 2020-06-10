@@ -6,8 +6,6 @@ import os
 
 from flask import Blueprint, current_app, jsonify, request
 
-from .blacklist import BLACKLIST
-
 general = Blueprint("general", __name__)
 locale.setlocale(locale.LC_ALL, "sv_SE.utf8")
 

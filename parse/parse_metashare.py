@@ -5,6 +5,7 @@ import os
 from xml.etree import ElementTree as etree
 
 from blacklist import BLACKLIST
+from trainingdata import TRAININGDATA
 from resource_text_mapping import resource_mappings
 from translate_lang import translate
 
@@ -63,6 +64,12 @@ def parse_metashare(directory, type_=None):
         resources[fileid]["id"] = fileid
 
         resource["type"] = type_
+
+        # Add info on whether resource is marked as training data
+        if fileid in TRAININGDATA[type_]:
+            resource["trainingdata"] = True
+        else:
+            resource["trainingdata"] = False
 
         # Get language
         lang = xml.findall(".//" + ns + "languageInfo")
