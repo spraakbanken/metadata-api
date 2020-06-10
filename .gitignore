@@ -3,6 +3,7 @@ meta-share
 metadata/static/corpora.json
 metadata/static/lexicons.json
 metadata/static/resource-texts.json
+.svn/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
