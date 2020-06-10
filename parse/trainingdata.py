@@ -3,12 +3,14 @@
 TRAININGDATA = {
     "corpus": [
         "eukalyptus",
+        "semeval2020",
         "suc2",
         "suc3",
-        "semeval2020",
         "sv-treebank",
         "swe-absa-bank",
-        "syntag"
+        "syntag",
+        "talbanken",
+        "talbanken-stb",
     ],
     "lexicon": []
 }
