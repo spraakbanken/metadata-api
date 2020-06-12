@@ -2,6 +2,7 @@
 
 TRAININGDATA = {
     "corpus": [
+        "dalin-then-swaanska-argus-1732-1734",
         "eukalyptus",
         "semeval2020",
         "suc2",
