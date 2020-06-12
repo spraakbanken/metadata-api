@@ -5,6 +5,7 @@ TRAININGDATA = {
         "dalin-then-swaanska-argus-1732-1734",
         "eukalyptus",
         "semeval2020",
+        "sic2",
         "suc2",
         "suc3",
         "sv-treebank",
