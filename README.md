@@ -34,17 +34,15 @@ Available API calls:
   command=%(ENV_HOME)s/sb-metadata/venv/bin/gunicorn --chdir %(ENV_HOME)s/sb-metadata -b "0.0.0.0:1337" metadata:create_app()
   ```
 
-- Set up cron job that periodically updates the META-SHARE files and resource descriptions from SVN.
-  Also run python script for parsing these files.
-  The following cron jobs are run on bark:
-  ```
-  # Fetch meta share from SVN
-  50 * * * * cd /home/fksparv/sb-metadata/meta-share/corpus && svn update > /dev/null
-  50 * * * * cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update > /dev/null
-  50 * * * * cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update > /dev/null
+- Set up cron job that periodically runs the update script which 
+  - updates the META-SHARE files and resource descriptions from SVN
+  - runs the python script for parsing these files
+  - updates the repository from GitHub and restarts the service if needed
 
-  # Parse meta share to json
-  55 * * * * cd /home/fksparv/sb-metadata/parse && source ../venv/bin/activate && python parse_metashare.py > /dev/null
+  The following cron job is run on bark:
+  ```
+  # Update sb-metadata from SVN and GitHub and restart if needed
+  50 * * * * /usr/bin /home/fksparv/sb-metadata/update-sb-metadata.sh > /dev/null
   ```
 
 
