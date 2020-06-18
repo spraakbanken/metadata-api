@@ -1,5 +1,5 @@
 # sb-metadata
-REST-API that serves meta data for SB's corpora and lexicons
+REST-API that serves meta data for SB's corpora, lexicons and models
 
 ## Requirements
 
@@ -9,7 +9,7 @@ REST-API that serves meta data for SB's corpora and lexicons
 
 Available API calls:
 
-- `https://ws.spraakbanken.gu.se/ws/metadata`: List all resources in two dictionaries (`corpora` and `lexicons`)
+- `https://ws.spraakbanken.gu.se/ws/metadata`: List all resources in three dictionaries (`corpora`, `lexicons`, and `models`)
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
 - `https://ws.spraakbanken.gu.se/ws/metadata?has-description=true`: List only resources that have a long description
 - `https://ws.spraakbanken.gu.se/ws/metadata/doc`: Serve API documentation as YAML
@@ -42,7 +42,7 @@ Available API calls:
   The following cron job is run on bark:
   ```
   # Update sb-metadata from SVN and GitHub and restart if needed
-  50 * * * * /usr/bin /home/fksparv/sb-metadata/update-sb-metadata.sh > /dev/null
+  50 * * * * /home/fksparv/sb-metadata/update-sb-metadata.sh > /dev/null
   ```
 
 

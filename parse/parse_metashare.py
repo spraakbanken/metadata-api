@@ -12,15 +12,47 @@ from translate_lang import translate
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
 STATIC_DIR = "../metadata/static"
 IN_RESOURCE_TEXTS = "../meta-share/resource-texts"
-IN_CORPUS = "../meta-share/corpus"
-IN_LEXICON = "../meta-share/lexicon"
 OUT_RESOURCE_TEXTS = "../metadata/static/resource-texts.json"
-OUT_CORPUS = "../metadata/static/corpora.json"
-OUT_LEXICON = "../metadata/static/lexicons.json"
+
+IO_RESOURCES = {
+    "corpus": ("../meta-share/corpus", "../metadata/static/corpora.json"),
+    "lexicon": ("../meta-share/lexicon", "../metadata/static/lexicons.json"),
+    "model": ("../meta-share/model", "../metadata/static/models.json"),
+}
 
 METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
 METASHARE_LICENCE = "CC-BY"
 METASHARE_RESTRICTION = "attribution"
+
+
+def main(resource_types=["corpus", "lexicon", "model"]):
+    """Parse Meta Share files and store info as json (main wrapper)."""
+    # Create static dir if it does not exist
+    if not os.path.isdir(STATIC_DIR):
+        os.makedirs(STATIC_DIR)
+
+    resource_ids = []
+    all_resources = {}
+
+    for resource_type in resource_types:
+        # Get resources from metashare
+        resources = parse_metashare(IO_RESOURCES.get(resource_type)[0], type_=resource_type)
+        all_resources[resource_type] = resources
+
+        # Get resource-text-mapping
+        resource_ids.extend(list(resources.keys()))
+
+    # Extend resource-text-mapping
+    extend_resource_text_mapping(resource_ids)
+
+    # Get resource texts and dump them as json
+    resource_texts = read_resource_texts()
+    write_json(OUT_RESOURCE_TEXTS, resource_texts)
+
+    # Set has_description for every resource and save as json
+    for resource_type in resource_types:
+        set_description_bool(all_resources[resource_type], resource_texts)
+        write_json(IO_RESOURCES.get(resource_type)[1], all_resources[resource_type])
 
 
 def parse_metashare(directory, type_=None):
@@ -219,12 +251,12 @@ def extend_resource_text_mapping(resource_ids):
                 resource_mappings[i] = new_dict
 
 
-def set_description_bool(resource, resource_texts):
+def set_description_bool(resources, resource_texts):
     """Add bool 'has_description' for every resource."""
-    for i in resource:
-        resource[i]["has_description"] = False
+    for i in resources:
+        resources[i]["has_description"] = False
         if resource_texts.get(i):
-            resource[i]["has_description"] = True
+            resources[i]["has_description"] = True
 
 
 def write_json(filename, data):
@@ -235,26 +267,4 @@ def write_json(filename, data):
 
 
 if __name__ == '__main__':
-
-    # Create static dir if it does not exist
-    if not os.path.isdir(STATIC_DIR):
-        os.makedirs(STATIC_DIR)
-
-    # Get corpora and lexicons from metashare
-    corpora = parse_metashare(IN_CORPUS, type_="corpus")
-    lexicons = parse_metashare(IN_LEXICON, type_="lexicon")
-
-    # Extend resource-text-mapping
-    resource_ids = list(corpora.keys())
-    resource_ids.extend(lexicons.keys())
-    extend_resource_text_mapping(resource_ids)
-
-    # Get resource texts and dump them as json
-    resource_texts = read_resource_texts()
-    write_json(OUT_RESOURCE_TEXTS, resource_texts)
-
-    # Set has_description for every resource and save json
-    set_description_bool(corpora, resource_texts)
-    write_json(OUT_CORPUS, corpora)
-    set_description_bool(lexicons, resource_texts)
-    write_json(OUT_LEXICON, lexicons)
+    main()

@@ -16,5 +16,6 @@ TRAININGDATA = {
         "talbanken",
         "talbanken-stb",
     ],
-    "lexicon": []
+    "lexicon": [],
+    "model": [],
 }

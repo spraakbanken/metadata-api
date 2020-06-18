@@ -15,18 +15,21 @@ def metadata():
     """Return corpus and lexicon meta data as a JSON object."""
     corpora = read_static_json(current_app.config.get("CORPORA_FILE"))
     lexicons = read_static_json(current_app.config.get("LEXICONS_FILE"))
+    models = read_static_json(current_app.config.get("MODELS_FILE"))
 
     resource = request.args.get("resource")
     if resource:
-        return get_single_resource(resource, corpora, lexicons)
+        return get_single_resource(resource, corpora, lexicons, models)
 
-    metadata = {"corpora": dict_to_list(corpora), "lexicons": dict_to_list(lexicons)}
+    metadata = {"corpora": dict_to_list(corpora), "lexicons": dict_to_list(lexicons),
+                "models": dict_to_list(models)}
 
     has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
     if has_description:
         metadata = {
             "corpora": [c for c in metadata["corpora"] if c["has_description"]],
-            "lexicons": [c for c in metadata["lexicons"] if c["has_description"]]
+            "lexicons": [c for c in metadata["lexicons"] if c["has_description"]],
+            "models": [c for c in metadata["models"] if c["has_description"]]
         }
 
     return jsonify(metadata)
@@ -38,7 +41,7 @@ def documentation():
     return current_app.send_static_file('apidoc.yaml')
 
 
-def get_single_resource(resource_id, corpora, lexicons):
+def get_single_resource(resource_id, corpora, lexicons, models):
     """Get lexicon or corpus from resource dictionaries and add resource text (if available)."""
     resource_texts = read_static_json(current_app.config.get("RESOURCE_TEXTS_FILE"))
     long_description = resource_texts.get(resource_id, {})
@@ -49,6 +52,10 @@ def get_single_resource(resource_id, corpora, lexicons):
         resource["long_description_en"] = long_description.get("en", "")
     elif lexicons.get(resource_id):
         resource = lexicons[resource_id]
+        resource["long_description_sv"] = long_description.get("sv", "")
+        resource["long_description_en"] = long_description.get("en", "")
+    elif models.get(resource_id):
+        resource = models[resource_id]
         resource["long_description_sv"] = long_description.get("sv", "")
         resource["long_description_en"] = long_description.get("en", "")
     else:

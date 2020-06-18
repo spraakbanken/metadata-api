@@ -10,6 +10,7 @@ date >> $LOGFILE
 echo ">>> Update metadata from SVN" >> $LOGFILE
 cd /home/fksparv/sb-metadata/meta-share/corpus && svn update
 cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update
+cd /home/fksparv/sb-metadata/meta-share/model && svn update
 cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update
 echo ">>> Parsing meta data" >> $LOGFILE
 cd /home/fksparv/sb-metadata

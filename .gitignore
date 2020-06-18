@@ -2,8 +2,11 @@
 meta-share
 metadata/static/corpora.json
 metadata/static/lexicons.json
+metadata/static/models.json
 metadata/static/resource-texts.json
 .svn/
+
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
