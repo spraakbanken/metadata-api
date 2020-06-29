@@ -12,12 +12,6 @@ cd /home/fksparv/sb-metadata/meta-share/corpus && svn update
 cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update
 cd /home/fksparv/sb-metadata/meta-share/model && svn update
 cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update
-echo ">>> Parsing meta data" >> $LOGFILE
-cd /home/fksparv/sb-metadata
-source venv/bin/activate
-cd parse
-python parse_metashare.py >> $LOGFILE
-deactivate
 
 cd /home/fksparv/sb-metadata
 git_output=`git pull`
@@ -27,3 +21,10 @@ if [[ "$git_output" != *"Already"* ]]; then
   supervisorctl -c ~/fksparv.conf restart metadata
   echo ">>> Done" >> $LOGFILE
 fi
+
+echo ">>> Parsing meta data" >> $LOGFILE
+cd /home/fksparv/sb-metadata
+source venv/bin/activate
+cd parse
+python parse_metashare.py >> $LOGFILE
+deactivate
