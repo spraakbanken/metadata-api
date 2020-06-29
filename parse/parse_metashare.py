@@ -104,7 +104,10 @@ def parse_metashare(directory, type_=None):
             resource["trainingdata"] = False
 
         # Get language
-        lang = xml.findall(".//" + ns + "languageInfo")
+        if type_ == "model":
+            lang = xml.findall(".//" + ns + "inputInfo")
+        else:
+            lang = xml.findall(".//" + ns + "languageInfo")
         resource["lang"] = []
         for i in lang:
             lang_dict = {}
