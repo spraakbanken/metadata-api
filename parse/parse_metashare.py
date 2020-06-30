@@ -243,13 +243,20 @@ def extend_resource_text_mapping(resource_ids):
     resource_text_files = get_resource_texts_files()
     for i in resource_ids:
         if i not in resource_mappings:
+            name_neutral = i + ".html"
             name_sv = i + "_swe.html"
             name_en = i + "_eng.html"
             new_dict = {}
             if name_sv in resource_text_files:
                 new_dict["sv"] = [name_sv]
+            elif name_neutral in resource_text_files:
+                new_dict["sv"] = [name_neutral]
+
             if name_en in resource_text_files:
                 new_dict["en"] = [name_en]
+            elif name_neutral in resource_text_files:
+                new_dict["en"] = [name_neutral]
+
             if new_dict:
                 resource_mappings[i] = new_dict
 
