@@ -66,7 +66,7 @@ paths:
                     description: List of all models
                     items:
                       $ref: '#/components/schemas/resource'
-    /renew-cache:
+  /renew-cache:
     get:
       summary: Renew cache
       description: Flush the cache and re-read all json files.
