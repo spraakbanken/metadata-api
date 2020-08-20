@@ -28,3 +28,5 @@ source venv/bin/activate
 cd parse
 python parse_metashare.py >> $LOGFILE
 deactivate
+echo ">>> Flush cache" >> $LOGFILE
+curl 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache'

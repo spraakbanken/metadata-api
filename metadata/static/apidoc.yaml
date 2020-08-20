@@ -61,6 +61,32 @@ paths:
                     description: List of all lexicons
                     items:
                       $ref: '#/components/schemas/resource'
+                  models:
+                    type: array
+                    description: List of all models
+                    items:
+                      $ref: '#/components/schemas/resource'
+    /renew-cache:
+    get:
+      summary: Renew cache
+      description: Flush the cache and re-read all json files.
+      tags:
+        - General
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cache_renewed:
+                    type: boolean
+                    description: States whether the cache renewal was successful
+                  error:
+                    type: string
+                    description: The Python error message
+                    default: null
 
 components:
   schemas:
