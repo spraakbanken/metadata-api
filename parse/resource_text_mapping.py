@@ -49,7 +49,6 @@ resource_mappings = {
     "hbl1999": {"sv": ["fisk.html", "fisk-hufvudstadsbladet.html"]},
     "hbl20122013": {"sv": ["fisk.html", "fisk-hufvudstadsbladet.html"]},
     "informationstidningar": {"sv": ["fisk.html", "fisk-informationstidningar.html"]},
-    "interfra": {"sv": ["interfra.html"]},
     "jakobstadstidning1999": {"sv": ["fisk.html", "fisk-jakobstadstidning.html"]},
     "jakobstadstidning2000": {"sv": ["fisk.html", "fisk-jakobstadstidning.html"]},
     "jft": {"sv": ["fisk.html", "fisk-jft.html"]},
