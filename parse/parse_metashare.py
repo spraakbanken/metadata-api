@@ -15,9 +15,9 @@ IN_RESOURCE_TEXTS = "../meta-share/resource-texts"
 OUT_RESOURCE_TEXTS = "../metadata/static/resource-texts.json"
 
 IO_RESOURCES = {
-    "corpus": ("../meta-share/corpus", "../metadata/static/corpora.json"),
-    "lexicon": ("../meta-share/lexicon", "../metadata/static/lexicons.json"),
-    "model": ("../meta-share/model", "../metadata/static/models.json"),
+    "corpus": ("../json/corpus", "../meta-share/corpus", "../metadata/static/corpora.json"),
+    "lexicon": ("../json/lexicon", "../meta-share/lexicon", "../metadata/static/lexicons.json"),
+    "model": ("../json/model", "../meta-share/model", "../metadata/static/models.json"),
 }
 
 METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
@@ -35,12 +35,13 @@ def main(resource_types=["corpus", "lexicon", "model"]):
     all_resources = {}
 
     for resource_type in resource_types:
-        # Get resources from metashare
-        resources = parse_metashare(IO_RESOURCES.get(resource_type)[0], type_=resource_type)
-        all_resources[resource_type] = resources
+        # Get resources from json and complete from metashare
+        json_resources = get_json(IO_RESOURCES.get(resource_type)[0], type_=resource_type)
+        json_resources.update(parse_metashare(IO_RESOURCES.get(resource_type)[1], json_resources, type_=resource_type))
+        all_resources[resource_type] = json_resources
 
         # Get resource-text-mapping
-        resource_ids.extend(list(resources.keys()))
+        resource_ids.extend(list(json_resources.keys()))
 
     # Extend resource-text-mapping
     extend_resource_text_mapping(resource_ids)
@@ -52,15 +53,38 @@ def main(resource_types=["corpus", "lexicon", "model"]):
     # Set has_description for every resource and save as json
     for resource_type in resource_types:
         set_description_bool(all_resources[resource_type], resource_texts)
-        write_json(IO_RESOURCES.get(resource_type)[1], all_resources[resource_type])
+        write_json(IO_RESOURCES.get(resource_type)[2], all_resources[resource_type])
 
 
-def parse_metashare(directory, type_=None):
+def get_json(directory, type_=None):
+    """Gather all json resource files of one type."""
+    resources = {}
+
+    for filename in os.listdir(directory):
+        if not filename.endswith(".json"):
+            continue
+
+        path = os.path.join(directory, filename)
+        with open(path) as f:
+            res = json.load(f)
+            fileid = filename.split(".")[0]
+            resources[fileid] = res
+    return resources
+
+
+def parse_metashare(directory, json_resources, type_=None):
     """Parse the meta share files and return as JSON object."""
     resources = {}
 
     for filename in os.listdir(directory):
         if not filename.endswith(".xml"):
+            continue
+
+        # Use file ID (instead of resource ID in META-SHARE) because things break for parallel corpora otherwise
+        fileid = filename.split(".")[0]
+
+        if fileid in json_resources:
+            print("Skipping META-SHARE for resource {}. Found JSON instead!".format(fileid))
             continue
 
         path = os.path.join(directory, filename)
@@ -84,8 +108,6 @@ def parse_metashare(directory, type_=None):
         # shortname = identificationInfo.find(ns + "resourceShortName")
         # resources[shortname.text] = resource
         # resources[shortname.text]["id"] = shortname.text
-        # Use file ID for now because things break for parallel corpora otherwiese
-        fileid = filename.split(".")[0]
 
         # Skip if item is blacklisted
         if fileid in BLACKLIST[type_]:

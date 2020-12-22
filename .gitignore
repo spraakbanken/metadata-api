@@ -1,13 +1,16 @@
-# Static files and meta data
+# Static files and metadata
 meta-share
 metadata/static/corpora.json
 metadata/static/lexicons.json
 metadata/static/models.json
 metadata/static/resource-texts.json
+json
 .svn/
-
-.vscode
+config.sh
 list-resources
+
+# Editors
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

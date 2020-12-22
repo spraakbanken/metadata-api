@@ -30,6 +30,12 @@ Available API calls:
    ./get_metadata.sh
   ```
 
+- Setup SVN user:
+  ```
+  cp config_default.sh config.sh
+  ```
+  Fill in `SVN_USER` and `SVN_PWD` in `config.sh`.
+
 - Add entry in supervisord config:
   ```
   [program:metadata]
