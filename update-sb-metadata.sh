@@ -10,13 +10,13 @@ source config.sh
 echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
 echo ">>> Update metadata from SVN" >> $LOGFILE
-cd /home/fksparv/sb-metadata/meta-share/corpus && svn update && svn add * && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
-cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update #&& svn add * && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
-cd /home/fksparv/sb-metadata/meta-share/model && svn update #&& svn add * && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
+cd /home/fksparv/sb-metadata/meta-share/corpus && svn update && svn add --force . && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
+cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update #&& svn add --force . && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
+cd /home/fksparv/sb-metadata/meta-share/model && svn update #&& svn add --force . && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
 cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update
-cd /home/fksparv/sb-metadata/json/corpus && svn update && svn add * && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
-cd /home/fksparv/sb-metadata/json/lexicon && svn update #&& svn add * && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
-cd /home/fksparv/sb-metadata/json/model && svn update #&& svn add * && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
+cd /home/fksparv/sb-metadata/json/corpus && svn update && svn add --force . && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
+cd /home/fksparv/sb-metadata/json/lexicon && svn update #&& svn add --force . && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
+cd /home/fksparv/sb-metadata/json/model && svn update #&& svn add --force . && svn ci -m "cron update" --username $SVN_USER --password $SVN_PWD
 
 cd /home/fksparv/sb-metadata
 git_output=`git pull`

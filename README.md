@@ -50,7 +50,7 @@ Available API calls:
   The following cron job is run on bark:
   ```
   # Update sb-metadata from SVN and GitHub and restart if needed
-  50 * * * * /home/fksparv/sb-metadata/update-sb-metadata.sh > /dev/null
+  50 * * * * cd /home/fksparv/sb-metadata && ./update-sb-metadata.sh > /dev/null
   ```
 
 
