@@ -13,6 +13,7 @@ TRAININGDATA = {
         "svensk-fraktur-1626-1816",
         "svenska-tidningar-1818-1870",
         "swe-absa-bank",
+        "swedishglue",
         "syntag",
         "talbanken",
         "talbanken-stb",
