@@ -5,6 +5,7 @@ TRAININGDATA = {
         "absabank-imm",
         "dalin-then-swaanska-argus-1732-1734",
         "eukalyptus",
+        "faq",
         "semeval2020",
         "sic2",
         "suc2",
