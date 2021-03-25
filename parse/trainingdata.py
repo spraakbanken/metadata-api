@@ -10,6 +10,7 @@ TRAININGDATA = {
         "sic2",
         "suc2",
         "suc3",
+        "superlim-diagnostic",
         "sv-treebank",
         "svensk-fraktur-1626-1816",
         "svenska-tidningar-1818-1870",
