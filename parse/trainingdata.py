@@ -16,6 +16,7 @@ TRAININGDATA = {
         "svenska-tidningar-1818-1870",
         "swe-absa-bank",
         "swedishglue",
+        "swewinogender",
         "syntag",
         "talbanken",
         "talbanken-stb",
