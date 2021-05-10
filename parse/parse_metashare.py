@@ -165,6 +165,8 @@ def parse_metashare(directory, json_resources, type_=None):
                 distro = {}
                 resource["downloads"].append(distro)
                 distro["licence"] = i.find(ns + "licence").text
+                if i.find(ns + "version") is not None:
+                    distro["licence"] += ' ' + i.find(ns + "version").text
                 distro["restriction"] = i.find(ns + "restrictionsOfUse").text
                 distro["download"] = i.find(ns + "downloadLocation").text
                 if i.find(ns + "attributionText") is not None:
