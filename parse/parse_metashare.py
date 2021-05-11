@@ -6,6 +6,7 @@ from xml.etree import ElementTree as etree
 
 from blacklist import BLACKLIST
 from trainingdata import TRAININGDATA
+from licence import licence_name, licence_url
 from resource_text_mapping import resource_mappings
 from translate_lang import translate
 
@@ -161,30 +162,34 @@ def parse_metashare(directory, json_resources, type_=None):
         resource["downloads"] = []
         resource["interface"] = []
         for i in distributionInfo.findall(ns + "licenceInfo"):
+            distro = {}
+            licence_el = i.find(ns + "licence")
+            if licence_el is not None:
+                distro["licence"] = licence_name(licence_el.text)
+                version_el = i.find(ns + "version")
+                if version_el is not None:
+                    distro["licence"] += ' ' + version_el.text
+                if licence_url(licence_el.text):
+                    distro["licence_url"] = licence_url(licence_el.text)
+            distro["restriction"] = i.find(ns + "restrictionsOfUse").text
+            if i.find(ns + "attributionText") is not None:
+                distro["info"] = i.find(ns + "attributionText").text
+
             if i.find(ns + "downloadLocation") is not None:
-                distro = {}
                 resource["downloads"].append(distro)
-                distro["licence"] = i.find(ns + "licence").text
-                if i.find(ns + "version") is not None:
-                    distro["licence"] += ' ' + i.find(ns + "version").text
-                distro["restriction"] = i.find(ns + "restrictionsOfUse").text
                 distro["download"] = i.find(ns + "downloadLocation").text
-                if i.find(ns + "attributionText") is not None:
-                    distro["info"] = i.find(ns + "attributionText").text
                 if i.find(ns + "downloadLocation").text:
                     download_type, format = get_download_type(i.find(ns + "downloadLocation").text)
                     distro["type"] = download_type
                     distro["format"] = format
+
             if i.find(ns + "executionLocation") is not None:
-                distro = {}
                 resource["interface"].append(distro)
-                distro["licence"] = i.find(ns + "licence").text
-                distro["restriction"] = i.find(ns + "restrictionsOfUse").text
                 distro["access"] = i.find(ns + "executionLocation").text
 
         # Add location of meta data file
         metashare = {
-            "licence": METASHARE_LICENCE,
+            "licence": licence_name(METASHARE_LICENCE),
             "restriction": METASHARE_RESTRICTION,
             "download": METASHAREURL + type_ + "/" + filename,
             "type": "metadata",
