@@ -2,32 +2,35 @@
 
 set +x
 
-mkdir -p /home/fksparv/sb-metadata/logs
+# Make logdir and define logfile
+mkdir -p /home/fksbwww/sb-metadata/logs
+LOGFILE=/home/fksbwww/sb-metadata/logs/update.log
 
-LOGFILE=/home/fksparv/sb-metadata/logs/update.log
-
+# Fetch updates in metadata files from SVN
 echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
 echo ">>> Update metadata from SVN" >> $LOGFILE
-cd /home/fksparv/sb-metadata/meta-share/corpus && svn update 
-cd /home/fksparv/sb-metadata/meta-share/lexicon && svn update
-cd /home/fksparv/sb-metadata/meta-share/model && svn update
-cd /home/fksparv/sb-metadata/meta-share/resource-texts && svn update
-cd /home/fksparv/sb-metadata/json/corpus && svn update
-cd /home/fksparv/sb-metadata/json/lexicon && svn update
-cd /home/fksparv/sb-metadata/json/model && svn update
+cd /home/fksbwww/sb-metadata/meta-share/corpus && svn update
+cd /home/fksbwww/sb-metadata/meta-share/lexicon && svn update
+cd /home/fksbwww/sb-metadata/meta-share/model && svn update
+cd /home/fksbwww/sb-metadata/meta-share/resource-texts && svn update
+cd /home/fksbwww/sb-metadata/json/corpus && svn update
+cd /home/fksbwww/sb-metadata/json/lexicon && svn update
+cd /home/fksbwww/sb-metadata/json/model && svn update
 
-cd /home/fksparv/sb-metadata
+# Fetch application updates from GitHub and restart if necessary
+cd /home/fksbwww/sb-metadata
 git_output=`git pull`
 echo -e ">>> Result of 'git pull': $git_output" >> $LOGFILE
 if [[ "$git_output" != *"Already"* ]]; then
   echo ">>> Restart sb-metadata" >> $LOGFILE
-  supervisorctl -c ~/fksparv.conf restart metadata
+  supervisorctl -c ~/fksbwww.conf restart metadata
   echo ">>> Done" >> $LOGFILE
 fi
 
+# Parse metadata files and flush cache
 echo ">>> Parsing meta data" >> $LOGFILE
-cd /home/fksparv/sb-metadata
+cd /home/fksbwww/sb-metadata
 source venv/bin/activate
 cd parse
 python parse_metashare.py >> $LOGFILE

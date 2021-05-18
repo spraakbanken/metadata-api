@@ -41,10 +41,10 @@ Available API calls:
   - runs the python script for parsing these files
   - updates the repository from GitHub and restarts the service if needed
 
-  The following cron job is run on bark:
+  The following cron job is run on fksbwww@k2:
   ```
   # Update sb-metadata from SVN and GitHub and restart if needed
-  50 * * * * cd /home/fksparv/sb-metadata && ./update-sb-metadata.sh > /dev/null
+  50 * * * * cd /home/fksbwww/sb-metadata && ./update-sb-metadata.sh > /dev/null
   ```
 
 

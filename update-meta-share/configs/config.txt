@@ -1,6 +1,0 @@
-# TAB- (or at least double whitespace) separated table with corpus information to be used with script "create_metadata.py"
-# corpus            name_en          name_sv        mode       description_en                                           						description_sv
-
-twitter-2015    Swedish Twitter 2015     Svensk Twitter 2015     modern      Material collected from a selection of Swedish speaking twitter users from 2015     Material från ett urval av svenskspråkiga Twitteranvändare från 2015         
-twitter-2016    Swedish Twitter 2016     Svensk Twitter 2016     modern      Material collected from a selection of Swedish speaking twitter users from 2016     Material från ett urval av svenskspråkiga Twitteranvändare från 2016         
-twitter-2017    Swedish Twitter 2017     Svensk Twitter 2017     modern      Material collected from a selection of Swedish speaking twitter users from 2017     Material från ett urval av svenskspråkiga Twitteranvändare från 2017         
