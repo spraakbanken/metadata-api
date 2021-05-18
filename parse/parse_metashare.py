@@ -97,122 +97,126 @@ def parse_metashare(directory, json_resources, type_=None):
         lang = ""
 
         # Parse xml
-        xml = etree.parse(path)
-        ns = "{http://www.ilsp.gr/META-XMLSchema}"
-        # prevent etree from printing namespaces in the resulting xml file
-        etree.register_namespace("", "http://www.ilsp.gr/META-XMLSchema")
+        try:
+            xml = etree.parse(path)
+            ns = "{http://www.ilsp.gr/META-XMLSchema}"
+            # prevent etree from printing namespaces in the resulting xml file
+            etree.register_namespace("", "http://www.ilsp.gr/META-XMLSchema")
 
-        # Get idenfification info
-        identificationInfo = xml.find(ns + "identificationInfo")
+            # Get idenfification info
+            identificationInfo = xml.find(ns + "identificationInfo")
 
-        # Get identifier
-        # shortname = identificationInfo.find(ns + "resourceShortName")
-        # resources[shortname.text] = resource
-        # resources[shortname.text]["id"] = shortname.text
+            # Get identifier
+            # shortname = identificationInfo.find(ns + "resourceShortName")
+            # resources[shortname.text] = resource
+            # resources[shortname.text]["id"] = shortname.text
 
-        # Skip if item is blacklisted
-        if fileid in BLACKLIST[type_]:
-            print("Skipping black-listed resource", fileid)
-            continue
+            # Skip if item is blacklisted
+            if fileid in BLACKLIST[type_]:
+                print("Skipping black-listed resource", fileid)
+                continue
 
-        resources[fileid] = resource
-        resources[fileid]["id"] = fileid
+            resources[fileid] = resource
+            resources[fileid]["id"] = fileid
 
-        resource["type"] = type_
+            resource["type"] = type_
 
-        # Add info on whether resource is marked as training data
-        if fileid in TRAININGDATA[type_]:
-            resource["trainingdata"] = True
-        else:
-            resource["trainingdata"] = False
+            # Add info on whether resource is marked as training data
+            if fileid in TRAININGDATA[type_]:
+                resource["trainingdata"] = True
+            else:
+                resource["trainingdata"] = False
 
-        # Get language
-        if type_ == "model":
-            lang = xml.findall(".//" + ns + "inputInfo")
-        else:
-            lang = xml.findall(".//" + ns + "languageInfo")
-        resource["lang"] = []
-        for i in lang:
-            lang_dict = {}
-            lang_dict["code"] = i.find(ns + "languageId").text
-            lang_dict["name_en"] = i.find(ns + "languageName").text
-            lang_dict["name_sv"] = translate(i.find(ns + "languageName").text)
-            resource["lang"].append(lang_dict)
+            # Get language
+            if type_ == "model":
+                lang = xml.findall(".//" + ns + "inputInfo")
+            else:
+                lang = xml.findall(".//" + ns + "languageInfo")
+            resource["lang"] = []
+            for i in lang:
+                lang_dict = {}
+                lang_dict["code"] = i.find(ns + "languageId").text
+                lang_dict["name_en"] = i.find(ns + "languageName").text
+                lang_dict["name_sv"] = translate(i.find(ns + "languageName").text)
+                resource["lang"].append(lang_dict)
 
-        # Get name
-        for i in identificationInfo.findall(ns + "resourceName"):
-            if i.attrib["lang"] == "eng" and i.text:
-                name_en = i.text
-            if i.attrib["lang"] == "swe":
-                name_sv = i.text
-        resource["name_sv"] = name_sv
-        resource["name_en"] = name_en
+            # Get name
+            for i in identificationInfo.findall(ns + "resourceName"):
+                if i.attrib["lang"] == "eng" and i.text:
+                    name_en = i.text
+                if i.attrib["lang"] == "swe":
+                    name_sv = i.text
+            resource["name_sv"] = name_sv
+            resource["name_en"] = name_en
 
-        # Get description
-        for i in identificationInfo.findall(ns + "description"):
-            if i.attrib["lang"] == "eng" and i.text:
-                description_en = i.text
-            if i.attrib["lang"] == "swe" and i.text:
-                description_sv = i.text
-        resource["description_sv"] = description_sv
-        resource["description_en"] = description_en
+            # Get description
+            for i in identificationInfo.findall(ns + "description"):
+                if i.attrib["lang"] == "eng" and i.text:
+                    description_en = i.text
+                if i.attrib["lang"] == "swe" and i.text:
+                    description_sv = i.text
+            resource["description_sv"] = description_sv
+            resource["description_en"] = description_en
 
-        # Get distribution info
-        distributionInfo = xml.find(ns + "distributionInfo")
-        resource["downloads"] = []
-        resource["interface"] = []
-        for i in distributionInfo.findall(ns + "licenceInfo"):
-            distro = {}
-            licence_el = i.find(ns + "licence")
-            if licence_el is not None:
-                distro["licence"] = licence_name(licence_el.text)
-                version_el = i.find(ns + "version")
-                if version_el is not None:
-                    distro["licence"] += ' ' + version_el.text
-                if licence_url(licence_el.text):
-                    distro["licence_url"] = licence_url(licence_el.text)
-            distro["restriction"] = i.find(ns + "restrictionsOfUse").text
-            if i.find(ns + "attributionText") is not None:
-                distro["info"] = i.find(ns + "attributionText").text
+            # Get distribution info
+            distributionInfo = xml.find(ns + "distributionInfo")
+            resource["downloads"] = []
+            resource["interface"] = []
+            for i in distributionInfo.findall(ns + "licenceInfo"):
+                distro = {}
+                licence_el = i.find(ns + "licence")
+                if licence_el is not None:
+                    distro["licence"] = licence_name(licence_el.text)
+                    version_el = i.find(ns + "version")
+                    if version_el is not None:
+                        distro["licence"] += ' ' + version_el.text
+                    if licence_url(licence_el.text):
+                        distro["licence_url"] = licence_url(licence_el.text)
+                distro["restriction"] = i.find(ns + "restrictionsOfUse").text
+                if i.find(ns + "attributionText") is not None:
+                    distro["info"] = i.find(ns + "attributionText").text
 
-            if i.find(ns + "downloadLocation") is not None:
-                resource["downloads"].append(distro)
-                distro["download"] = i.find(ns + "downloadLocation").text
-                if i.find(ns + "downloadLocation").text:
-                    download_type, format = get_download_type(i.find(ns + "downloadLocation").text)
-                    distro["type"] = download_type
-                    distro["format"] = format
+                if i.find(ns + "downloadLocation") is not None:
+                    resource["downloads"].append(distro)
+                    distro["download"] = i.find(ns + "downloadLocation").text
+                    if i.find(ns + "downloadLocation").text:
+                        download_type, format = get_download_type(i.find(ns + "downloadLocation").text)
+                        distro["type"] = download_type
+                        distro["format"] = format
 
-            if i.find(ns + "executionLocation") is not None:
-                resource["interface"].append(distro)
-                distro["access"] = i.find(ns + "executionLocation").text
+                if i.find(ns + "executionLocation") is not None:
+                    resource["interface"].append(distro)
+                    distro["access"] = i.find(ns + "executionLocation").text
 
-        # Add location of meta data file
-        metashare = {
-            "licence": licence_name(METASHARE_LICENCE),
-            "restriction": METASHARE_RESTRICTION,
-            "download": METASHAREURL + type_ + "/" + filename,
-            "type": "metadata",
-            "format": "METASHARE"
-        }
-        resource["downloads"].append(metashare)
+            # Add location of meta data file
+            metashare = {
+                "licence": licence_name(METASHARE_LICENCE),
+                "restriction": METASHARE_RESTRICTION,
+                "download": METASHAREURL + type_ + "/" + filename,
+                "type": "metadata",
+                "format": "METASHARE"
+            }
+            resource["downloads"].append(metashare)
 
-        # Get contact person
-        contactPerson = xml.find(ns + "contactPerson")
-        resource["contact_info"] = {}
-        resource["contact_info"]["surname"] = contactPerson.find(ns + "surname").text
-        resource["contact_info"]["givenName"] = contactPerson.find(ns + "givenName").text
-        resource["contact_info"]["email"] = contactPerson.find(ns + "communicationInfo").find(ns + "email").text
-        resource["contact_info"]["affiliation"] = {}
-        resource["contact_info"]["affiliation"]["organisation"] = contactPerson.find(ns + "affiliation").find(ns + "organizationName").text
-        resource["contact_info"]["affiliation"]["email"] = contactPerson.find(ns + "affiliation").find(ns + "communicationInfo").find(ns + "email").text
+            # Get contact person
+            contactPerson = xml.find(ns + "contactPerson")
+            resource["contact_info"] = {}
+            resource["contact_info"]["surname"] = contactPerson.find(ns + "surname").text
+            resource["contact_info"]["givenName"] = contactPerson.find(ns + "givenName").text
+            resource["contact_info"]["email"] = contactPerson.find(ns + "communicationInfo").find(ns + "email").text
+            resource["contact_info"]["affiliation"] = {}
+            resource["contact_info"]["affiliation"]["organisation"] = contactPerson.find(ns + "affiliation").find(ns + "organizationName").text
+            resource["contact_info"]["affiliation"]["email"] = contactPerson.find(ns + "affiliation").find(ns + "communicationInfo").find(ns + "email").text
 
-        # Get size info
-        sizes = xml.findall(".//" + ns + "sizeInfo")
-        resource["size"] = {}
-        for i in sizes:
-            unit = i.find(ns + "sizeUnit").text
-            resource["size"][unit] = i.find(ns + "size").text
+            # Get size info
+            sizes = xml.findall(".//" + ns + "sizeInfo")
+            resource["size"] = {}
+            for i in sizes:
+                unit = i.find(ns + "sizeUnit").text
+                resource["size"][unit] = i.find(ns + "size").text
+
+        except Exception as e:
+            print("Failed to process file '{}'. Error: {}".format(path, e))
 
     return resources
 
