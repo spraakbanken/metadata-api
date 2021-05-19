@@ -22,7 +22,7 @@ IO_RESOURCES = {
 }
 
 METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
-METASHARE_LICENCE = "CC-BY"
+METASHARE_LICENCE = "CC BY 4.0"
 METASHARE_RESTRICTION = "attribution"
 
 
@@ -170,6 +170,9 @@ def parse_metashare(directory, json_resources, type_=None):
                     version_el = i.find(ns + "version")
                     if version_el is not None:
                         distro["licence"] += ' ' + version_el.text
+                    elif distro["licence"][:2] == 'CC':
+                        # Default version for CC is 4.0
+                        distro["licence"] += ' 4.0'
                     if licence_url(licence_el.text):
                         distro["licence_url"] = licence_url(licence_el.text)
                 distro["restriction"] = i.find(ns + "restrictionsOfUse").text
@@ -190,7 +193,7 @@ def parse_metashare(directory, json_resources, type_=None):
 
             # Add location of meta data file
             metashare = {
-                "licence": licence_name(METASHARE_LICENCE),
+                "licence": METASHARE_LICENCE,
                 "restriction": METASHARE_RESTRICTION,
                 "download": METASHAREURL + type_ + "/" + filename,
                 "type": "metadata",
