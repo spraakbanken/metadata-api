@@ -4,6 +4,7 @@ TRAININGDATA = {
     "corpus": [
         "absabank-imm",
         "analogy",
+        "dalaj",
         "dalin-then-swaanska-argus-1732-1734",
         "eukalyptus",
         "faq",
