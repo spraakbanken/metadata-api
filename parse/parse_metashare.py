@@ -175,7 +175,8 @@ def parse_metashare(directory, json_resources, type_=None):
                         distro["licence"] += ' 4.0'
                     if licence_url(licence_el.text):
                         distro["licence_url"] = licence_url(licence_el.text)
-                distro["restriction"] = i.find(ns + "restrictionsOfUse").text
+                if i.find(ns + "restrictionsOfUse") is not None:
+                    distro["restriction"] = i.find(ns + "restrictionsOfUse").text
                 if i.find(ns + "attributionText") is not None:
                     distro["info"] = i.find(ns + "attributionText").text
 
