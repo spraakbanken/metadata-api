@@ -7,7 +7,6 @@ from xml.etree import ElementTree as etree
 from blacklist import BLACKLIST
 from trainingdata import TRAININGDATA
 from licence import licence_name, licence_url
-from resource_text_mapping import resource_mappings
 from translate_lang import translate
 
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
@@ -44,11 +43,9 @@ def main(resource_types=["corpus", "lexicon", "model"]):
         # Get resource-text-mapping
         resource_ids.extend(list(json_resources.keys()))
 
-    # Extend resource-text-mapping
-    extend_resource_text_mapping(resource_ids)
-
     # Get resource texts and dump them as json
-    resource_texts = read_resource_texts()
+    resource_mappings = get_resource_text_mappings(resource_ids)
+    resource_texts = read_resource_texts(resource_mappings)
     write_json(OUT_RESOURCE_TEXTS, resource_texts)
 
     # Set has_description for every resource and save as json
@@ -241,7 +238,44 @@ def get_download_type(download_path):
         return "other", None
 
 
-def read_resource_texts(directory=IN_RESOURCE_TEXTS):
+def get_resource_texts_files(directory=IN_RESOURCE_TEXTS):
+    """Get list of resource text files."""
+    resource_text_files = set()
+    for filename in sorted(os.listdir(directory)):
+        resource_text_files.add(filename)
+    return resource_text_files
+
+
+def get_resource_text_mappings(resource_ids):
+    """Read resource description files and create mappings."""
+    resource_mappings = {}
+    resource_text_files = get_resource_texts_files()
+    for i in resource_ids:
+        name_neutral = i + ".html"
+        name_sv = i + "_swe.html"
+        name_en = i + "_eng.html"
+        new_dict = {}
+        if name_sv in resource_text_files:
+            new_dict["sv"] = [name_sv]
+        elif name_neutral in resource_text_files:
+            new_dict["sv"] = [name_neutral]
+        elif name_en in resource_text_files and name_sv not in resource_text_files:
+            new_dict["sv"] = [name_en]
+
+        if name_en in resource_text_files:
+            new_dict["en"] = [name_en]
+        elif name_neutral in resource_text_files:
+            new_dict["en"] = [name_neutral]
+        elif name_sv in resource_text_files and name_en not in resource_text_files:
+            new_dict["en"] = [name_sv]
+
+        if new_dict:
+            resource_mappings[i] = new_dict
+
+    return resource_mappings
+
+
+def read_resource_texts(resource_mappings, directory=IN_RESOURCE_TEXTS):
     """Read all resource texts into a dictionary."""
     resource_texts = {}
     for res_id, res in resource_mappings.items():
@@ -265,41 +299,6 @@ def read_resource_texts(directory=IN_RESOURCE_TEXTS):
         resource_texts[res_id] = new_dict
 
     return resource_texts
-
-
-def get_resource_texts_files(directory=IN_RESOURCE_TEXTS):
-    """Get list of resource text files."""
-    resource_text_files = set()
-    for filename in sorted(os.listdir(directory)):
-        resource_text_files.add(filename)
-    return resource_text_files
-
-
-def extend_resource_text_mapping(resource_ids):
-    """Extend resource_mappings with files that follow naming standard."""
-    resource_text_files = get_resource_texts_files()
-    for i in resource_ids:
-        if i not in resource_mappings:
-            name_neutral = i + ".html"
-            name_sv = i + "_swe.html"
-            name_en = i + "_eng.html"
-            new_dict = {}
-            if name_sv in resource_text_files:
-                new_dict["sv"] = [name_sv]
-            elif name_neutral in resource_text_files:
-                new_dict["sv"] = [name_neutral]
-            elif name_en in resource_text_files and name_sv not in resource_text_files:
-                new_dict["sv"] = [name_en]
-
-            if name_en in resource_text_files:
-                new_dict["en"] = [name_en]
-            elif name_neutral in resource_text_files:
-                new_dict["en"] = [name_neutral]
-            elif name_sv in resource_text_files and name_en not in resource_text_files:
-                new_dict["en"] = [name_sv]
-
-            if new_dict:
-                resource_mappings[i] = new_dict
 
 
 def set_description_bool(resources, resource_texts):
