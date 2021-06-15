@@ -259,15 +259,11 @@ def get_resource_text_mappings(resource_ids):
             new_dict["sv"] = [name_sv]
         elif name_neutral in resource_text_files:
             new_dict["sv"] = [name_neutral]
-        elif name_en in resource_text_files and name_sv not in resource_text_files:
-            new_dict["sv"] = [name_en]
 
         if name_en in resource_text_files:
             new_dict["en"] = [name_en]
         elif name_neutral in resource_text_files:
             new_dict["en"] = [name_neutral]
-        elif name_sv in resource_text_files and name_en not in resource_text_files:
-            new_dict["en"] = [name_sv]
 
         if new_dict:
             resource_mappings[i] = new_dict
