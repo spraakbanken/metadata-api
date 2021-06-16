@@ -50,12 +50,14 @@ Available API calls:
 
 ## Resource texts (long resource descriptions)
 
-Some resources have long descriptions that cannot be stored in the META-SHARE xml files.
-These descriptions are stored as html files in SVN (https://svn.spraakdata.gu.se/sb-arkiv/pub/resurstext).
-A description for a resource with machine name `my-resource` should be named `my-resource_eng.html` or `my-resource_swe.html`
-and stored in the above SVN repository. In this case it will automatically be detected and served by the REST-API.
+Some resources have long descriptions that cannot be stored in the META-SHARE xml files. These descriptions are stored
+as html files in SVN (https://svn.spraakdata.gu.se/sb-arkiv/pub/resurstext). A description for a resource with machine
+name `my-resource` should be named `my-resource_eng.html` or `my-resource_swe.html` and stored in the above SVN
+repository. Then it will automatically be detected and served by the REST-API.
 
 
 ## Blacklisted resources
 
-Some resources need to have META-SHARE files for technical reasons (e.g. because they are neede in the wsauth system), but we may not want to show them publicly in the API. For this purpose one can add resource IDs to the lists in `parse/blacklist.py`.
+Some resources need to have META-SHARE files for technical reasons (e.g. because they are neede in the wsauth system),
+but we may not want to show them publicly in the API. For this purpose one can add resource IDs to the lists in
+`parse/blacklist.py`.
