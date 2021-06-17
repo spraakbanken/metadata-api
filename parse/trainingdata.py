@@ -12,7 +12,7 @@ TRAININGDATA = {
         "sic2",
         "suc2",
         "suc3",
-        "superlim-diagnostic",
+        "swediagnostics",
         "superlim",
         "supersim-superlim",
         "sv-treebank",
