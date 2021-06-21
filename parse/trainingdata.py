@@ -30,7 +30,7 @@ TRAININGDATA = {
     ],
     "lexicon": [
         "coderoomor",
-        "hogskoleprovet-ord",
+        "swesat-synonyms",
     ],
     "model": [],
 }
