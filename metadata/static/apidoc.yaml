@@ -29,7 +29,7 @@ paths:
   /:
     get:
       summary: List resources
-      description: Show meta data for all corpora and lexicons.
+      description: Show meta data for all corpora, lexicons and models.
       tags:
         - General
       parameters:
@@ -64,6 +64,99 @@ paths:
                   models:
                     type: array
                     description: List of all models
+                    items:
+                      $ref: '#/components/schemas/resource'
+  /corpora:
+    get:
+      summary: List corpus resources
+      description: Show meta data for all corpora.
+      tags:
+        - General
+      parameters:
+        - name: has-description
+          schema:
+            type: boolean
+          in: query
+          description: set to `true` to only show resources that have long descriptions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resource_type:
+                    type: string
+                    description: Name of the resource type
+                  hits:
+                    type: int
+                    description: Amount of resources in 'resources' array
+                  resources:
+                    type: array
+                    description: Array of corpus objects
+                    items:
+                      $ref: '#/components/schemas/resource'
+  /lexicons:
+    get:
+      summary: List lexicon resources
+      description: Show meta data for all lexicons.
+      tags:
+        - General
+      parameters:
+        - name: has-description
+          schema:
+            type: boolean
+          in: query
+          description: set to `true` to only show resources that have long descriptions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resource_type:
+                    type: string
+                    description: Name of the resource type
+                  hits:
+                    type: int
+                    description: Amount of resources in 'resources' array
+                  resources:
+                    type: array
+                    description: Array of lexicon objects
+                    items:
+                      $ref: '#/components/schemas/resource'
+  /models:
+    get:
+      summary: List model resources
+      description: Show meta data for all models.
+      tags:
+        - General
+      parameters:
+        - name: has-description
+          schema:
+            type: boolean
+          in: query
+          description: set to `true` to only show resources that have long descriptions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resource_type:
+                    type: string
+                    description: Name of the resource type
+                  hits:
+                    type: int
+                    description: Amount of resources in 'resources' array
+                  resources:
+                    type: array
+                    description: Array of model objects
                     items:
                       $ref: '#/components/schemas/resource'
   /renew-cache:

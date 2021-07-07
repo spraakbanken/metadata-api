@@ -12,7 +12,7 @@ general = Blueprint("general", __name__)
 
 @general.route("/")
 def metadata():
-    """Return corpus and lexicon meta data as a JSON object."""
+    """Return corpus and lexicon metadata as a JSON object."""
     corpora = load_data(current_app.config.get("CORPORA_FILE"))
     lexicons = load_data(current_app.config.get("LEXICONS_FILE"))
     models = load_data(current_app.config.get("MODELS_FILE"))
@@ -35,6 +35,30 @@ def metadata():
     return jsonify(data)
 
 
+@general.route("/corpora")
+def corpora():
+    """Return corpus metadata as a JSON object."""
+    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
+    json_data = get_resource_type("corpus", "CORPORA_FILE", only_with_description=has_description)
+    return json_data
+
+
+@general.route("/lexicons")
+def lexicons():
+    """Return lexicon metadata as a JSON object."""
+    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
+    json_data = get_resource_type("lexicon", "LEXICONS_FILE", only_with_description=has_description)
+    return json_data
+
+
+@general.route("/models")
+def models():
+    """Return models metadata as a JSON object."""
+    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
+    json_data = get_resource_type("model", "MODELS_FILE", only_with_description=has_description)
+    return json_data
+
+
 @general.route("/renew-cache")
 def renew_cache():
     """Flush cache and re-read json files."""
@@ -48,7 +72,7 @@ def renew_cache():
         load_data(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
         success = True
         error = None
-    except Exception as error:
+    except Exception:
         success = False
     return jsonify({"cache_renewed": success,
                     "error": error})
@@ -105,13 +129,30 @@ def read_static_json(jsonfile):
     with open(file_path, "r") as f:
         return json.load(f)
 
+
 def add_prefix(key, prefix):
     """Add prefix to key."""
     if prefix:
         key = "{}_{}".format(prefix, key)
     return key
 
+
 def dict_to_list(input_obj):
     """Convert resource dict into list."""
     # return sorted(input.values(), key=lambda x: locale.strxfrm(x.get("name_sv")))
     return list(input_obj.values())
+
+
+def get_resource_type(rtype, resource_file, only_with_description=False):
+    """Get list of resources of one resource type."""
+    resource_type = load_data(current_app.config.get(resource_file))
+    data = dict_to_list(resource_type)
+
+    if only_with_description:
+        data = [c for c in data if c["has_description"]]
+
+    return jsonify({
+        "resource_type": rtype,
+        "hits": len(data),
+        "resources": data
+    })
