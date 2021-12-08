@@ -18,6 +18,7 @@ TRAININGDATA = {
         "sv-treebank",
         "svensk-fraktur-1626-1816",
         "svenska-tidningar-1818-1870",
+        "svenska-tidningar-1871-1906",
         "swe-absa-bank",
         "swefracas",
         "sweparaphrase",
