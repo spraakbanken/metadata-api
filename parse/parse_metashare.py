@@ -6,6 +6,7 @@ from xml.etree import ElementTree as etree
 
 from blacklist import BLACKLIST
 from trainingdata import TRAININGDATA
+from collection import COLLECTIONS
 from licence import licence_name, licence_url
 from translate_lang import translate
 
@@ -119,10 +120,10 @@ def parse_metashare(directory, json_resources, type_=None):
             resource["type"] = type_
 
             # Add info on whether resource is marked as training data
-            if fileid in TRAININGDATA[type_]:
-                resource["trainingdata"] = True
-            else:
-                resource["trainingdata"] = False
+            resource["trainingdata"] = fileid in TRAININGDATA[type_]
+
+            # Flag collections.
+            resource["collection"] = fileid in COLLECTIONS
 
             # Get language
             if type_ == "model":
