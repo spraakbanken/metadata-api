@@ -50,7 +50,7 @@ do
   year="$(echo ${filename%.*} | cut -d'-' -f1)"
   month="$(echo ${filename%.*} | cut -d'-' -f2)"
 
-  if [ "$(((this_year - year) * 12 - month + this_month))" -gt 6 ]
+  if [ "$(((this_year - year) * 12 - 10#$month + this_month))" -gt 6 ]
   then
     echo "Removing out-dated log file $filename" >> $LOGFILE
     rm "$f"
