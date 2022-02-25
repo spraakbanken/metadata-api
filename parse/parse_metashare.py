@@ -2,13 +2,17 @@
 
 import json
 import os
+import sys
+import traceback
 from xml.etree import ElementTree as etree
 
 from blacklist import BLACKLIST
-from trainingdata import TRAININGDATA
 from collection import COLLECTIONS
 from licence import licence_name, licence_url
+from trainingdata import TRAININGDATA
 from translate_lang import translate
+
+DEBUG = False
 
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
 STATIC_DIR = "../metadata/static"
@@ -83,7 +87,8 @@ def parse_metashare(directory, json_resources, type_=None):
         fileid = filename.split(".")[0]
 
         if fileid in json_resources:
-            print("Skipping META-SHARE for resource {}. Found JSON instead!".format(fileid))
+            if DEBUG:
+                print("Skipping META-SHARE for resource {}. Found JSON instead!".format(fileid))
             continue
 
         path = os.path.join(directory, filename)
@@ -111,7 +116,8 @@ def parse_metashare(directory, json_resources, type_=None):
 
             # Skip if item is blacklisted
             if fileid in BLACKLIST[type_]:
-                print("Skipping black-listed resource", fileid)
+                if DEBUG:
+                    print("Skipping black-listed resource", fileid)
                 continue
 
             resources[fileid] = resource
@@ -218,8 +224,9 @@ def parse_metashare(directory, json_resources, type_=None):
                 unit = i.find(ns + "sizeUnit").text
                 resource["size"][unit] = i.find(ns + "size").text
 
-        except Exception as e:
-            print("Failed to process file '{}'. Error: {}".format(path, e))
+        except Exception:
+            print("Failed to process file '{}'.\n".format(path), file=sys.stderr)
+            print(traceback.format_exc())
 
     return resources
 

@@ -33,7 +33,7 @@ echo ">>> Parsing meta data" >> $LOGFILE
 cd /home/fksbwww/sb-metadata
 source venv/bin/activate
 cd parse
-python parse_metashare.py >> $LOGFILE
+python parse_metashare.py
 deactivate
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
