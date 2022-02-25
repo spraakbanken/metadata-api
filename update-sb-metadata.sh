@@ -50,6 +50,6 @@ do
   if [ "$((this_year - year))" -ge 2 ]
   then
     echo "Removing out-dated log file $filename" >> $LOGFILE
-    rm "$filename"
+    rm "$f"
   fi
 done
