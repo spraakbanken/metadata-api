@@ -40,14 +40,17 @@ echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
 
-# Naive log rotation: delete files that are at least two years old
+# Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`
+this_month=`date +%m`
 FILES="$LOGDIR/*.log"
 for f in $FILES
 do
   filename="$(basename -- $f)"
-  year="$(echo $filename | cut -d'-' -f1)"
-  if [ "$((this_year - year))" -ge 2 ]
+  year="$(echo ${filename%.*} | cut -d'-' -f1)"
+  month="$(echo ${filename%.*} | cut -d'-' -f2)"
+
+  if [ "$(((this_year - year) * 12 - month + this_month))" -gt 6 ]
   then
     echo "Removing out-dated log file $filename" >> $LOGFILE
     rm "$f"
