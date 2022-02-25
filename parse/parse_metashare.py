@@ -1,5 +1,6 @@
 """Parse Meta Share files and store info as json."""
 
+import argparse
 import json
 import os
 import sys
@@ -11,8 +12,6 @@ from collection import COLLECTIONS
 from licence import licence_name, licence_url
 from trainingdata import TRAININGDATA
 from translate_lang import translate
-
-DEBUG = False
 
 # https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/
 STATIC_DIR = "../metadata/static"
@@ -30,7 +29,12 @@ METASHARE_LICENCE = "CC BY 4.0"
 METASHARE_RESTRICTION = "attribution"
 
 
-def main(resource_types=["corpus", "lexicon", "model"]):
+# Instatiate command line arg parser
+parser = argparse.ArgumentParser(description="Parse Meta Share files and store info as json")
+parser.add_argument("--debug", action="store_true", help="Print debug info")
+
+
+def main(resource_types=["corpus", "lexicon", "model"], debug=False):
     """Parse Meta Share files and store info as json (main wrapper)."""
     # Create static dir if it does not exist
     if not os.path.isdir(STATIC_DIR):
@@ -42,7 +46,8 @@ def main(resource_types=["corpus", "lexicon", "model"]):
     for resource_type in resource_types:
         # Get resources from json and complete from metashare
         json_resources = get_json(IO_RESOURCES.get(resource_type)[0], type_=resource_type)
-        json_resources.update(parse_metashare(IO_RESOURCES.get(resource_type)[1], json_resources, type_=resource_type))
+        json_resources.update(parse_metashare(IO_RESOURCES.get(resource_type)[1], json_resources, type_=resource_type,
+                              debug=debug))
         all_resources[resource_type] = json_resources
 
         # Get resource-text-mapping
@@ -75,7 +80,7 @@ def get_json(directory, type_=None):
     return resources
 
 
-def parse_metashare(directory, json_resources, type_=None):
+def parse_metashare(directory, json_resources, type_=None, debug=False):
     """Parse the meta share files and return as JSON object."""
     resources = {}
 
@@ -87,7 +92,7 @@ def parse_metashare(directory, json_resources, type_=None):
         fileid = filename.split(".")[0]
 
         if fileid in json_resources:
-            if DEBUG:
+            if debug:
                 print("Skipping META-SHARE for resource {}. Found JSON instead!".format(fileid))
             continue
 
@@ -116,7 +121,7 @@ def parse_metashare(directory, json_resources, type_=None):
 
             # Skip if item is blacklisted
             if fileid in BLACKLIST[type_]:
-                if DEBUG:
+                if debug:
                     print("Skipping black-listed resource", fileid)
                 continue
 
@@ -317,4 +322,5 @@ def write_json(filename, data):
 
 
 if __name__ == '__main__':
-    main()
+    args = parser.parse_args()
+    main(debug=args.debug)
