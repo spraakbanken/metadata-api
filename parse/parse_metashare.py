@@ -134,8 +134,9 @@ def parse_metashare(directory, json_resources, type_=None):
             for i in lang:
                 lang_dict = {}
                 lang_dict["code"] = i.find(ns + "languageId").text
-                lang_dict["name_en"] = i.find(ns + "languageName").text
-                lang_dict["name_sv"] = translate(i.find(ns + "languageName").text)
+                if i.find(ns + "languageName"):
+                    lang_dict["name_en"] = i.find(ns + "languageName").text
+                    lang_dict["name_sv"] = translate(i.find(ns + "languageName").text)
                 resource["lang"].append(lang_dict)
 
             # Get name
