@@ -3,8 +3,9 @@
 set +x
 
 # Make logdir and define logfile
-mkdir -p /home/fksbwww/sb-metadata/logs
-LOGFILE=/home/fksbwww/sb-metadata/logs/update.log
+LOGDIR=/home/fksbwww/sb-metadata/logs
+mkdir -p $LOGDIR
+LOGFILE=$LOGDIR/`date +%Y-%m`.log
 
 # Fetch updates in metadata files from SVN
 echo -e "\n" >> $LOGFILE
@@ -37,3 +38,18 @@ python parse_metashare.py
 deactivate
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
+
+
+# Naive log rotation: delete files that are at least two years old
+this_year=`date +%Y`
+FILES="$LOGDIR/*.log"
+for f in $FILES
+do
+  filename="$(basename -- $f)"
+  year="$(echo $filename | cut -d'-' -f1)"
+  if [ "$((this_year - year))" -ge 2 ]
+  then
+    echo "Removing out-dated log file $filename" >> $LOGFILE
+    rm "$filename"
+  fi
+done
