@@ -145,7 +145,7 @@ def parse_metashare(directory, json_resources, type_=None, debug=False):
             for i in lang:
                 lang_dict = {}
                 lang_dict["code"] = i.find(ns + "languageId").text
-                if i.find(ns + "languageName"):
+                if i.find(ns + "languageName") is not None:
                     lang_dict["name_en"] = i.find(ns + "languageName").text
                     lang_dict["name_sv"] = translate(i.find(ns + "languageName").text)
                 resource["lang"].append(lang_dict)
