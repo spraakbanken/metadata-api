@@ -5,7 +5,7 @@ LANG_LABEL_TO_SV = {
     "Somali": "somaliska",
     "Faroese": "färöiska",
     "Old Norse": "fornnordiska",
-    "Belarussian": "vitryska",
+    "Belarussian": "belarusiska",
     "Bulgarian": "bulgariska",
     "Croatian": "kroatiska",
     "Czech": "tjeckiska",
