@@ -5,5 +5,6 @@ It's possible that we will later want to list the contained resources too.
 """
 
 COLLECTIONS = {
-    "superlim": {}
+    "kubhist2": {},
+    "superlim": {},
 }
