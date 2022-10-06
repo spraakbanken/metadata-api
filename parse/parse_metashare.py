@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import traceback
+from collections import defaultdict
 from xml.etree import ElementTree as etree
 
 from blacklist import BLACKLIST
@@ -42,10 +43,11 @@ def main(resource_types=["corpus", "lexicon", "model"], debug=False):
 
     resource_ids = []
     all_resources = {}
+    resource_texts = defaultdict(dict)
 
     for resource_type in resource_types:
         # Get resources from json and complete from metashare
-        json_resources = get_json(IO_RESOURCES.get(resource_type)[0], type_=resource_type)
+        json_resources = get_json(IO_RESOURCES.get(resource_type)[0], resource_texts, type_=resource_type)
         json_resources.update(parse_metashare(IO_RESOURCES.get(resource_type)[1], json_resources, type_=resource_type,
                               debug=debug))
         all_resources[resource_type] = json_resources
@@ -55,7 +57,7 @@ def main(resource_types=["corpus", "lexicon", "model"], debug=False):
 
     # Get resource texts and dump them as json
     resource_mappings = get_resource_text_mappings(resource_ids)
-    resource_texts = read_resource_texts(resource_mappings)
+    read_resource_texts(resource_mappings, resource_texts)
     write_json(OUT_RESOURCE_TEXTS, resource_texts)
 
     # Set has_description for every resource and save as json
@@ -64,8 +66,8 @@ def main(resource_types=["corpus", "lexicon", "model"], debug=False):
         write_json(IO_RESOURCES.get(resource_type)[2], all_resources[resource_type])
 
 
-def get_json(directory, type_=None):
-    """Gather all json resource files of one type."""
+def get_json(directory, resource_texts, type_=None):
+    """Gather all json resource files of one type and update resource texts."""
     resources = {}
 
     for filename in os.listdir(directory):
@@ -76,6 +78,13 @@ def get_json(directory, type_=None):
         with open(path) as f:
             res = json.load(f)
             fileid = filename.split(".")[0]
+            # Update resouce_texts and remove long_descriptions for now
+            if res.get("long_description_sv"):
+                resource_texts[fileid]["sv"] = res["long_description_sv"]
+                res.pop("long_description_sv")
+            if res.get("long_description_en"):
+                resource_texts[fileid]["en"] = res["long_description_en"]
+                res.pop("long_description_en")
             resources[fileid] = res
     return resources
 
@@ -280,10 +289,12 @@ def get_resource_text_mappings(resource_ids):
     return resource_mappings
 
 
-def read_resource_texts(resource_mappings, directory=IN_RESOURCE_TEXTS):
-    """Read all resource texts into a dictionary."""
-    resource_texts = {}
+def read_resource_texts(resource_mappings, resource_texts, directory=IN_RESOURCE_TEXTS):
+    """Read all resource texts into the 'resource_texts' dict."""
     for res_id, res in resource_mappings.items():
+        # Skip resources that recieved their long description from json
+        if res_id in resource_texts:
+            continue
         new_dict = {}
         # Collect Swedish texts
         sv_list = []
@@ -303,13 +314,13 @@ def read_resource_texts(resource_mappings, directory=IN_RESOURCE_TEXTS):
             new_dict["en"] = "\n".join(en_list)
         resource_texts[res_id] = new_dict
 
-    return resource_texts
-
 
 def set_description_bool(resources, resource_texts):
     """Add bool 'has_description' for every resource."""
     for i in resources:
         resources[i]["has_description"] = False
+        if resources[i].get("long_description_sv") or resources[i].get("long_description_en"):
+            resources[i]["has_description"] = True
         if resource_texts.get(i):
             resources[i]["has_description"] = True
 

@@ -56,7 +56,8 @@ Available API calls:
 Some resources have long descriptions that cannot be stored in the META-SHARE xml files. These descriptions are stored
 as html files in SVN (https://svn.spraakdata.gu.se/sb-arkiv/pub/resurstext). A description for a resource with machine
 name `my-resource` should be named `my-resource_eng.html` or `my-resource_swe.html` and stored in the above SVN
-repository. Then it will automatically be detected and served by the REST-API.
+repository. Then it will automatically be detected and served by the REST-API. A long resource description can also be
+supplied directly in the json metadata.
 
 
 ## Blacklisted resources
