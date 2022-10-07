@@ -14,6 +14,7 @@ Available API calls:
 - `https://ws.spraakbanken.gu.se/ws/corpora`: List all corpora
 - `https://ws.spraakbanken.gu.se/ws/lexicons`: List all lexicons
 - `https://ws.spraakbanken.gu.se/ws/models`: List all models
+- `https://ws.spraakbanken.gu.se/ws/collections`: List all collections
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
 - `https://ws.spraakbanken.gu.se/ws/metadata?has-description=true`: List only resources that have a long description
 - `https://ws.spraakbanken.gu.se/ws/metadata/doc`: Serve API documentation as YAML
@@ -65,3 +66,12 @@ supplied directly in the json metadata.
 Some resources need to have META-SHARE files for technical reasons (e.g. because they are neede in the wsauth system),
 but we may not want to show them publicly in the API. For this purpose one can add resource IDs to the lists in
 `parse/blacklist.py`.
+
+
+## Collections
+
+A collection is a "meta" metadata entry which is used to summarize multiple resources. Collections are supplied as json
+files. The resource-IDs belonging to a collection can either be supplied as a list in the json (with the 'resources'
+key) or each resource can state which collection(s) it belongs to in its json (with the 'in_collections' key which
+holds a list of collection IDs). The size of the collection is calculated automatically. A collection may have a long
+resource description, preferably supplied directly in its json.

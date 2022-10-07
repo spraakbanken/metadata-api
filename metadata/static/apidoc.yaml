@@ -159,6 +159,28 @@ paths:
                     description: Array of model objects
                     items:
                       $ref: '#/components/schemas/resource'
+  /collections:
+    get:
+      summary: List collection resources
+      description: Show meta data for all collections.
+      tags:
+        - General
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hits:
+                    type: int
+                    description: Amount of resources in 'resources' array
+                  resources:
+                    type: array
+                    description: Array of collection objects
+                    items:
+                      $ref: '#/components/schemas/resource'
   /renew-cache:
     get:
       summary: Renew cache

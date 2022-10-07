@@ -9,7 +9,6 @@ from collections import defaultdict
 from xml.etree import ElementTree as etree
 
 from blacklist import BLACKLIST
-from collection import COLLECTIONS
 from licence import licence_name, licence_url
 from trainingdata import TRAININGDATA
 from translate_lang import translate
@@ -44,16 +43,20 @@ def main(resource_types=["corpus", "lexicon", "model"], debug=False):
     resource_ids = []
     all_resources = {}
     resource_texts = defaultdict(dict)
+    collections = defaultdict(dict)
 
     for resource_type in resource_types:
         # Get resources from json and complete from metashare
-        json_resources = get_json(IO_RESOURCES.get(resource_type)[0], resource_texts, type_=resource_type)
-        json_resources.update(parse_metashare(IO_RESOURCES.get(resource_type)[1], json_resources, type_=resource_type,
+        json_resources = get_json(IO_RESOURCES.get(resource_type)[0], resource_texts, collections[resource_type],
+                                  resource_type, debug=debug)
+        json_resources.update(parse_metashare(IO_RESOURCES.get(resource_type)[1], json_resources, resource_type,
                               debug=debug))
-        all_resources[resource_type] = json_resources
-
         # Get resource-text-mapping
         resource_ids.extend(list(json_resources.keys()))
+        # Add sizes and resource-lists to collections
+        update_collections(collections[resource_type], json_resources)
+        # Save result in all_resources
+        all_resources[resource_type] = json_resources
 
     # Get resource texts and dump them as json
     resource_mappings = get_resource_text_mappings(resource_ids)
@@ -66,8 +69,18 @@ def main(resource_types=["corpus", "lexicon", "model"], debug=False):
         write_json(IO_RESOURCES.get(resource_type)[2], all_resources[resource_type])
 
 
-def get_json(directory, resource_texts, type_=None):
-    """Gather all json resource files of one type and update resource texts."""
+def update_collections(type_collection, resources):
+    """Add sizes and resource-lists to collections."""
+    for collection, res_list in type_collection.items():
+        res = resources.get(collection)
+        if res:
+            res["size"] = res.get("size", {})
+            res["size"]["resources"] = str(len(res_list))
+            res["resources"] = res_list
+
+
+def get_json(directory, resource_texts, type_collections, res_type, debug=False):
+    """Gather all json resource files of one type, update resource texts and COLLECTIONS dict."""
     resources = {}
 
     for filename in os.listdir(directory):
@@ -78,18 +91,38 @@ def get_json(directory, resource_texts, type_=None):
         with open(path) as f:
             res = json.load(f)
             fileid = filename.split(".")[0]
+
+            # Skip if item is blacklisted
+            if fileid in BLACKLIST[res_type]:
+                if debug:
+                    print("Skipping black-listed resource", fileid)
+                continue
+
             # Update resouce_texts and remove long_descriptions for now
             if res.get("long_description_sv"):
                 resource_texts[fileid]["sv"] = res["long_description_sv"]
-                res.pop("long_description_sv")
             if res.get("long_description_en"):
                 resource_texts[fileid]["en"] = res["long_description_en"]
-                res.pop("long_description_en")
+            res.pop("long_description_sv", None)
+            res.pop("long_description_en", None)
+
             resources[fileid] = res
+
+            # Update collections dict
+            if res.get("collection") == True:
+                type_collections[fileid] = type_collections.get(fileid, [])
+                if res.get("resources"):
+                    type_collections[fileid].extend(res["resources"])
+
+            if res.get("in_collections"):
+                for collection_id in res["in_collections"]:
+                    type_collections[collection_id] = type_collections.get(collection_id, [])
+                    type_collections[collection_id].append(fileid)
+
     return resources
 
 
-def parse_metashare(directory, json_resources, type_=None, debug=False):
+def parse_metashare(directory, json_resources, res_type, debug=False):
     """Parse the meta share files and return as JSON object."""
     resources = {}
 
@@ -129,7 +162,7 @@ def parse_metashare(directory, json_resources, type_=None, debug=False):
             # resources[shortname.text]["id"] = shortname.text
 
             # Skip if item is blacklisted
-            if fileid in BLACKLIST[type_]:
+            if fileid in BLACKLIST[res_type]:
                 if debug:
                     print("Skipping black-listed resource", fileid)
                 continue
@@ -137,16 +170,13 @@ def parse_metashare(directory, json_resources, type_=None, debug=False):
             resources[fileid] = resource
             resources[fileid]["id"] = fileid
 
-            resource["type"] = type_
+            resource["type"] = res_type
 
             # Add info on whether resource is marked as training data
-            resource["trainingdata"] = fileid in TRAININGDATA[type_]
-
-            # Flag collections.
-            resource["collection"] = fileid in COLLECTIONS
+            resource["trainingdata"] = fileid in TRAININGDATA[res_type]
 
             # Get language
-            if type_ == "model":
+            if res_type == "model":
                 lang = xml.findall(".//" + ns + "inputInfo")
             else:
                 lang = xml.findall(".//" + ns + "languageInfo")
@@ -215,7 +245,7 @@ def parse_metashare(directory, json_resources, type_=None, debug=False):
             metashare = {
                 "licence": METASHARE_LICENCE,
                 "restriction": METASHARE_RESTRICTION,
-                "download": METASHAREURL + type_ + "/" + filename,
+                "download": METASHAREURL + res_type + "/" + filename,
                 "type": "metadata",
                 "format": "METASHARE"
             }

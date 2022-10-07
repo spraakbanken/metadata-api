@@ -59,6 +59,26 @@ def models():
     return json_data
 
 
+@general.route("/collections")
+def collections():
+    """Return collections metadata as a JSON object."""
+    corpora = load_data(current_app.config.get("CORPORA_FILE"))
+    data = dict([(name, data) for (name, data) in corpora.items() if data.get("collection")])
+
+    lexicons = load_data(current_app.config.get("LEXICONS_FILE"))
+    lexicons = dict([(name, data) for (name, data) in lexicons.items() if data.get("collection")])
+    data.update(lexicons)
+
+    models = load_data(current_app.config.get("MODELS_FILE"))
+    models = dict([(name, data) for (name, data) in models.items() if data.get("collection")])
+    data.update(models)
+
+    return jsonify({
+        "hits": len(data),
+        "resources": dict_to_list(data)
+    })
+
+
 @general.route("/renew-cache")
 def renew_cache():
     """Flush cache and re-read json files."""
