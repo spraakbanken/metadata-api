@@ -229,17 +229,25 @@ def parse_metashare(directory, json_resources, res_type, debug=False):
                 if i.find(ns + "attributionText") is not None:
                     distro["info"] = i.find(ns + "attributionText").text
 
-                if i.find(ns + "downloadLocation") is not None:
-                    resource["downloads"].append(distro)
-                    distro["download"] = i.find(ns + "downloadLocation").text
-                    if i.find(ns + "downloadLocation").text:
-                        download_type, format = get_download_type(i.find(ns + "downloadLocation").text)
-                        distro["type"] = download_type
-                        distro["format"] = format
-
-                if i.find(ns + "executionLocation") is not None:
-                    resource["interface"].append(distro)
-                    distro["access"] = i.find(ns + "executionLocation").text
+                access_medium = i.find(ns + "distributionAccessMedium")
+                if access_medium is not None:
+                    if access_medium.text == "downloadable" and i.find(ns + "downloadLocation") is not None:
+                        resource["downloads"].append(distro)
+                        distro["download"] = i.find(ns + "downloadLocation").text
+                        if i.find(ns + "downloadLocation").text:
+                            download_type, format = get_download_type(i.find(ns + "downloadLocation").text)
+                            distro["type"] = download_type
+                            distro["format"] = format
+                    elif access_medium.text == "accessibleThroughInterface" and i.find(ns + "executionLocation") is not None:
+                        resource["interface"].append(distro)
+                        distro["access"] = i.find(ns + "executionLocation").text
+                    elif access_medium.text == "other":
+                        if i.find(ns + "executionLocation") is not None:
+                            resource["interface"].append(distro)
+                            distro["access"] = i.find(ns + "executionLocation").text
+                        elif i.find(ns + "downloadLocation") is not None:
+                            resource["interface"].append(distro)
+                            distro["access"] = i.find(ns + "downloadLocation").text
 
             # Add location of meta data file
             metashare = {
