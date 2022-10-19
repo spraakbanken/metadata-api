@@ -72,15 +72,23 @@ def main(resource_types=["corpus", "lexicon", "model"], debug=False):
 def update_collections(type_collection, resources):
     """Add sizes and resource-lists to collections."""
     for collection, res_list in type_collection.items():
-        res = resources.get(collection)
-        if res:
-            res["size"] = res.get("size", {})
-            res["size"]["resources"] = str(len(res_list))
-            res["resources"] = res_list
+        col = resources.get(collection)
+        col_id = col.get("id")
+        if col:
+            col["size"] = col.get("size", {})
+            col["size"]["resources"] = str(len(res_list))
+            col["resources"] = res_list
+
+            # Add in_collections info to json of the collection's resources
+            for res_id in res_list:
+                res_item = resources.get(res_id)
+                if res_item and col_id not in res_item.get("in_collections", []):
+                        res_item["in_collections"] = res_item.get("in_collections", [])
+                        res_item["in_collections"].append(col_id)
 
 
 def get_json(directory, resource_texts, type_collections, res_type, debug=False):
-    """Gather all json resource files of one type, update resource texts and COLLECTIONS dict."""
+    """Gather all json resource files of one type, update resource texts and collections dict."""
     resources = {}
 
     for filename in os.listdir(directory):
