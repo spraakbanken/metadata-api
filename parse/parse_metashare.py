@@ -243,9 +243,9 @@ def parse_metashare(directory, json_resources, res_type, debug=False):
                         resource["downloads"].append(distro)
                         distro["download"] = i.find(ns + "downloadLocation").text
                         if i.find(ns + "downloadLocation").text:
-                            download_type, format = get_download_type(i.find(ns + "downloadLocation").text)
+                            download_type, fmt = get_download_type(i.find(ns + "downloadLocation").text)
                             distro["type"] = download_type
-                            distro["format"] = format
+                            distro["format"] = fmt
                     elif access_medium.text == "accessibleThroughInterface" and i.find(ns + "executionLocation") is not None:
                         resource["interface"].append(distro)
                         distro["access"] = i.find(ns + "executionLocation").text
@@ -256,6 +256,9 @@ def parse_metashare(directory, json_resources, res_type, debug=False):
                         elif i.find(ns + "downloadLocation") is not None:
                             resource["downloads"].append(distro)
                             distro["download"] = i.find(ns + "downloadLocation").text
+                            download_type, fmt = get_download_type(i.find(ns + "downloadLocation").text)
+                            distro["type"] = download_type
+                            distro["format"] = fmt
 
             # Add location of meta data file
             metashare = {
