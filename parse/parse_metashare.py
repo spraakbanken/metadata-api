@@ -254,7 +254,7 @@ def parse_metashare(directory, json_resources, res_type, debug=False):
                             resource["interface"].append(distro)
                             distro["access"] = i.find(ns + "executionLocation").text
                         elif i.find(ns + "downloadLocation") is not None:
-                            resource["interface"].append(distro)
+                            resource["downloads"].append(distro)
                             distro["access"] = i.find(ns + "downloadLocation").text
 
             # Add location of meta data file
