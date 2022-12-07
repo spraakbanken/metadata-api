@@ -1,6 +1,7 @@
 """Parse Meta Share files and store info as json."""
 
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -8,6 +9,7 @@ import traceback
 from collections import defaultdict
 from xml.etree import ElementTree as etree
 
+import requests
 from blacklist import BLACKLIST
 from licence import licence_name, licence_url
 from trainingdata import TRAININGDATA
@@ -113,6 +115,14 @@ def get_json(directory, resource_texts, type_collections, res_type, debug=False)
                 resource_texts[fileid]["en"] = res["long_description_en"]
             res.pop("long_description_sv", None)
             res.pop("long_description_en", None)
+
+            # Add file info for downloadables
+            for d in res.get("downloads", []):
+                url = d.get("download")
+                if url and not ("size" in d and "last-modified" in d):
+                    size, date = get_download_metadata(url, fileid, res_type)
+                    d["size"] = size
+                    d["last-modified"] = date
 
             resources[fileid] = res
 
@@ -240,12 +250,16 @@ def parse_metashare(directory, json_resources, res_type, debug=False):
                 access_medium = i.find(ns + "distributionAccessMedium")
                 if access_medium is not None:
                     if access_medium.text == "downloadable" and i.find(ns + "downloadLocation") is not None:
-                        resource["downloads"].append(distro)
-                        distro["download"] = i.find(ns + "downloadLocation").text
-                        if i.find(ns + "downloadLocation").text:
-                            download_type, fmt = get_download_type(i.find(ns + "downloadLocation").text)
+                        url = i.find(ns + "downloadLocation").text
+                        if url:
+                            resource["downloads"].append(distro)
+                            distro["download"] = url
+                            download_type, fmt = get_download_type(url)
                             distro["type"] = download_type
                             distro["format"] = fmt
+                            size, date = get_download_metadata(url, fileid, res_type)
+                            distro["size"] = size
+                            distro["last-modified"] = date
                     elif access_medium.text == "accessibleThroughInterface" and i.find(ns + "executionLocation") is not None:
                         resource["interface"].append(distro)
                         distro["access"] = i.find(ns + "executionLocation").text
@@ -254,19 +268,28 @@ def parse_metashare(directory, json_resources, res_type, debug=False):
                             resource["interface"].append(distro)
                             distro["access"] = i.find(ns + "executionLocation").text
                         elif i.find(ns + "downloadLocation") is not None:
-                            resource["downloads"].append(distro)
-                            distro["download"] = i.find(ns + "downloadLocation").text
-                            download_type, fmt = get_download_type(i.find(ns + "downloadLocation").text)
-                            distro["type"] = download_type
-                            distro["format"] = fmt
+                            url = i.find(ns + "downloadLocation").text
+                            if url:
+                                resource["downloads"].append(distro)
+                                distro["download"] = url
+                                download_type, fmt = get_download_type(url)
+                                distro["type"] = download_type
+                                distro["format"] = fmt
+                                size, date = get_download_metadata(url, fileid, res_type)
+                                distro["size"] = size
+                                distro["last-modified"] = date
 
             # Add location of meta data file
+            metashare_url = METASHAREURL + res_type + "/" + filename
+            size, date = get_download_metadata(metashare_url, fileid, res_type)
             metashare = {
                 "licence": METASHARE_LICENCE,
                 "restriction": METASHARE_RESTRICTION,
-                "download": METASHAREURL + res_type + "/" + filename,
+                "download": metashare_url,
                 "type": "metadata",
-                "format": "METASHARE"
+                "format": "METASHARE",
+                "size": size,
+                "last-modified": date
             }
             resource["downloads"].append(metashare)
 
@@ -308,6 +331,18 @@ def get_download_type(download_path):
         return filename, filename.split(".")[-1]
     else:
         return "other", None
+
+
+def get_download_metadata(url, name, res_type):
+    """Check headers of file from url and return the file size and last modified date."""
+    res = requests.head(url)
+    size = res.headers.get("Content-Length")
+    date = res.headers.get("Last-Modified")
+    if date:
+        date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
+    if res.status_code == 404:
+        print(f"Could not find downloadable for {res_type} '{name}': {url}")
+    return size, date
 
 
 def get_resource_texts_files(directory=IN_RESOURCE_TEXTS):
