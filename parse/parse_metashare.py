@@ -119,6 +119,11 @@ def get_json(directory, resource_texts, type_collections, res_type, debug=False)
                     print("Skipping black-listed resource", fileid)
                 continue
 
+            # Replace some null values with empty strings for consistency
+            for i in ["description_sv", "description_en", "name_sv", "name_en"]:
+                if res.get(i) is None:
+                    res[i] = ""
+
             # Update resouce_texts and remove long_descriptions for now
             if res.get("long_description_sv"):
                 resource_texts[fileid]["sv"] = res["long_description_sv"]
