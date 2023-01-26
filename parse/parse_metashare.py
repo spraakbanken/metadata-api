@@ -75,6 +75,17 @@ def update_collections(type_collection, resources):
     """Add sizes and resource-lists to collections."""
     for collection, res_list in type_collection.items():
         col = resources.get(collection)
+        if not col:
+            print(f"ERROR: Collection '{collection}' is not defined was referenced by the following resource: "
+                  f"{', '.join(res_list)}. Removing collection from these resources.")
+            for res_id in res_list:
+                res = resources.get(res_id, {})
+                col_list = res.get("in_collections", [])
+                col_list.remove(collection)
+                if not col_list:
+                    res.pop("in_collections")
+            continue
+
         col_id = col.get("id")
         if col:
             col["size"] = col.get("size", {})
@@ -93,7 +104,7 @@ def get_json(directory, resource_texts, type_collections, res_type, debug=False)
     """Gather all json resource files of one type, update resource texts and collections dict."""
     resources = {}
 
-    for filename in os.listdir(directory):
+    for filename in sorted(os.listdir(directory)):
         if not filename.endswith(".json"):
             continue
 
@@ -144,7 +155,7 @@ def parse_metashare(directory, json_resources, res_type, debug=False):
     """Parse the meta share files and return as JSON object."""
     resources = {}
 
-    for filename in os.listdir(directory):
+    for filename in sorted(os.listdir(directory)):
         if not filename.endswith(".xml"):
             continue
 
