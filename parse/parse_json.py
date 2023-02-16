@@ -64,7 +64,7 @@ def update_collections(collection_mappings, collection_json, all_resources):
     for collection, res_list in collection_mappings.items():
         col = collection_json.get(collection)
         if not col:
-            print(f"ERROR: Collection '{collection}' is not defined was referenced by the following resource: "
+            print(f"ERROR: Collection '{collection}' is not defined but was referenced by the following resource: "
                 f"{', '.join(res_list)}. Removing collection from these resources.")
             for res_id in res_list:
                 res = all_resources.get(res_id, {})
@@ -98,7 +98,7 @@ def get_json(directory, resource_texts, collections, res_type, debug=False):
 
         with open(filepath) as f:
             res = json.load(f)
-            fileid = filepath.name
+            fileid = filepath.stem
 
             # Skip if item is blacklisted
             if fileid in BLACKLIST[res_type]:
