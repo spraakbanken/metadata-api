@@ -7,4 +7,5 @@ BLACKLIST = {
         "blisschar",  # detta är en del av Bliss-lexikonet, och bör inte publiceras separat
     ],
     "model": [],
+    "collection": [],
 }

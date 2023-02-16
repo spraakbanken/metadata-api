@@ -21,9 +21,9 @@ IN_RESOURCE_TEXTS = "../meta-share/resource-texts"
 OUT_RESOURCE_TEXTS = "../metadata/static/resource-texts.json"
 
 IO_RESOURCES = {
-    "corpus": ("../json/corpus", "../meta-share/corpus", "../metadata/static/corpora.json"),
-    "lexicon": ("../json/lexicon", "../meta-share/lexicon", "../metadata/static/lexicons.json"),
-    "model": ("../json/model", "../meta-share/model", "../metadata/static/models.json"),
+    "corpus": ("../json_old/corpus", "../meta-share/corpus", "../metadata/static/corpora.json"),
+    "lexicon": ("../json_old/lexicon", "../meta-share/lexicon", "../metadata/static/lexicons.json"),
+    "model": ("../json_old/model", "../meta-share/model", "../metadata/static/models.json"),
 }
 
 METASHAREURL = "https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/"
@@ -58,6 +58,8 @@ def main(resource_types=["corpus", "lexicon", "model"], debug=False):
         # Add sizes and resource-lists to collections
         update_collections(collections[resource_type], json_resources)
         # Save result in all_resources
+        # Sort alphabetically by key
+        json_resources = dict(sorted(json_resources.items()))
         all_resources[resource_type] = json_resources
 
     # Get resource texts and dump them as json

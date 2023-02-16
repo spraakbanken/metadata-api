@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 
 set +x
+THISDIR=$PWD
 
 # Make logdir and define logfile
-LOGDIR=/home/fksbwww/sb-metadata/logs
+LOGDIR=$THISDIR/logs
 mkdir -p $LOGDIR
 LOGFILE=$LOGDIR/`date +%Y-%m`.log
 
 # Fetch updates in metadata files from SVN
 echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
+echo ">>> Update metadata from GIT" >> $LOGFILE
+cd $THISDIR/json && git pull
 echo ">>> Update metadata from SVN" >> $LOGFILE
-cd /home/fksbwww/sb-metadata/meta-share/corpus && svn update
-cd /home/fksbwww/sb-metadata/meta-share/lexicon && svn update
-cd /home/fksbwww/sb-metadata/meta-share/model && svn update
-cd /home/fksbwww/sb-metadata/meta-share/resource-texts && svn update
-cd /home/fksbwww/sb-metadata/json/corpus && svn update
-cd /home/fksbwww/sb-metadata/json/lexicon && svn update
-cd /home/fksbwww/sb-metadata/json/model && svn update
+cd $THISDIR/meta-share/corpus && svn update
+cd $THISDIR/meta-share/lexicon && svn update
+cd $THISDIR/meta-share/model && svn update
+cd $THISDIR/meta-share/resource-texts && svn update
 
 # Fetch application updates from GitHub and restart if necessary
-cd /home/fksbwww/sb-metadata
+cd $THISDIR
 git_output=`git pull`
 echo -e ">>> Result of 'git pull': $git_output" >> $LOGFILE
 if [[ "$git_output" != *"Already"* ]]; then
@@ -31,10 +31,10 @@ fi
 
 # Parse metadata files and flush cache
 echo ">>> Parsing meta data" >> $LOGFILE
-cd /home/fksbwww/sb-metadata
+cd $THISDIR
 source venv/bin/activate
 cd parse
-python parse_metashare.py
+python parse_json.py
 deactivate
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
