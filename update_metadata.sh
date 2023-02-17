@@ -12,7 +12,15 @@ LOGFILE=$LOGDIR/`date +%Y-%m`.log
 echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
 echo ">>> Update metadata from GIT" >> $LOGFILE
-cd $THISDIR/json && git pull
+cd $THISDIR/json
+git_output1=$(git pull 2>&1)
+git_ret1=$?
+# Send output to stderr if git command had a non-zero exit
+if [[ $git_ret1 -ne 0 ]] ; then
+    >&2 echo $git_output1
+else
+    $gitpulloutput >> $LOGFILE
+fi
 echo ">>> Update metadata from SVN" >> $LOGFILE
 cd $THISDIR/meta-share/corpus && svn update
 cd $THISDIR/meta-share/lexicon && svn update
@@ -21,9 +29,9 @@ cd $THISDIR/meta-share/resource-texts && svn update
 
 # Fetch application updates from GitHub and restart if necessary
 cd $THISDIR
-git_output=`git pull`
-echo -e ">>> Result of 'git pull': $git_output" >> $LOGFILE
-if [[ "$git_output" != *"Already"* ]]; then
+git_output2=`git pull`
+echo -e ">>> Result of 'git pull': $git_output2" >> $LOGFILE
+if [[ "$git_output2" != *"Already"* ]]; then
   echo ">>> Restart sb-metadata" >> $LOGFILE
   supervisorctl -c ~/fksbwww.conf restart metadata
   echo ">>> Done" >> $LOGFILE
