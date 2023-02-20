@@ -7,7 +7,9 @@ from collections import defaultdict
 from pathlib import Path
 
 import requests
+
 from blacklist import BLACKLIST
+from translate_lang import get_lang_names
 
 STATIC_DIR = Path("../metadata/static")
 JSON_DIR = Path("../json")
@@ -118,6 +120,23 @@ def get_json(directory, resource_texts, collections, res_type, debug=False):
                 resource_texts[fileid]["en"] = res["long_description_en"]
             res.pop("long_description_sv", None)
             res.pop("long_description_en", None)
+
+            # Get full language info (if not defined already)
+            if not res.get("lang"):
+                res["lang"] = []
+                for langcode in res.get("language_codes", []):
+                    try:
+                        english_name, swedish_name = get_lang_names(langcode)
+
+                        res["lang"].append(
+                            {
+                                "code": langcode,
+                                "name_sv": swedish_name,
+                                "name_en": english_name
+                            })
+                    except LookupError:
+                        print(f"Could not find language code {langcode} (resource: {fileid})")
+                res.pop("language_codes", "")
 
             # Add file info for downloadables
             for d in res.get("downloads", []):

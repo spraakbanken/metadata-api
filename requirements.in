@@ -1,5 +1,6 @@
 Flask
 Flask-Cors
 gunicorn
+pycountry
 python-memcached
 requests
