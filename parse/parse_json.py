@@ -121,14 +121,13 @@ def get_json(directory, resource_texts, collections, res_type, debug=False):
             res.pop("long_description_sv", None)
             res.pop("long_description_en", None)
 
-            # Get full language info (if not defined already)
-            if not res.get("lang"):
-                res["lang"] = []
-                for langcode in res.get("language_codes", []):
+            # Get full language info
+            langs = res.get("langs", [])
+            for langcode in res.get("language_codes", []):
+                if langcode not in [l.get("code") for l in langs]:
                     try:
                         english_name, swedish_name = get_lang_names(langcode)
-
-                        res["lang"].append(
+                        langs.append(
                             {
                                 "code": langcode,
                                 "name_sv": swedish_name,
@@ -136,7 +135,8 @@ def get_json(directory, resource_texts, collections, res_type, debug=False):
                             })
                     except LookupError:
                         print(f"Could not find language code {langcode} (resource: {fileid})")
-                res.pop("language_codes", "")
+            res["langs"] = langs
+            res.pop("language_codes", "")
 
             # Add file info for downloadables
             for d in res.get("downloads", []):
