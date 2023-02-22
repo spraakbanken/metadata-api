@@ -8,7 +8,6 @@ from pathlib import Path
 
 import requests
 
-from blacklist import BLACKLIST
 from translate_lang import get_lang_names
 
 STATIC_DIR = Path("../metadata/static")
@@ -101,28 +100,28 @@ def get_json(directory, resource_texts, collections, res_type, debug=False):
         with open(filepath) as f:
             res = json.load(f)
             fileid = filepath.stem
+            res["id"] = fileid
 
-            # Skip if item is blacklisted
-            if fileid in BLACKLIST[res_type]:
-                if debug:
-                    print("Skipping black-listed resource", fileid)
-                continue
-
-            # Replace some null values with empty strings for consistency
-            for i in ["description_sv", "description_en", "name_sv", "name_en"]:
-                if res.get(i) is None:
-                    res[i] = ""
+            # Translate some attrs to old format:
+            res["name_sv"] = res.get("name", {}).get("swe", "")
+            res["name_en"] = res.get("name", {}).get("eng", "")
+            res.pop("name", None)
+            res["description_sv"] = res.get("short_description", {}).get("swe", "")
+            res["description_en"] = res.get("short_description", {}).get("eng", "")
+            res.pop("short_description", None)
+            for d in res.get("downloads", []):
+                d["download"] = d["url"]
+                d.pop("url", None)
 
             # Update resouce_texts and remove long_descriptions for now
-            if res.get("long_description_sv"):
-                resource_texts[fileid]["sv"] = res["long_description_sv"]
-            if res.get("long_description_en"):
-                resource_texts[fileid]["en"] = res["long_description_en"]
-            res.pop("long_description_sv", None)
-            res.pop("long_description_en", None)
+            if res.get("description", {}).get("swe"):
+                resource_texts[fileid]["sv"] = res["description"]["swe"]
+            if res.get("description", {}).get("eng"):
+                resource_texts[fileid]["en"] = res["description"]["eng"]
+            res.pop("description", None)
 
             # Get full language info
-            langs = res.get("langs", [])
+            langs = res.get("languages", [])
             for langcode in res.get("language_codes", []):
                 if langcode not in [l.get("code") for l in langs]:
                     try:
@@ -135,7 +134,7 @@ def get_json(directory, resource_texts, collections, res_type, debug=False):
                             })
                     except LookupError:
                         print(f"Could not find language code {langcode} (resource: {fileid})")
-            res["langs"] = langs
+            res["lang"] = langs
             res.pop("language_codes", "")
 
             # Add file info for downloadables
