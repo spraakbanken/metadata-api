@@ -112,6 +112,10 @@ def get_json(directory, resource_texts, collections, res_type, debug=False):
             for d in res.get("downloads", []):
                 d["download"] = d["url"]
                 d.pop("url", None)
+            name = res.get("contact_info", {}).get("name") or "Markus Forsberg"
+            res["contact_info"]["surname"] = name.split()[1] if len(name) > 1 else name.split()[0]
+            res["contact_info"]["givenName"] = name.split()[0]
+            res["contact_info"].pop("name", None)
 
             # Update resouce_texts and remove long_descriptions for now
             if res.get("description", {}).get("swe"):
