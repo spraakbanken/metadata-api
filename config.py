@@ -3,9 +3,9 @@
 # Flask settings
 DEBUG = False
 
-CORPORA_FILE = "corpora.json"
-LEXICONS_FILE = "lexicons.json"
-MODELS_FILE = "models.json"
+CORPORA_FILE = "corpus.json"
+LEXICONS_FILE = "lexicon.json"
+MODELS_FILE = "model.json"
 RESOURCE_TEXTS_FILE = "resource-texts.json"
 
 NO_CACHE = False  # Set to True to disable caching with memcached
