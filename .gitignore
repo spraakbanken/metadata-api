@@ -1,11 +1,12 @@
 # Static files and metadata
 meta-share
-metadata/static/collection.json
-metadata/static/corpora.json
-metadata/static/lexicons.json
-metadata/static/models.json
-metadata/static/resource-texts.json
+metadata_api/static/collection.json
+metadata_api/static/corpus.json
+metadata_api/static/lexicon.json
+metadata_api/static/model.json
+metadata_api/static/resource-texts.json
 json
+logs
 .svn/
 list-resources
 

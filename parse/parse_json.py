@@ -10,7 +10,7 @@ from pathlib import Path
 import requests
 from translate_lang import get_lang_names
 
-STATIC_DIR = Path("../metadata/static")
+STATIC_DIR = Path("../metadata_api/static")
 JSON_DIR = Path("../json")
 OUT_RESOURCE_TEXTS = STATIC_DIR / "resource-texts.json"
 

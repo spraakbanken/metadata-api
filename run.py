@@ -1,6 +1,6 @@
 """Run development server."""
 
-from metadata import create_app
+from metadata_api import create_app
 
 if __name__ == "__main__":
     app = create_app()

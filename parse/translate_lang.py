@@ -1,62 +1,10 @@
+"""Module for translating iso639-3 language codes into language names."""
+
 import gettext
 
 import pycountry
 
 SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"])
-
-
-LANG_LABEL_TO_SV = {
-    "Albanian": "albanska",
-    "Belarussian": "belarusiska",
-    "Bosnian": "bosniska",
-    "Bulgarian": "bulgariska",
-    "Croatian": "kroatiska",
-    "Czech": "tjeckiska",
-    "Danish": "danska",
-    "Dutch": "nederländska",
-    "English": "engelska",
-    "Esperanto": "esperanto",
-    "Estonian": "estniska",
-    "Faroese": "färöiska",
-    "Finland Swedish": "finlandssvenska",
-    "Finnish": "finska",
-    "French": "franska",
-    "German": "tyska",
-    "Greek": "grekiska",
-    "Hebrew": "hebreiska",
-    "Italian": "italienska",
-    "Japanese": "japanska",
-    "Kurdish": "kurdiska",
-    "Latin": "latin",
-    "Latvian": "lettiska",
-    "Lithuanian": "litauiska",
-    "Lower Sorbian": "lågsorbiska",
-    "Macedonian": "makedonska",
-    "Maltese": "maltesiska",
-    "Molise Slavic": "moliseslaviska",
-    "Norwegian": "norska",
-    "Old Norse": "fornnordiska",
-    "Persian": "persiska",
-    "Polish": "polska",
-    "Portuguese": "portugisiska",
-    "Romanian": "rumänska",
-    "Russian": "ryska",
-    "Serbian": "serbiska",
-    "Slovak": "slovakiska",
-    "Slovene": "slovenska",
-    "Somali": "somaliska",
-    "Spanish": "spanska",
-    "Swedish": "svenska",
-    "Turkish": "turkiska",
-    "Turkmen": "turkmeniska",
-    "Ukrainian": "ukrainska",
-    "Upper Sorbian": "högsorbiska",
-}
-
-
-def translate(label):
-    """Translate an English language label into Swedish."""
-    return LANG_LABEL_TO_SV.get(label, "")
 
 
 def get_lang_names(langcode):
