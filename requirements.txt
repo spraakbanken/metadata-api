@@ -24,6 +24,8 @@ itsdangerous==2.1.2
     # via flask
 jinja2==3.1.2
     # via flask
+lxml==4.9.2
+    # via -r requirements.in
 markupsafe==2.1.2
     # via
     #   jinja2
