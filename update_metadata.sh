@@ -42,11 +42,17 @@ echo ">>> Parsing meta data" >> $LOGFILE
 cd $THISDIR
 source venv/bin/activate
 cd parse
-python parse_json.py
-deactivate
+python parse_json.py >> $LOGFILE
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
+# Create missing META-SHARE files
+echo ">>> Create missing META-SHARE files" >> $LOGFILE
+python create_metashare.py >> $LOGFILE
+echo ">>> Add new META-SHARE to SVN" >> $LOGFILE
+cd $THISDIR/meta-share/corpus && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update"
+cd $THISDIR/meta-share/lexicon && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update"
+cd $THISDIR/meta-share/model && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update"
 
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`

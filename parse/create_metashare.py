@@ -18,21 +18,16 @@ from translate_lang import get_lang_names
 METASHARE_URL = "http://www.ilsp.gr/META-XMLSchema"
 METASHARE_NAMESPACE = f"{{{METASHARE_URL}}}"
 SBX_SAMPLES_LOCATION = "https://spraakbanken.gu.se/en/resources/"
-SBX_METASHARE_TEMPLATE = "%s-template.xml"
+METASHARE_TEMPLATES_DIR = "metashare-templates"
+METASHARE_TEMPLATE = "%s-template.xml"
 METASHARE_DIR = "../meta-share/"
 JSON_DIR = "../json/"
 
 SBX_DEFAULT_LICENSE = "CC BY 4.0"
 SBX_DEFAULT_RESTRICTION = "attribution"
 
-# AUTO_TOKEN = ["segment.token", "stanza.token", "freeling.token", "stanford.token"]
-# AUTO_SENT = ["segment.sentence", "stanza.sentence", "freeling.sentence", "stanfort.sentence"]
-# AUTO_POS = ["hunpos.pos", "hunpos.msd", "hunpos.msd_hist", "hist.homograph_set", "stanza.pos", "stanza.msd",
-#             "stanza.upos", "misc.upos", "flair.pos", "flair.msd", "freeling.pos", "stanford.pos"]
-# AUTO_BASEFORM = ["saldo.baseform", "hist.baseform", "freeling.baseform", "treetagger.baseform", "stanford.baseform"]
 
-
-def wrapper():
+def create_missing():
     """Loop through all json files and create metashare if it does not exist."""
     metasharelist = list(i.stem for i in Path(METASHARE_DIR).glob("**/*.xml"))
     jsondir = Path(JSON_DIR)
@@ -60,7 +55,7 @@ def create_metashare(json_path, out=None):
     res_type = json_metadata.get("type")
 
     # Parse template and handle META SHARE namespace
-    xml = etree.parse("templates" / Path(SBX_METASHARE_TEMPLATE % res_type)).getroot()
+    xml = etree.parse(METASHARE_TEMPLATES_DIR / Path(METASHARE_TEMPLATE % res_type)).getroot()
     # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
     ns = METASHARE_NAMESPACE
 
@@ -262,7 +257,7 @@ def indent_xml(elem, level=0, indentation="  ") -> None:
 
 
 if __name__ == "__main__":
-    wrapper()
+    create_missing()
 
     # # For tesning purposes:
     # import sys

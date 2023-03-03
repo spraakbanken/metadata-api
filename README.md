@@ -46,6 +46,7 @@ Available API calls:
   - updates the META-SHARE files and resource descriptions from SVN
   - runs the python script for parsing these files
   - updates the repository from GitHub and restarts the service if needed
+  - creates missing META-SHARE files
 
   The following cron job is run on fksbwww@k2:
   ```
