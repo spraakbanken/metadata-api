@@ -12,7 +12,7 @@ LOGFILE=$LOGDIR/`date +%Y-%m`.log
 echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
 echo ">>> Update metadata from GIT" >> $LOGFILE
-cd $THISDIR/json
+cd $THISDIR/yaml
 git_output1=$(git pull 2>&1)
 git_ret1=$?
 # Send output to stderr if git command had a non-zero exit
@@ -42,7 +42,7 @@ echo ">>> Parsing meta data" >> $LOGFILE
 cd $THISDIR
 source venv/bin/activate
 cd parse
-python parse_json.py >> $LOGFILE
+python parse_yaml.py >> $LOGFILE
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 

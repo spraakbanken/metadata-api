@@ -30,7 +30,7 @@ Available API calls:
   pip install -r requirements.txt
   ```
 
-- Get an initial copy of the metadata files (META-SHARE and json) and resource descriptions:
+- Get an initial copy of the metadata files (META-SHARE and YAML) and resource descriptions:
   ```
    ./get_metadata.sh
   ```
@@ -42,7 +42,7 @@ Available API calls:
   ```
 
 - Set up cron job that periodically runs the update script which 
-  - updates the json files stored in git
+  - updates the YAML files stored in git
   - updates the META-SHARE files and resource descriptions from SVN
   - runs the python script for parsing these files
   - updates the repository from GitHub and restarts the service if needed
@@ -60,17 +60,17 @@ Available API calls:
 Some resources have long descriptions that are stored in separate HTML files in SVN
 (https://svn.spraakdata.gu.se/sb-arkiv/pub/resurstext). A description for a resource with machine name `my-resource`
 should be named `my-resource_eng.html` or `my-resource_swe.html` and stored in the above SVN repository. Then it will
-automatically be detected and served by the REST-API. A resource description can also be supplied directly in the json
+automatically be detected and served by the REST-API. A resource description can also be supplied directly in the YAML
 metadata.
 
 
 ## Collections
 
-A collection is a "meta" metadata entry which is used to summarize multiple resources. Collections are supplied as json
-files. The resource-IDs belonging to a collection can either be supplied as a list in the json (with the 'resources'
-key) or each resource can state which collection(s) it belongs to in its json (with the 'in_collections' key which holds
+A collection is a "meta" metadata entry which is used to summarize multiple resources. Collections are supplied as YAML
+files. The resource-IDs belonging to a collection can either be supplied as a list in the YAML (with the 'resources'
+key) or each resource can state which collection(s) it belongs to in its YAML (with the 'in_collections' key which holds
 a list of collection IDs). The size of the collection is calculated automatically. A collection may have a resource
-description, preferably supplied directly in its json.
+description in its YAML.
 
 
 ## Unlisted

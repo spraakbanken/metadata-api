@@ -4,4 +4,5 @@ gunicorn
 lxml
 pycountry
 python-memcached
+pyyaml
 requests

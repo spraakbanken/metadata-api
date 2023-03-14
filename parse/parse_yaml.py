@@ -1,4 +1,4 @@
-"""Read JSON metadata files, compile and prepare information for the API."""
+"""Read YAML metadata files, compile and prepare information for the API."""
 
 import argparse
 import datetime
@@ -8,20 +8,22 @@ from collections import defaultdict
 from pathlib import Path
 
 import requests
+import yaml
 from translate_lang import get_lang_names
 
+
 STATIC_DIR = Path("../metadata_api/static")
-JSON_DIR = Path("../json")
+YAML_DIR = Path("../yaml")
 OUT_RESOURCE_TEXTS = STATIC_DIR / "resource-texts.json"
 
 # Instatiate command line arg parser
-parser = argparse.ArgumentParser(description="Read JSON metadata files, compile and prepare information for the API")
+parser = argparse.ArgumentParser(description="Read YAML metadata files, compile and prepare information for the API")
 parser.add_argument("--debug", action="store_true", help="Print debug info")
 parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
 
 
 def main(resource_types=["collection", "lexicon", "corpus", "model"], debug=False, offline=False):
-    """Read JSON metadata files, compile and prepare information for the API (main wrapper)."""
+    """Read YAML metadata files, compile and prepare information for the API (main wrapper)."""
     resource_ids = []
     all_resources = {}
     resource_texts = defaultdict(dict)
@@ -30,13 +32,13 @@ def main(resource_types=["collection", "lexicon", "corpus", "model"], debug=Fals
     for resource_type in resource_types:
         if debug:
             print(f"Processing {resource_type} resources")
-        # Get resources from json
-        json_resources = get_json(JSON_DIR / resource_type, resource_texts, collection_mappings,
+        # Get resources from yaml
+        yaml_resources = get_yaml(YAML_DIR / resource_type, resource_texts, collection_mappings,
                                   resource_type, debug=debug, offline=offline)
         # Get resource-text-mapping
-        resource_ids.extend(list(json_resources.keys()))
+        resource_ids.extend(list(yaml_resources.keys()))
         # Save result in all_resources
-        all_resources.update(json_resources)
+        all_resources.update(yaml_resources)
 
     # Sort alphabetically by key
     all_resources = dict(sorted(all_resources.items()))
@@ -57,19 +59,19 @@ def main(resource_types=["collection", "lexicon", "corpus", "model"], debug=Fals
     write_json(STATIC_DIR / "collection.json", collection_json)
 
 
-def get_json(directory, resource_texts, collections, res_type, debug=False, offline=False):
-    """Gather all json resource files of one type, update resource texts and collections dict."""
+def get_yaml(directory, resource_texts, collections, res_type, debug=False, offline=False):
+    """Gather all yaml resource files of one type, update resource texts and collections dict."""
     resources = {}
 
     for filepath in sorted(Path(directory).iterdir()):
-        if not filepath.suffix == ".json":
+        if not filepath.suffix == ".yaml":
             continue
 
         try:
             if debug:
                 print(f"  Processing {filepath}")
-            with open(filepath) as f:
-                res = json.load(f)
+            with open(filepath, encoding="utf-8") as f:
+                res = yaml.load(f, Loader=yaml.FullLoader)
                 fileid = filepath.stem
                 res["id"] = fileid
 

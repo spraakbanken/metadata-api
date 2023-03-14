@@ -2,6 +2,8 @@
 
 import json
 from pathlib import Path
+import yaml
+
 
 def main():
     path = Path("../json")
@@ -103,8 +105,50 @@ def sort_json():
             json.dump(new_metadata, f, ensure_ascii=False, indent=2)
 
 
+def convert2yaml():
+    path = Path("../json")
+
+    for p in path.rglob("**/*.yaml"):
+        with open(p) as f:
+            try:
+                metadata = json.load(f)
+            except json.decoder.JSONDecodeError:
+                print(f"failed to convert {p}")
+                continue
+
+            # print(metadata.get("description", {}).get("eng"))
+
+        print(f"writing {p}")
+        with open(p, "w") as yaml_file:
+            dump_pretty(metadata, yaml_file)
+
+
+def dump_pretty(data, path):
+    """Dump config YAML to string. (stolen from Sparv)"""
+    class IndentDumper(yaml.Dumper):
+        """Customized YAML dumper that indents lists."""
+
+        def increase_indent(self, flow=False, indentless=False):
+            """Force indentation."""
+            return super(IndentDumper, self).increase_indent(flow)
+
+    # Add custom string representer for prettier multiline strings
+    def str_representer(dumper, data):
+        if len(data.splitlines()) > 1:  # Check for multiline string
+            data = '\n'.join([line.rstrip() for line in data.strip().splitlines()])
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+    yaml.add_representer(str, str_representer)
+
+    return yaml.dump(data, path, sort_keys=False, allow_unicode=True, Dumper=IndentDumper, indent=2, line_break=None,
+                     default_flow_style=False)
+
+
 
 if __name__ == "__main__":
-    pass
+
+    # convert2yaml()
+
     # main()
     # sort_json()
+    pass

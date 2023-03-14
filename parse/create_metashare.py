@@ -1,15 +1,15 @@
 """
-Create META-SHARE format from json metadata. Requires >Python 3.8.
+Create META-SHARE format from YAML metadata. Requires >Python 3.8.
 
 Meta Share documentation: http://www.meta-net.eu/meta-share/META-SHARE%20%20documentationUserManual.pdf
 """
 
-import json
 import time
 from pathlib import Path
 
 # import xml.etree.ElementTree as etree
 from lxml import etree # Using lxml because of the getparent method
+import yaml
 
 from translate_lang import get_lang_names
 
@@ -21,38 +21,38 @@ SBX_SAMPLES_LOCATION = "https://spraakbanken.gu.se/en/resources/"
 METASHARE_TEMPLATES_DIR = "metashare-templates"
 METASHARE_TEMPLATE = "%s-template.xml"
 METASHARE_DIR = "../meta-share/"
-JSON_DIR = "../json/"
+YAML_DIR = "../yaml/"
 
 SBX_DEFAULT_LICENSE = "CC BY 4.0"
 SBX_DEFAULT_RESTRICTION = "attribution"
 
 
 def create_missing():
-    """Loop through all json files and create metashare if it does not exist."""
+    """Loop through all yaml files and create metashare if it does not exist."""
     metasharelist = list(i.stem for i in Path(METASHARE_DIR).glob("**/*.xml"))
-    jsondir = Path(JSON_DIR)
-    for thisdir in jsondir.glob("*/"):
+    yamldir = Path(YAML_DIR)
+    for thisdir in yamldir.glob("*/"):
         if thisdir.stem not in ["corpus", "lexicon", "model"]:
             continue
-        for f in thisdir.glob("*.json"):
+        for f in thisdir.glob("*.yaml"):
             if f.stem not in metasharelist:
                 out = Path(METASHARE_DIR) / thisdir.stem / f"{f.stem}.xml"
                 create_metashare(f, out)
 
 
-def create_metashare(json_path, out=None):
-    """Create META-SHARE format from json metadata."""
-    # Read json metadata
-    with open(json_path) as f:
-        json_metadata = json.load(f)
+def create_metashare(yaml_path, out=None):
+    """Create META-SHARE format from yaml metadata."""
+    # Read yaml metadata
+    with open(yaml_path, encoding="utf-8") as f:
+        yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
 
     # Skip unlisted resources
-    if json_metadata.get("unlisted") == True:
-        print(f"Skipping unlisted resource {json_path.stem}")
+    if yaml_metadata.get("unlisted") == True:
+        print(f"Skipping unlisted resource {yaml_path.stem}")
         return
 
-    res_id = json_path.stem
-    res_type = json_metadata.get("type")
+    res_id = yaml_path.stem
+    res_type = yaml_metadata.get("type")
 
     # Parse template and handle META SHARE namespace
     xml = etree.parse(METASHARE_TEMPLATES_DIR / Path(METASHARE_TEMPLATE % res_type)).getroot()
@@ -70,23 +70,23 @@ def create_metashare(json_path, out=None):
     identificationInfo.find(ns + "identifier").text = res_id
 
     # Set name
-    _set_text(identificationInfo.findall(ns + "resourceName"), json_metadata.get("name", {}).get("swe", ""), "swe")
-    _set_text(identificationInfo.findall(ns + "resourceName"), json_metadata.get("name", {}).get("eng", ""), "eng")
+    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("swe", ""), "swe")
+    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("eng", ""), "eng")
 
     # Set description
-    _set_text(identificationInfo.findall(ns + "description"), json_metadata.get("short_description", {}).get("swe", ""), "swe")
-    _set_text(identificationInfo.findall(ns + "description"), json_metadata.get("short_description", {}).get("eng", ""), "eng")
+    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("swe", ""), "swe")
+    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("eng", ""), "eng")
 
     # Set metadata creation date in metadataInfo
     xml.find(".//" + ns + "metadataCreationDate").text = str(time.strftime("%Y-%m-%d"))
 
     # Set availability
-    # TODO not represented in json yet
+    # TODO not represented in yaml yet
     xml.find(".//" + ns + "availability").text = "available-unrestrictedUse"
 
     # Set licenceInfos
     distInfo = xml.find(".//" + ns + "distributionInfo")
-    for d in json_metadata.get("downloads", []):
+    for d in yaml_metadata.get("downloads", []):
         _set_licence_info(d, distInfo)
     ms_download = {
             "url": f"https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/{res_type}/{res_id}.xml",
@@ -94,26 +94,26 @@ def create_metashare(json_path, out=None):
             "restriction": "attribution",
         }
     _set_licence_info(ms_download, distInfo)
-    for i in json_metadata.get("interface", []):
+    for i in yaml_metadata.get("interface", []):
         _set_licence_info(i, distInfo, download=False)
 
     # Set contactPerson
-    _set_contact_info(json_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
+    _set_contact_info(yaml_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
 
     # Set samplesLocation
     xml.find(".//" + ns + "samplesLocation").text = f"{SBX_SAMPLES_LOCATION}{res_id}"
 
     # Set lingualityType
-    # TODO not represented in json yet
+    # TODO not represented in yaml yet
     xml.find(".//" + ns + "lingualityType").text = "monolingual"  # monolingual, bilingual, multilingual
 
     if res_type == "lexicon":
-        # TODO not represented in json yet
+        # TODO not represented in yaml yet
         # wordList, computationalLexicon, ontology, wordnet, thesaurus, framenet, terminologicalResource, machineReadableDictionary, lexicon
         xml.find(".//" + ns + "lexicalConceptualResourceType").text = "computationalLexicon"
 
     # Set languageInfo (languageId, languageName)
-    langs = json_metadata.get("language_codes", [])
+    langs = yaml_metadata.get("language_codes", [])
     if langs:
         # Fill in info for first language
         langcode = langs[0]
@@ -122,7 +122,7 @@ def create_metashare(json_path, out=None):
             xml.find(".//" + ns + "languageId").text = langcode
             xml.find(".//" + ns + "languageName").text = english_name
         except LookupError:
-            print(f"Could not find language code {langcode} (resource: {json_path})")
+            print(f"Could not find language code {langcode} (resource: {yaml_path})")
     if len(langs) > 1:
         # Create new elemets for other languages
         for langcode in langs[1:]:
@@ -141,16 +141,16 @@ def create_metashare(json_path, out=None):
                 i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
                 parent.insert(i + 1, languageInfo)
             except LookupError:
-                print(f"Could not find language code {langcode} (resource: {json_path})")
+                print(f"Could not find language code {langcode} (resource: {yaml_path})")
 
     # Set sizeInfo
     if res_type == "corpus":
         sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        sizeInfos[0].find(ns + "size").text = json_metadata.get("size", {}).get("tokens", "0")
-        sizeInfos[1].find(ns + "size").text = json_metadata.get("size", {}).get("sentences", "0")
+        sizeInfos[0].find(ns + "size").text = yaml_metadata.get("size", {}).get("tokens", "0")
+        sizeInfos[1].find(ns + "size").text = yaml_metadata.get("size", {}).get("sentences", "0")
     elif res_type == "lexicon":
         sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        sizeInfos[0].find(ns + "size").text = json_metadata.get("size", {}).get("entries", "0")
+        sizeInfos[0].find(ns + "size").text = yaml_metadata.get("size", {}).get("entries", "0")
 
     # Dump XML and hack in autogen comment (etree cannot do this for us and lxml will uglify)
     comment = "This file was automatically generated. Do not make changes directly to this file"\
@@ -264,5 +264,5 @@ if __name__ == "__main__":
     # filename = sys.argv[1]
     # create_metashare(filename)
 
-    # create_metashare(Path("../json/corpus/abotidning.json"), Path("test-abotidning.xml"))
-    # create_metashare(Path("../json/corpus/aspacsvbe.json"), Path("test-aspacsvbe.xml"))
+    # create_metashare(Path("../yaml/corpus/abotidning.yaml"), Path("test-abotidning.xml"))
+    # create_metashare(Path("../yaml/corpus/aspacsvbe.yaml"), Path("test-aspacsvbe.xml"))
