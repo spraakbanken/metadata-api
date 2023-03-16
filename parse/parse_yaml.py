@@ -96,9 +96,9 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                         res["size"][k] = str(v)
 
                 # Update resouce_texts and remove long_descriptions for now
-                if res.get("description", {}).get("swe"):
+                if res.get("description", {}).get("swe", "").strip():
                     resource_texts[fileid]["sv"] = res["description"]["swe"]
-                if res.get("description", {}).get("eng"):
+                if res.get("description", {}).get("eng", "").strip():
                     resource_texts[fileid]["en"] = res["description"]["eng"]
                 res.pop("description", None)
 
