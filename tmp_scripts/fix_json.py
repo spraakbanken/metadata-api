@@ -6,34 +6,23 @@ import yaml
 
 
 def main():
-    path = Path("../json")
+    path = Path("../yaml")
 
-    for p in path.rglob("**/*.json"):
+    for p in path.rglob("**/*.yaml"):
+        if "templates" in p:
+            continue
         with open(p) as f:
-            metadata = json.load(f)
+            metadata = yaml.load(f, Loader=yaml.FullLoader)
 
-        new_contact = {}
-        contact = metadata.get("contact_info", {})
-        firstname = contact["givenName"]
-        surname = contact["surname"]
-        name = f"{firstname} {surname}"
-        if name == "Språkbanken Språkbanken":
-            name = "Markus Forsberg"
-
-        contact.pop("surname")
-        contact.pop("givenName")
-
-        new_contact["name"] = name
-        new_contact["email"] = contact["email"]
-        new_contact["affiliation"] = contact["affiliation"]
-        contact.pop("email")
-        contact.pop("affiliation")
-
-        metadata["contact_info"] = new_contact
+        for k, v in metadata.get("size", {}).items():
+            if not v:
+                print(p.stem)
+            else:
+                metadata["size"][k] = int(v)
 
         print(f"writing {p}")
-        with open(p, "w") as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
+        with open(p, "w") as yaml_file:
+            dump_pretty(metadata, yaml_file)
 
 
 def sort_json():
@@ -106,21 +95,23 @@ def sort_json():
 
 
 def convert2yaml():
-    path = Path("../json")
+    p = Path("../yaml/collection/superlim.yaml")
 
-    for p in path.rglob("**/*.yaml"):
-        with open(p) as f:
-            try:
-                metadata = json.load(f)
-            except json.decoder.JSONDecodeError:
-                print(f"failed to convert {p}")
-                continue
+    # for p in path.rglob("**/*.yaml"):
+    with open(p) as f:
+        metadata = yaml.load(f, Loader=yaml.FullLoader)
+        print(metadata)
+        # try:
+        #     metadata = yaml.load(f, Loader=yaml.FullLoader)
+        # except json.decoder.JSONDecodeError:
+        #     print(f"failed to convert {p}")
+            # continue
 
-            # print(metadata.get("description", {}).get("eng"))
+        # print(metadata.get("description", {}).get("eng"))
 
-        print(f"writing {p}")
-        with open(p, "w") as yaml_file:
-            dump_pretty(metadata, yaml_file)
+    print(f"writing {p}")
+    with open(p, "w") as yaml_file:
+        dump_pretty(metadata, yaml_file)
 
 
 def dump_pretty(data, path):
@@ -149,6 +140,6 @@ if __name__ == "__main__":
 
     # convert2yaml()
 
-    # main()
+    main()
     # sort_json()
     pass

@@ -90,6 +90,11 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                 res["contact_info"]["givenName"] = name.split()[0]
                 res["contact_info"].pop("name", None)
 
+                # Cast size attrs to strings
+                for k, v in res.get("size", {}).items():
+                    if v is not None:
+                        res["size"][k] = str(v)
+
                 # Update resouce_texts and remove long_descriptions for now
                 if res.get("description", {}).get("swe"):
                     resource_texts[fileid]["sv"] = res["description"]["swe"]

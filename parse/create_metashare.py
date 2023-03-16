@@ -146,11 +146,11 @@ def create_metashare(yaml_path, out=None):
     # Set sizeInfo
     if res_type == "corpus":
         sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        sizeInfos[0].find(ns + "size").text = yaml_metadata.get("size", {}).get("tokens", "0")
-        sizeInfos[1].find(ns + "size").text = yaml_metadata.get("size", {}).get("sentences", "0")
+        sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("tokens", "0"))
+        sizeInfos[1].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("sentences", "0"))
     elif res_type == "lexicon":
         sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        sizeInfos[0].find(ns + "size").text = yaml_metadata.get("size", {}).get("entries", "0")
+        sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("entries", "0"))
 
     # Dump XML and hack in autogen comment (etree cannot do this for us and lxml will uglify)
     comment = "This file was automatically generated. Do not make changes directly to this file"\
