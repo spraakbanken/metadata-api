@@ -73,27 +73,7 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
             with open(filepath, encoding="utf-8") as f:
                 res = yaml.load(f, Loader=yaml.FullLoader)
                 fileid = filepath.stem
-                res["id"] = fileid
-
-                # Translate some attrs to old format:
-                res["name_sv"] = res.get("name", {}).get("swe", "")
-                res["name_en"] = res.get("name", {}).get("eng", "")
-                res.pop("name", None)
-                res["description_sv"] = res.get("short_description", {}).get("swe", "")
-                res["description_en"] = res.get("short_description", {}).get("eng", "")
-                res.pop("short_description", None)
-                for d in res.get("downloads", []):
-                    d["download"] = d["url"]
-                    d.pop("url", None)
-                name = res.get("contact_info", {}).get("name") or "Markus Forsberg"
-                res["contact_info"]["surname"] = name.split()[1] if len(name) > 1 else name.split()[0]
-                res["contact_info"]["givenName"] = name.split()[0]
-                res["contact_info"].pop("name", None)
-
-                # Cast size attrs to strings
-                for k, v in res.get("size", {}).items():
-                    if v is not None:
-                        res["size"][k] = str(v)
+                new_res = {"id": fileid}
 
                 # Update resouce_texts and remove long_descriptions for now
                 if res.get("description", {}).get("swe", "").strip():
@@ -116,7 +96,7 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                                 })
                         except LookupError:
                             print(f"Error: Could not find language code {langcode} (resource: {fileid})")
-                res["lang"] = langs
+                res["languages"] = langs
                 res.pop("language_codes", "")
 
                 if not offline:
@@ -128,7 +108,8 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                             d["size"] = size
                             d["last-modified"] = date
 
-                resources[fileid] = res
+                new_res.update(res)
+                resources[fileid] = new_res
 
                 # Update collections dict
                 if res.get("collection") == True:
@@ -142,6 +123,7 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                         collections[collection_id] = collections.get(collection_id, [])
                         collections[collection_id].append(fileid)
                         collections[collection_id] = sorted(list(set(collections[collection_id])))
+
 
         except Exception as e:
             print(f"Error: failed to process '{filepath}'")
