@@ -17,7 +17,6 @@ Available API calls:
 - `https://ws.spraakbanken.gu.se/ws/models`: List all models
 - `https://ws.spraakbanken.gu.se/ws/collections`: List all collections
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
-- `https://ws.spraakbanken.gu.se/ws/metadata?has-description=true`: List only resources that have a long description
 - `https://ws.spraakbanken.gu.se/ws/metadata/doc`: Serve API documentation as YAML
 - `https://ws.spraakbanken.gu.se/ws/metadata/renew-cache`: Flush cache and fill with fresh values
 

@@ -54,7 +54,6 @@ def main(resource_types=["collection", "lexicon", "corpus", "model"], debug=Fals
     for resource_type in resource_types:
         if not resource_type == "collection":
             res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
-            set_description_bool(res_json, resource_texts)
             write_json(STATIC_DIR / f"{resource_type}.json", res_json)
     write_json(STATIC_DIR / "collection.json", collection_json)
 
@@ -77,9 +76,9 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
 
                 # Update resouce_texts and remove long_descriptions for now
                 if res.get("description", {}).get("swe", "").strip():
-                    resource_texts[fileid]["sv"] = res["description"]["swe"]
+                    resource_texts[fileid]["swe"] = res["description"]["swe"]
                 if res.get("description", {}).get("eng", "").strip():
-                    resource_texts[fileid]["en"] = res["description"]["eng"]
+                    resource_texts[fileid]["eng"] = res["description"]["eng"]
                 res.pop("description", None)
 
                 # Get full language info
@@ -91,8 +90,10 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                             langs.append(
                                 {
                                     "code": langcode,
-                                    "name_sv": swedish_name,
-                                    "name_en": english_name
+                                    "name": {
+                                        "swe": swedish_name,
+                                        "eng": english_name
+                                    }
                                 })
                         except LookupError:
                             print(f"Error: Could not find language code {langcode} (resource: {fileid})")
@@ -123,7 +124,6 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                         collections[collection_id] = collections.get(collection_id, [])
                         collections[collection_id].append(fileid)
                         collections[collection_id] = sorted(list(set(collections[collection_id])))
-
 
         except Exception as e:
             print(f"Error: failed to process '{filepath}'")
@@ -171,16 +171,6 @@ def get_download_metadata(url, name, res_type):
     if res.status_code == 404:
         print(f"Error: Could not find downloadable for {res_type} '{name}': {url}")
     return size, date
-
-
-def set_description_bool(resources, resource_texts):
-    """Add bool 'has_description' for every resource."""
-    for i in resources:
-        resources[i]["has_description"] = False
-        if resources[i].get("long_description_sv") or resources[i].get("long_description_en"):
-            resources[i]["has_description"] = True
-        if resource_texts.get(i):
-            resources[i]["has_description"] = True
 
 
 def write_json(filename, data):

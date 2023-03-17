@@ -19,9 +19,8 @@ def get_single_resource(resource_id, corpora, lexicons, models):
     elif models.get(resource_id):
         resource = models[resource_id]
 
-    if resource:
-        resource["long_description_sv"] = long_description.get("sv", "")
-        resource["long_description_en"] = long_description.get("en", "")
+    if resource and long_description:
+        resource["description"] = long_description
 
     return jsonify(resource)
 
@@ -65,13 +64,10 @@ def dict_to_list(input_obj):
     return list(input_obj.values())
 
 
-def get_resource_type(rtype, resource_file, only_with_description=False):
+def get_resource_type(rtype, resource_file):
     """Get list of resources of one resource type."""
     resource_type = load_data(current_app.config.get(resource_file))
     data = dict_to_list(resource_type)
-
-    if only_with_description:
-        data = [c for c in data if c["has_description"]]
 
     return jsonify({
         "resource_type": rtype,

@@ -13,5 +13,5 @@ def get_lang_names(langcode):
     if l is None:
         raise LookupError
     english_name = l.name
-    swedish_name = SWEDISH.gettext(english_name)
+    swedish_name = SWEDISH.gettext(english_name).lower()
     return english_name, swedish_name

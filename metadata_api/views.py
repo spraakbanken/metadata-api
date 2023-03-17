@@ -29,38 +29,27 @@ def metadata():
     data = {"corpora": utils.dict_to_list(corpora), "lexicons": utils.dict_to_list(lexicons),
             "models": utils.dict_to_list(models)}
 
-    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
-    if has_description:
-        data = {
-            "corpora": [c for c in data["corpora"] if c["has_description"]],
-            "lexicons": [c for c in data["lexicons"] if c["has_description"]],
-            "models": [c for c in data["models"] if c["has_description"]]
-        }
-
     return jsonify(data)
 
 
 @general.route("/corpora")
 def corpora():
     """Return corpus metadata as a JSON object."""
-    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
-    json_data = utils.get_resource_type("corpus", "CORPORA_FILE", only_with_description=has_description)
+    json_data = utils.get_resource_type("corpus", "CORPORA_FILE")
     return json_data
 
 
 @general.route("/lexicons")
 def lexicons():
     """Return lexicon metadata as a JSON object."""
-    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
-    json_data = utils.get_resource_type("lexicon", "LEXICONS_FILE", only_with_description=has_description)
+    json_data = utils.get_resource_type("lexicon", "LEXICONS_FILE")
     return json_data
 
 
 @general.route("/models")
 def models():
     """Return models metadata as a JSON object."""
-    has_description = True if (request.args.get("has-description", "")).lower() == "true" else False
-    json_data = utils.get_resource_type("model", "MODELS_FILE", only_with_description=has_description)
+    json_data = utils.get_resource_type("model", "MODELS_FILE")
     return json_data
 
 
