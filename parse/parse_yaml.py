@@ -103,7 +103,7 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                 if not offline:
                     # Add file info for downloadables
                     for d in res.get("downloads", []):
-                        url = d.get("download")
+                        url = d.get("url")
                         if url and not ("size" in d and "last-modified" in d):
                             size, date = get_download_metadata(url, fileid, res_type)
                             d["size"] = size
