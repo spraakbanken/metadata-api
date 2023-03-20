@@ -164,7 +164,7 @@ def update_collections(collection_mappings, collection_json, all_resources):
 def get_download_metadata(url, name, res_type):
     """Check headers of file from url and return the file size and last modified date."""
     res = requests.head(url)
-    size = res.headers.get("Content-Length")
+    size = int(res.headers.get("Content-Length")) if res.headers.get("Content-Length") else None
     date = res.headers.get("Last-Modified")
     if date:
         date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")

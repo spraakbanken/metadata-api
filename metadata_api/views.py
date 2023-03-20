@@ -18,14 +18,17 @@ def documentation():
 @general.route("/")
 def metadata():
     """Return corpus and lexicon metadata as a JSON object."""
-    corpora = utils.load_data(current_app.config.get("CORPORA_FILE"))
-    lexicons = utils.load_data(current_app.config.get("LEXICONS_FILE"))
-    models = utils.load_data(current_app.config.get("MODELS_FILE"))
-
     resource = request.args.get("resource")
     if resource:
+        corpora = utils.load_data(current_app.config.get("CORPORA_FILE"))
+        lexicons = utils.load_data(current_app.config.get("LEXICONS_FILE"))
+        models = utils.load_data(current_app.config.get("MODELS_FILE"))
         return utils.get_single_resource(resource, corpora, lexicons, models)
 
+    remove_keys = current_app.config.get("HIDE_FROM_LISTING")
+    corpora = utils.load_data(current_app.config.get("CORPORA_FILE"), remove_keys=remove_keys)
+    lexicons = utils.load_data(current_app.config.get("LEXICONS_FILE"), remove_keys=remove_keys)
+    models = utils.load_data(current_app.config.get("MODELS_FILE"), remove_keys=remove_keys)
     data = {"corpora": utils.dict_to_list(corpora), "lexicons": utils.dict_to_list(lexicons),
             "models": utils.dict_to_list(models)}
 
@@ -56,14 +59,15 @@ def models():
 @general.route("/collections")
 def collections():
     """Return collections metadata as a JSON object."""
-    corpora = utils.load_data(current_app.config.get("CORPORA_FILE"))
+    remove_keys = current_app.config.get("HIDE_FROM_LISTING")
+    corpora = utils.load_data(current_app.config.get("CORPORA_FILE"), remove_keys=remove_keys)
     data = dict([(name, data) for (name, data) in corpora.items() if data.get("collection")])
 
-    lexicons = utils.load_data(current_app.config.get("LEXICONS_FILE"))
+    lexicons = utils.load_data(current_app.config.get("LEXICONS_FILE"), remove_keys=remove_keys)
     lexicons = dict([(name, data) for (name, data) in lexicons.items() if data.get("collection")])
     data.update(lexicons)
 
-    models = utils.load_data(current_app.config.get("MODELS_FILE"))
+    models = utils.load_data(current_app.config.get("MODELS_FILE"), remove_keys=remove_keys)
     models = dict([(name, data) for (name, data) in models.items() if data.get("collection")])
     data.update(models)
 
