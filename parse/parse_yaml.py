@@ -54,6 +54,7 @@ def main(resource_types=["collection", "lexicon", "corpus", "model"], debug=Fals
     for resource_type in resource_types:
         if not resource_type == "collection":
             res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
+            set_description_bool(res_json, resource_texts)
             write_json(STATIC_DIR / f"{resource_type}.json", res_json)
     write_json(STATIC_DIR / "collection.json", collection_json)
 
@@ -171,6 +172,16 @@ def get_download_metadata(url, name, res_type):
     if res.status_code == 404:
         print(f"Error: Could not find downloadable for {res_type} '{name}': {url}")
     return size, date
+
+
+def set_description_bool(resources, resource_texts):
+    """Add bool 'has_description' for every resource."""
+    for i in resources:
+        resources[i]["has_description"] = False
+        if resources[i].get("description"):
+            resources[i]["has_description"] = True
+        if resource_texts.get(i):
+            resources[i]["has_description"] = True
 
 
 def write_json(filename, data):
