@@ -25,26 +25,23 @@ def get_single_resource(resource_id, corpora, lexicons, models):
     return jsonify(resource)
 
 
-def load_data(jsonfile, prefix="", remove_keys=None):
+def load_data(jsonfile, prefix=""):
     """Load data from cache."""
     if current_app.config.get("NO_CACHE"):
+        return read_static_json(jsonfile)
+
+    mc = current_app.config.get("cache_client")
+    data = mc.get(add_prefix(jsonfile, prefix))
+    if not data:
         all_data = read_static_json(jsonfile)
+        mc.set(add_prefix(jsonfile, prefix), list(all_data.keys()))
+        for k, v in all_data.items():
+            mc.set(add_prefix(k, prefix), v)
     else:
-        mc = current_app.config.get("cache_client")
-        data = mc.get(add_prefix(jsonfile, prefix))
-        if not data:
-            all_data = read_static_json(jsonfile)
-            mc.set(add_prefix(jsonfile, prefix), list(all_data.keys()))
-            for k, v in all_data.items():
-                mc.set(add_prefix(k, prefix), v)
-        else:
-            all_data = {}
-            for k in data:
-                all_data[k] = mc.get(add_prefix(k, prefix))
-    if remove_keys:
-        for val in all_data.values():
-            for rk in remove_keys:
-                val.pop(rk, None)
+        all_data = {}
+        for k in data:
+            all_data[k] = mc.get(add_prefix(k, prefix))
+
     return all_data
 
 
@@ -71,8 +68,7 @@ def dict_to_list(input_obj):
 
 def get_resource_type(rtype, resource_file):
     """Get list of resources of one resource type."""
-    remove_keys = current_app.config.get("HIDE_FROM_LISTING")
-    resource_type = load_data(current_app.config.get(resource_file), remove_keys=remove_keys)
+    resource_type = load_data(current_app.config.get(resource_file))
     data = dict_to_list(resource_type)
 
     return jsonify({
