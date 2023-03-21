@@ -1,9 +1,9 @@
 openapi: "3.0.2"
 
 info:
-  title: SB Metadata
+  title: Språkbanken Metadata
   description: API for serving meta data for corpora and lexicons
-  version: "0.1"
+  version: "2.0"
   contact:
     name: Språkbanken
     url: https://spraakbanken.gu.se/
@@ -19,10 +19,10 @@ servers:
 tags:
   - name: General
     description: |
-      The purpose of this very basic API is to quickly get a list of the language resources (corpora and lexicons) available at Språkbanken.
-      At the moment it it used to list resources on SB's web page. Future uses may include resource selection in Korp, Karp and Strix.
+      The purpose of this very basic API is to quickly get a list of the language resources (corpora, lexicons and models) available at Språkbanken.
+      At the moment it is used to list resources on Språkbanken's web page.
 
-      Some resources have long descriptions that are only displayed when using the `resource` parameter. For additional information about long
+      Some resources have longer descriptions that are only displayed when using the `resource` parameter. For additional information about
       descriptions please refer to the [git repository](https://github.com/spraakbanken/sb-metadata).
 
 paths:
@@ -38,11 +38,6 @@ paths:
           description: ID of the resource to display
           schema:
             type: string
-        - name: has-description
-          schema:
-            type: boolean
-          in: query
-          description: set to `true` to only show resources that have long descriptions
       responses:
         '200':
           description: OK
@@ -72,12 +67,6 @@ paths:
       description: Show meta data for all corpora.
       tags:
         - General
-      parameters:
-        - name: has-description
-          schema:
-            type: boolean
-          in: query
-          description: set to `true` to only show resources that have long descriptions
       responses:
         '200':
           description: OK
@@ -103,12 +92,6 @@ paths:
       description: Show meta data for all lexicons.
       tags:
         - General
-      parameters:
-        - name: has-description
-          schema:
-            type: boolean
-          in: query
-          description: set to `true` to only show resources that have long descriptions
       responses:
         '200':
           description: OK
@@ -134,12 +117,6 @@ paths:
       description: Show meta data for all models.
       tags:
         - General
-      parameters:
-        - name: has-description
-          schema:
-            type: boolean
-          in: query
-          description: set to `true` to only show resources that have long descriptions
       responses:
         '200':
           description: OK
@@ -212,55 +189,51 @@ components:
           type: string
           description: ID (machine name) of the resource
           example: saldo
+        name:
+          type: object
+          properties:
+            swe:
+              type: string
+              description: resource name in Swedish
+              example: Saldo
+            eng:
+              type: string
+              description: resource name in English
+              example: Saldo
+        short_description:
+          type: object
+          properties:
+            swe:
+              type: string
+              description: Short description in Swedish
+            eng:
+              type: string
+              description: Short description in English
         type:
           type: string
           description: type of the resource
-        lang:
+        trainingdata:
+          type: boolean
+          description: whether the data is suitable as trainingdata
+        unlisted:
+          type: boolean
+          description: whether the resource should be hidden from the listing
+        successors:
           type: array
-          description: language(s) of the resource
-          items:
-            type: object
-            properties:
-              code:
-                type: string
-                description: three-letter language code
-                example: swe
-              name_en:
-                type: string
-                description: English name of the language
-                example: Swedish
-              name_sv:
-                type: string
-                description: Swedish name of the language
-                example: svenska
-        name_sv:
-          type: string
-          description: resource name in Swedish
-          example: Saldo
-        name_en:
-          type: string
-          description: resource name in English
-          example: Saldo
-        description_sv:
-          type: string
-          description: Short description in Swedish
-        description_en:
-          type: string
-          description: Short description in English
+          description: array of resources that have replaced this resource (e.g. newer versions)
+        size:
+          type: object
+          description: size of the resource (number of entries or tokens and sentences)
+        in_collections:
+          type: array
+          description: array of collection IDs that this resource is part of
         downloads:
           type: array
           description: list of downloadable files
           items:
             type: object
             properties:
-              licence:
-                type: string
-                description: license of the file
-                example: CC-BY
-              restriction:
-                type: string
-                example: attribution
-              download:
+              url:
                 type: string
                 description: URL of the downloadable file
               type:
@@ -274,12 +247,6 @@ components:
               info:
                 type: string
                 description: additional info
-        interface:
-          type: array
-          description: list of URLs to resource interfaces
-          items:
-            type: object
-            properties:
               licence:
                 type: string
                 description: license of the file
@@ -287,18 +254,32 @@ components:
               restriction:
                 type: string
                 example: attribution
+              size:
+                type: int
+                description: size of the downloadable file in bytes
+              last-modified:
+                type: string
+                description: last modified date
+        interface:
+          type: array
+          description: list of URLs to resource interfaces
+          items:
+            type: object
+            properties:
               access:
                 type: string
                 description: URL to interface
-        size:
-          type: object
-          description: Size of the resource (number of entries or tokens and sentences)
+              licence:
+                type: string
+                description: license of the file
+                example: CC-BY
+              restriction:
+                type: string
+                example: attribution
         contact_info:
           type: object
           properties:
-            surname:
-              type: string
-            givenName:
+            name:
               type: string
             email:
               type: string
@@ -309,6 +290,27 @@ components:
                   type: string
                 email:
                   type: string
+        languages:
+          type: array
+          description: language(s) of the resource
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: three-letter language code
+                example: swe
+              name:
+                type: object
+                properties:
+                  swe:
+                    type: string
+                    description: Swedish name of the language
+                    example: svenska
+                  eng:
+                    type: string
+                    description: English name of the language
+                    example: Swedish
         has_description:
           type: boolean
-          description: States whether the resource has a long description
+          description: whether the resource has a long description

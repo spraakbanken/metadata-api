@@ -12,10 +12,10 @@ REST-API that serves meta data for SB's corpora, lexicons and models.
 Available API calls:
 
 - `https://ws.spraakbanken.gu.se/ws/metadata`: List all resources in three dictionaries (`corpora`, `lexicons`, and `models`)
-- `https://ws.spraakbanken.gu.se/ws/corpora`: List all corpora
-- `https://ws.spraakbanken.gu.se/ws/lexicons`: List all lexicons
-- `https://ws.spraakbanken.gu.se/ws/models`: List all models
-- `https://ws.spraakbanken.gu.se/ws/collections`: List all collections
+- `https://ws.spraakbanken.gu.se/ws/metadata/corpora`: List all corpora
+- `https://ws.spraakbanken.gu.se/ws/metadata/lexicons`: List all lexicons
+- `https://ws.spraakbanken.gu.se/ws/metadata/models`: List all models
+- `https://ws.spraakbanken.gu.se/ws/metadata/collections`: List all collections
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
 - `https://ws.spraakbanken.gu.se/ws/metadata/doc`: Serve API documentation as YAML
 - `https://ws.spraakbanken.gu.se/ws/metadata/renew-cache`: Flush cache and fill with fresh values
