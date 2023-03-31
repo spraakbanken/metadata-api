@@ -25,7 +25,6 @@ echo ">>> Update metadata from SVN" >> $LOGFILE
 cd $THISDIR/meta-share/corpus && svn update
 cd $THISDIR/meta-share/lexicon && svn update
 cd $THISDIR/meta-share/model && svn update
-cd $THISDIR/meta-share/resource-texts && svn update
 
 # Fetch application updates from GitHub and restart if necessary
 cd $THISDIR
