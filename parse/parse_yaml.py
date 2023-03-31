@@ -158,7 +158,7 @@ def update_collections(collection_mappings, collection_json, all_resources):
         col_id = col.get("id")
         if col:
             col["size"] = col.get("size", {})
-            col["size"]["resources"] = str(len(res_list))
+            col["size"]["resources"] = len(res_list)
             col["resources"] = res_list
 
             # Add in_collections info to json of the collection's resources
