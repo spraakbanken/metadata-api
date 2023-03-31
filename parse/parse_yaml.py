@@ -74,6 +74,11 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                 res = yaml.load(f, Loader=yaml.FullLoader)
                 fileid = filepath.stem
                 new_res = {"id": fileid}
+                # Make sure size attrs only contain numbers
+                for k, v in res.get("size", {}).items():
+                    if v is not None:
+                        if not v.isdigit():
+                            res["size"][k] = 0
 
                 # Update resouce_texts and remove long_descriptions for now
                 if res.get("description", {}).get("swe", "").strip():
