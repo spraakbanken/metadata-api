@@ -90,6 +90,11 @@ def get_yaml(directory, resource_texts, collections, res_type, debug=False, offl
                 res["contact_info"]["givenName"] = name.split()[0]
                 res["contact_info"].pop("name", None)
 
+                # Make sure size attrs only contain numbers
+                for k, v in res.get("size", {}).items():
+                    if not str(v).isdigit():
+                        res["size"][k] = 0
+
                 # Cast size attrs to strings
                 for k, v in res.get("size", {}).items():
                     if v is not None:
