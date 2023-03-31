@@ -152,6 +152,9 @@ def update_collections(collection_mappings, collection_json, all_resources):
                     res.pop("in_collections")
             continue
 
+        # Remove resource IDs for non-existing resources
+        res_list = [i for i in res_list if i in all_resources]
+
         col_id = col.get("id")
         if col:
             col["size"] = col.get("size", {})
