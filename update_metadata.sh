@@ -50,9 +50,10 @@ curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 echo ">>> Create missing META-SHARE files" >> $LOGFILE
 python create_metashare.py >> $LOGFILE
 echo ">>> Add new META-SHARE to SVN" >> $LOGFILE
-cd $THISDIR/meta-share/corpus && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update"
-cd $THISDIR/meta-share/lexicon && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update"
-cd $THISDIR/meta-share/model && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update"
+source $THISDIR/config.sh
+cd $THISDIR/meta-share/corpus && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update" --username $SVN_USER --password $SVN_PWD
+cd $THISDIR/meta-share/lexicon && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update" --username $SVN_USER --password $SVN_PWD
+cd $THISDIR/meta-share/model && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update" --username $SVN_USER --password $SVN_PWD
 
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`

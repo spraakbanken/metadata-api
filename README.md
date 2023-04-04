@@ -41,6 +41,8 @@ Available API calls:
   command=%(ENV_HOME)s/metadata-api/venv/bin/gunicorn --chdir %(ENV_HOME)s/metadata-api -b "0.0.0.0:1337" metadata_api:create_app()
   ```
 
+- Create the file `config.sh` in the root of this project and set the variables `SVN_USER` and `SVN_PWD` with the SVN credentials.
+
 - Set up cron job that periodically runs the update script which 
   - updates the YAML files stored in git
   - updates the META-SHARE files and resource descriptions from SVN
