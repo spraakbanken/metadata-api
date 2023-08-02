@@ -44,6 +44,7 @@ def create_metashare(yaml_path, out=None):
     """Create META-SHARE format from yaml metadata."""
     # Read yaml metadata
     with open(yaml_path, encoding="utf-8") as f:
+        print(yaml_path)
         yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
 
     # Skip unlisted resources
@@ -58,10 +59,6 @@ def create_metashare(yaml_path, out=None):
     xml = etree.parse(METASHARE_TEMPLATES_DIR / Path(METASHARE_TEMPLATE % res_type)).getroot()
     # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
     ns = METASHARE_NAMESPACE
-
-    # Set resource type
-    resourceType = xml.find(ns + "resourceComponentType").find(ns + "corpusInfo").find(ns + "resourceType")
-    resourceType.text = "toolService" if res_type == "model" else res_type
 
     # Set idenfification info
     identificationInfo = xml.find(ns + "identificationInfo")
