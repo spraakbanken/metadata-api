@@ -207,7 +207,7 @@ def _set_contact_info(contact, contactPerson):
     """Set contact info in contactPerson element."""
     ns = METASHARE_NAMESPACE
     name = contact.get("name") or "Markus Forsberg"
-    contactPerson.find(ns + "surname").text = name.split()[1] if len(name) > 1 else name.split()[0]
+    contactPerson.find(ns + "surname").text = name.split()[1] if len(name.split()) > 1 else name.split()[0]
     contactPerson.find(ns + "givenName").text = name.split()[0]
     contactPerson.find(ns + "communicationInfo" + "/" + ns + "email").text = contact.get("email", "")
     # Create affiliation element if needed
