@@ -18,7 +18,7 @@ from translate_lang import get_lang_names
 METASHARE_URL = "http://www.ilsp.gr/META-XMLSchema"
 METASHARE_NAMESPACE = f"{{{METASHARE_URL}}}"
 SBX_SAMPLES_LOCATION = "https://spraakbanken.gu.se/en/resources/"
-METASHARE_TEMPLATES_DIR = "metashare-templates"
+METASHARE_TEMPLATES_DIR = "../metadata/metadata_conversions/metashare-templates/"
 METASHARE_TEMPLATE = "%s-template.xml"
 METASHARE_DIR = "../metadata/metadata_conversions/metashare/"
 YAML_DIR = "../metadata/yaml/"
