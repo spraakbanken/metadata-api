@@ -8,23 +8,19 @@ LOGDIR=$THISDIR/logs
 mkdir -p $LOGDIR
 LOGFILE=$LOGDIR/`date +%Y-%m`.log
 
-# Fetch updates in metadata files from SVN
+# Fetch updates in metadata files
 echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
 echo ">>> Update metadata from GIT" >> $LOGFILE
-cd $THISDIR/yaml
+cd $THISDIR/metadata
 git_output1=$(git pull 2>&1)
 git_ret1=$?
 # Send output to stderr if git command had a non-zero exit
 if [[ $git_ret1 -ne 0 ]] ; then
     >&2 echo $git_output1
 else
-    $gitpulloutput >> $LOGFILE
+    $git_output1 >> $LOGFILE
 fi
-echo ">>> Update metadata from SVN" >> $LOGFILE
-cd $THISDIR/meta-share/corpus && svn update
-cd $THISDIR/meta-share/lexicon && svn update
-cd $THISDIR/meta-share/model && svn update
 
 # Fetch application updates from GitHub and restart if necessary
 cd $THISDIR
@@ -45,14 +41,25 @@ python parse_yaml.py >> $LOGFILE
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
-# Create missing META-SHARE files
+# Create missing META-SHARE files and add to git
 echo ">>> Create missing META-SHARE files" >> $LOGFILE
 python create_metashare.py >> $LOGFILE
-echo ">>> Add new META-SHARE to SVN" >> $LOGFILE
-source $THISDIR/config.sh
-cd $THISDIR/meta-share/corpus && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update" --username $SVN_USER --password $SVN_PWD
-cd $THISDIR/meta-share/lexicon && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update" --username $SVN_USER --password $SVN_PWD
-cd $THISDIR/meta-share/model && svn add *.xml --quiet --force && svn ci *.xml -m "crontab update" --username $SVN_USER --password $SVN_PWD
+echo ">>> Add new META-SHARE to git" >> $LOGFILE
+cd $THISDIR/metadata/metadata_conversions/metashare
+git_output3=$(git add --all . 2>&1)
+if [[ $? -ne 0 ]]; then
+    >&2 echo $output3
+fi
+# Commit and push all changes
+git_output4=$(git diff-index --quiet HEAD || git -c user.name='sb-sparv' -c user.email='38045079+sb-sparv@users.noreply.github.com' commit -m "cron update" 2>&1)
+if [[ $? -ne 0 ]]; then
+    >&2 echo $git_output4
+fi
+git_output5=$(git push 2>&1)
+if [[ $? -ne 0 ]]; then
+    >&2 echo $git_output5
+fi
+
 
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`

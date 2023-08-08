@@ -29,9 +29,9 @@ Available API calls:
   pip install -r requirements.txt
   ```
 
-- Get an initial copy of the metadata files (META-SHARE and YAML) and resource descriptions:
+- Get an initial copy of the metadata files (YAML and META-SHARE):
   ```
-   ./get_metadata.sh
+   git clone https://github.com/spraakbanken/metadata.git
   ```
 
 - Add entry in supervisord config:
@@ -43,26 +43,16 @@ Available API calls:
 - Create the file `config.sh` in the root of this project and set the variables `SVN_USER` and `SVN_PWD` with the SVN credentials.
 
 - Set up cron job that periodically runs the update script which 
-  - updates the YAML files stored in git
-  - updates the META-SHARE files and resource descriptions from SVN
+  - updates the metadata files stored in git
   - runs the python script for parsing these files
   - updates the repository from GitHub and restarts the service if needed
   - creates missing META-SHARE files
 
   The following cron job is run on fksbwww@k2:
   ```
-  # Update sb-metadata from SVN and GitHub and restart if needed
+  # Update sb-metadata from GitHub and restart if needed
   50 * * * * cd /home/fksbwww/metadata-api && ./update_metadata.sh > /dev/null
   ```
-
-
-## Resource texts (long resource descriptions)
-
-Some resources have long descriptions that are stored in separate HTML files in SVN
-(https://svn.spraakdata.gu.se/sb-arkiv/pub/resurstext). A description for a resource with machine name `my-resource`
-should be named `my-resource_eng.html` or `my-resource_swe.html` and stored in the above SVN repository. Then it will
-automatically be detected and served by the REST-API. A resource description can also be supplied directly in the YAML
-metadata.
 
 
 ## Collections
