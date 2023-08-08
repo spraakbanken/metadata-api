@@ -13,7 +13,7 @@ from translate_lang import get_lang_names
 
 
 STATIC_DIR = Path("../metadata_api/static")
-YAML_DIR = Path("../yaml")
+YAML_DIR = Path("../metadata/yaml")
 OUT_RESOURCE_TEXTS = STATIC_DIR / "resource-texts.json"
 
 # Instatiate command line arg parser
