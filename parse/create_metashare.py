@@ -1,55 +1,71 @@
 """
 Create META-SHARE format from YAML metadata. Requires >Python 3.8.
 
-Meta Share documentation: http://www.meta-net.eu/meta-share/META-SHARE%20%20documentationUserManual.pdf
+META-SHARE documentation: http://www.meta-net.eu/meta-share/META-SHARE%20%20documentationUserManual.pdf
 """
 
+import argparse
+import os
+import re
+import sys
 import time
 from pathlib import Path
 
-# import xml.etree.ElementTree as etree
-from lxml import etree # Using lxml because of the getparent method
 import yaml
-
+# import xml.etree.ElementTree as etree
+from lxml import etree  # Using lxml because of the getparent method
 from translate_lang import get_lang_names
-
-
 
 METASHARE_URL = "http://www.ilsp.gr/META-XMLSchema"
 METASHARE_NAMESPACE = f"{{{METASHARE_URL}}}"
 SBX_SAMPLES_LOCATION = "https://spraakbanken.gu.se/en/resources/"
 METASHARE_TEMPLATES_DIR = "../metadata/metadata_conversions/metashare-templates/"
 METASHARE_TEMPLATE = "%s-template.xml"
+METASHARE_SCHEMA = "../metadata/metadata_conversions/metashare-templates/META-SHARE-Resource.xsd"
 METASHARE_DIR = "../metadata/metadata_conversions/metashare/"
 YAML_DIR = "../metadata/yaml/"
 
-SBX_DEFAULT_LICENSE = "CC BY 4.0"
+SBX_DEFAULT_LICENSE = "CC-BY"
 SBX_DEFAULT_RESTRICTION = "attribution"
 
 
-def create_missing():
-    """Loop through all yaml files and create metashare if it does not exist."""
+# Instatiate command line arg parser
+parser = argparse.ArgumentParser(description="Create and update META-SHARE files from YAML metadata")
+parser.add_argument("--debug", action="store_true", help="Print debug info")
+parser.add_argument("--validate", action="store_true", help="Validate metashare files upon creation")
+
+
+def main(validate=False, debug=False):
+    """Loop through all yaml files, create missing metashare files and update outdated ones."""
     metasharelist = list(i.stem for i in Path(METASHARE_DIR).glob("**/*.xml"))
     yamldir = Path(YAML_DIR)
     for thisdir in yamldir.glob("*/"):
         if thisdir.stem not in ["corpus", "lexicon", "model"]:
             continue
-        for f in thisdir.glob("*.yaml"):
+        for f in sorted(thisdir.glob("*.yaml")):
             if f.stem not in metasharelist:
                 out = Path(METASHARE_DIR) / thisdir.stem / f"{f.stem}.xml"
-                create_metashare(f, out)
+                create_metashare(f, out, debug)
+            else:
+                metashare_path = Path(METASHARE_DIR) / f.parts[3] / (f.stem + ".xml")
+                yaml_time = os.path.getmtime(f)
+                metashare_time = os.path.getmtime(metashare_path)
+                if yaml_time > metashare_time:
+                    update_metashare(f, metashare_path, debug)
+                if validate:
+                    validate_meta_share(metashare_path)
 
 
-def create_metashare(yaml_path, out=None):
+def create_metashare(yaml_path, out=None, debug=False):
     """Create META-SHARE format from yaml metadata."""
     # Read yaml metadata
     with open(yaml_path, encoding="utf-8") as f:
-        print(yaml_path)
         yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
 
     # Skip unlisted resources
     if yaml_metadata.get("unlisted") == True:
-        print(f"Skipping unlisted resource {yaml_path.stem}")
+        if debug:
+            print(f"Skipping unlisted resource {yaml_path.stem}")
         return
 
     res_id = yaml_path.stem
@@ -87,12 +103,12 @@ def create_metashare(yaml_path, out=None):
         _set_licence_info(d, distInfo)
     ms_download = {
             "url": f"https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/{res_type}/{res_id}.xml",
-            "licence": "CC BY 4.0",
+            "licence": SBX_DEFAULT_LICENSE,
             "restriction": "attribution",
         }
-    _set_licence_info(ms_download, distInfo)
     for i in yaml_metadata.get("interface", []):
         _set_licence_info(i, distInfo, download=False)
+    _set_licence_info(ms_download, distInfo)
 
     # Set contactPerson
     _set_contact_info(yaml_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
@@ -110,35 +126,8 @@ def create_metashare(yaml_path, out=None):
         xml.find(".//" + ns + "lexicalConceptualResourceType").text = "computationalLexicon"
 
     # Set languageInfo (languageId, languageName)
-    langs = yaml_metadata.get("language_codes", [])
-    if langs:
-        # Fill in info for first language
-        langcode = langs[0]
-        try:
-            english_name, _ = get_lang_names(langcode)
-            xml.find(".//" + ns + "languageId").text = langcode
-            xml.find(".//" + ns + "languageName").text = english_name
-        except LookupError:
-            print(f"Could not find language code {langcode} (resource: {yaml_path})")
-    if len(langs) > 1:
-        # Create new elemets for other languages
-        for langcode in langs[1:]:
-            try:
-                english_name, _ = get_lang_names(langcode)
-                # Create languageInfo element
-                languageInfo = etree.Element(ns + "languageInfo")
-                languageId = etree.SubElement(languageInfo, ns + "languageId")
-                languageId.text = langcode
-                languageName = etree.SubElement(languageInfo, ns + "languageName")
-                languageName.text = english_name
-                # Prettify element
-                indent_xml(languageInfo, level=5)
-                # Insert after after last languageInfo
-                parent = xml.find(".//" + ns + "languageInfo").getparent()
-                i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
-                parent.insert(i + 1, languageInfo)
-            except LookupError:
-                print(f"Could not find language code {langcode} (resource: {yaml_path})")
+    # if res_type in ["corpus", "lexicon"]: ??
+    _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
 
     # Set sizeInfo
     if res_type == "corpus":
@@ -149,18 +138,80 @@ def create_metashare(yaml_path, out=None):
         sizeInfos = xml.findall(".//" + ns + "sizeInfo")
         sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("entries", "0"))
 
-    # Dump XML and hack in autogen comment (etree cannot do this for us and lxml will uglify)
-    comment = "This file was automatically generated. Do not make changes directly to this file"\
-              " as they will get overwritten."
-    xml_string = etree.tostring(xml, encoding="UTF-8", xml_declaration=True).decode("utf-8")
-    xml_lines = xml_string.split("\n")
-    xml_lines.insert(1, f"<!-- {comment} -->")
-    output = "\n".join(xml_lines)
+    output = _dump_with_comment(xml)
 
     # Write XML to file
     with open(out, mode="w", encoding="utf-8") as outfile:
         outfile.write(output)
-    print(f"written {out}")
+    if debug:
+        print(f"Created META-SHARE {out}")
+
+
+def update_metashare(yaml_path, metashare_path, debug=False):
+    """Update metashare with newer information from YAML metadata."""
+    # Read yaml metadata
+    with open(yaml_path, encoding="utf-8") as f:
+        yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
+
+    res_id = yaml_path.stem
+    res_type = yaml_metadata.get("type")
+
+    # Parse metashare and handle META SHARE namespace
+    xml = etree.parse(metashare_path).getroot()
+    output1 = _dump_with_comment(xml)
+
+    # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
+    ns = METASHARE_NAMESPACE
+
+    # Update names and descriptions
+    identificationInfo = xml.find(ns + "identificationInfo")
+    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("swe", ""), "swe")
+    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("eng", ""), "eng")
+    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("swe", ""), "swe")
+    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("eng", ""), "eng")
+
+    # Update licenceInfos
+    distInfo = xml.find(".//" + ns + "distributionInfo")
+    for l in distInfo.findall(ns + "licenceInfo"):
+        distInfo.remove(l)
+    for d in yaml_metadata.get("downloads", []):
+        _set_licence_info(d, distInfo)
+    ms_download = {
+            "url": f"https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/{res_type}/{res_id}.xml",
+            "licence": SBX_DEFAULT_LICENSE,
+            "restriction": "attribution",
+        }
+    for i in yaml_metadata.get("interface", []):
+        _set_licence_info(i, distInfo, download=False)
+    _set_licence_info(ms_download, distInfo)
+
+    # Update contactPerson
+    _update_contact_person(yaml_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
+
+    # Update languageInfo (languageId, languageName)
+    if res_type in ["corpus", "lexicon"]:
+        _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
+
+    # Update sizeInfo
+    if res_type == "corpus":
+        sizeInfos = xml.findall(".//" + ns + "sizeInfo")
+        if sizeInfos and len(sizeInfos) == 2:
+            if yaml_metadata.get("size", {}).get("tokens"):
+                sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("tokens"))
+            if yaml_metadata.get("size", {}).get("sentences"):
+                sizeInfos[1].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("sentences"))
+    elif res_type == "lexicon":
+        sizeInfos = xml.findall(".//" + ns + "sizeInfo")
+        if sizeInfos and yaml_metadata.get("size", {}).get("entries"):
+            sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("entries", "0"))
+
+    output = _dump_with_comment(xml)
+    if output != output1:
+        # Write XML to file
+        with open(metashare_path, mode="w", encoding="utf-8") as outfile:
+            outfile.write(output)
+        if debug:
+            print(f"Updated META-SHARE {metashare_path}")
 
 
 def _set_text(elems, text, lang):
@@ -172,11 +223,20 @@ def _set_text(elems, text, lang):
 
 def _set_licence_info(item, distInfo, download=True):
     """Create licenceInfo trees for item and append them to distInfo."""
+    def fix_license(license_str):
+        """Try to format license str so it's META-SHARE compatible."""
+        if license_str == "CC BY 4.0":
+            return SBX_DEFAULT_LICENSE
+        if re.match(r"(.+) \d\.\d", license_str):
+            license_str = re.sub(r"^(.+) \d\.\d$", r"\1", license_str)
+            license_str = license_str.replace(" ", "-")
+        return license_str
+
     ns = METASHARE_NAMESPACE
     # Create licenseInfo element
     licenseInfo = etree.Element(ns + "licenceInfo")
     licence = etree.SubElement(licenseInfo, ns + "licence")
-    licence.text = item.get("licence", item.get("licence", SBX_DEFAULT_LICENSE))
+    licence.text = fix_license(item.get("licence", item.get("licence", SBX_DEFAULT_LICENSE)))
     restrictionsOfUse = etree.SubElement(licenseInfo, ns + "restrictionsOfUse")
     restrictionsOfUse.text = item.get("restriction", SBX_DEFAULT_RESTRICTION)
     if download:
@@ -233,6 +293,81 @@ def _append_pretty(parent, child):
     parent.append(child)
 
 
+def _update_contact_person(contact, contactPerson):
+    """Set contact info in contactPerson element."""
+    ns = METASHARE_NAMESPACE
+    name = contact.get("name") or "Markus Forsberg"
+    contactPerson.find(ns + "surname").text = name.split()[1] if len(name.split()) > 1 else name.split()[0]
+    contactPerson.find(ns + "givenName").text = name.split()[0]
+    contactPerson.find(ns + "communicationInfo" + "/" + ns + "email").text = contact.get("email", "")
+    # Create affiliation element if needed
+    if contact.get("affiliation") and any(i in contact.get("affiliation", {}) for i in ["organisation", "email"]):
+        affiliation = contactPerson.find(ns + "affiliation")
+        if affiliation is not None:
+            affiliation.find(ns + "organizationName").text = contact["affiliation"].get("organisation", "")
+            affiliation.find(ns + "communicationInfo" + "/" + ns + "email").text = contact["affiliation"].get("email", "")
+        else:
+            affiliation = etree.Element(ns + "affiliation")
+            if contact["affiliation"].get("organisation"):
+                organizationName = etree.SubElement(affiliation, ns + "organizationName")
+                organizationName.text = contact["affiliation"].get("organisation", "")
+            if contact["affiliation"].get("email"):
+                communicationInfo = etree.SubElement(affiliation, ns + "communicationInfo")
+                email = etree.SubElement(communicationInfo, ns + "email")
+                email.text = contact["affiliation"].get("email", "")
+            _append_pretty(contactPerson, affiliation)
+
+def _set_language_info(language_codes, xml, yaml_path):
+    ns = METASHARE_NAMESPACE
+    langinfos = list(xml.findall(".//" + ns + "languageInfo"))
+    for n, langcode in enumerate(language_codes):
+        if n <= len(langinfos) - 1:
+            try:
+                english_name, _ = get_lang_names(langcode)
+                langinfos[n].find(".//" + ns + "languageId").text = langcode
+                langinfos[n].find(".//" + ns + "languageName").text = english_name
+            except LookupError:
+                sys.stderr.write(f"Could not find language code {langcode} (resource: {yaml_path})")
+        else:
+            # Create new elemets for other languages
+            try:
+                english_name, _ = get_lang_names(langcode)
+                # Create languageInfo element
+                languageInfo = etree.Element(ns + "languageInfo")
+                languageId = etree.SubElement(languageInfo, ns + "languageId")
+                languageId.text = langcode
+                languageName = etree.SubElement(languageInfo, ns + "languageName")
+                languageName.text = english_name
+                # Prettify element
+                indent_xml(languageInfo, level=5)
+                # Insert after after last languageInfo
+                parent = xml.find(".//" + ns + "languageInfo").getparent()
+                i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
+                parent.insert(i + 1, languageInfo)
+            except LookupError:
+                sys.stderr.write(f"Could not find language code {langcode} (resource: {yaml_path})")
+
+
+def _dump_with_comment(xml):
+    # Dump XML and hack in autogen comment (etree cannot do this for us and lxml will uglify)
+    comment = "This file was automatically generated. Do not make changes directly to this file"\
+              " as they might get overwritten."
+    xml_string = etree.tostring(xml, encoding="UTF-8", xml_declaration=True).decode("utf-8")
+    xml_lines = xml_string.split("\n")
+    xml_lines.insert(1, f"<!-- {comment} -->")
+    return "\n".join(xml_lines)
+
+
+def validate_meta_share(filepath):
+    """Validate uploaded XML against META-SHARE xsd schema."""
+    xml_doc = etree.parse(filepath)
+    try:
+        XMLSCHEMA.assertValid(xml_doc)
+    except Exception as e:
+        errormsg = str(e).replace("{http://www.ilsp.gr/META-XMLSchema}", "")
+        sys.stderr.write(f"\n{filepath.name}: {errormsg}")
+
+
 def indent_xml(elem, level=0, indentation="  ") -> None:
     """Add pretty-print indentation to XML tree.
 
@@ -254,12 +389,10 @@ def indent_xml(elem, level=0, indentation="  ") -> None:
 
 
 if __name__ == "__main__":
-    create_missing()
+    args = parser.parse_args()
 
-    # # For tesning purposes:
-    # import sys
-    # filename = sys.argv[1]
-    # create_metashare(filename)
+    if args.validate:
+        XMLSCHEMA_DOC = etree.parse(METASHARE_SCHEMA)
+        XMLSCHEMA = etree.XMLSchema(XMLSCHEMA_DOC)
 
-    # create_metashare(Path("../yaml/corpus/abotidning.yaml"), Path("test-abotidning.xml"))
-    # create_metashare(Path("../yaml/corpus/aspacsvbe.yaml"), Path("test-aspacsvbe.xml"))
+    main(validate=args.validate, debug=args.debug)

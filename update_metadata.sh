@@ -42,7 +42,7 @@ curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
 # Create missing META-SHARE files and add to git
 echo ">>> Create missing META-SHARE files" >> $LOGFILE
-python create_metashare.py >> $LOGFILE
+python create_metashare.py --validate >> $LOGFILE
 echo ">>> Add new META-SHARE to git" >> $LOGFILE
 cd $THISDIR/metadata/metadata_conversions/metashare
 git_output3=$(git add --all . 2>&1)
