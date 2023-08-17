@@ -13,13 +13,12 @@ echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
 echo ">>> Update metadata from GIT" >> $LOGFILE
 cd $THISDIR/metadata
-git_output1=$(git pull 2>&1)
-git_ret1=$?
+git_output1=`git pull`
 # Send output to stderr if git command had a non-zero exit
-if [[ $git_ret1 -ne 0 ]] ; then
+if [[ $? -ne 0 ]] ; then
     >&2 echo $git_output1
 else
-    $git_output1 >> $LOGFILE
+    echo "$git_output1" >> $LOGFILE
 fi
 
 # Fetch application updates from GitHub and restart if necessary
@@ -43,7 +42,7 @@ curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
 # Create missing META-SHARE files and add to git
 echo ">>> Create missing META-SHARE files" >> $LOGFILE
-python create_metashare.py >> $LOGFILE
+python create_metashare.py --validate >> $LOGFILE
 echo ">>> Add new META-SHARE to git" >> $LOGFILE
 cd $THISDIR/metadata/metadata_conversions/metashare
 git_output3=$(git add --all . 2>&1)
