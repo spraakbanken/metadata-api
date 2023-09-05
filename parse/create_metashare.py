@@ -29,6 +29,18 @@ SBX_DEFAULT_LICENSE = "CC-BY"
 SBX_DEFAULT_RESTRICTION = "attribution"
 
 
+METASHARE_LICENSES = ["CC-BY", "CC-BY-NC", "CC-BY-NC-ND", "CC-BY-NC-SA", "CC-BY-ND", "CC-BY-SA", "CC-ZERO",
+                      "MS-C-NoReD", "MS-C-NoReD-FF", "MS-C-NoReD-ND", "MS-C-NoReD-ND-FF", "MS-NC-NoReD",
+                      "MS-NC-NoReD-FF", "MS-NC-NoReD-ND", "MS-NC-NoReD-ND-FF", "MSCommons-BY", "MSCommons-BY-NC",
+                      "MSCommons-BY-NC-ND", "MSCommons-BY-NC-SA", "MSCommons-BY-ND", "MSCommons-BY-SA", "CLARIN_ACA",
+                      "CLARIN_ACA-NC", "CLARIN_PUB", "CLARIN_RES", "ELRA_END_USER", "ELRA_EVALUATION", "ELRA_VAR",
+                      "AGPL", "ApacheLicence_2.0", "BSD", "BSD-style", "GFDL", "GPL", "LGPL", "Princeton_Wordnet",
+                      "proprietary", "underNegotiation", "other"]
+
+METASHARE_RESTRICTIONS = ["informLicensor", "redeposit", "onlyMSmembers", "academic-nonCommercialUse", "evaluationUse",
+                          "commercialUse", "attribution", "shareAlike", "noDerivatives", "noRedistribution", "other"]
+
+
 # Instatiate command line arg parser
 parser = argparse.ArgumentParser(description="Create and update META-SHARE files from YAML metadata")
 parser.add_argument("--debug", action="store_true", help="Print debug info")
@@ -230,6 +242,9 @@ def _set_licence_info(item, distInfo, download=True):
         if re.match(r"(.+) \d\.\d", license_str):
             license_str = re.sub(r"^(.+) \d\.\d$", r"\1", license_str)
             license_str = license_str.replace(" ", "-")
+            licence_str = licence_str
+        if license_str not in METASHARE_LICENSES:
+            licence_str = "other"
         return license_str
 
     ns = METASHARE_NAMESPACE
@@ -239,6 +254,8 @@ def _set_licence_info(item, distInfo, download=True):
     licence.text = fix_license(item.get("licence", item.get("licence", SBX_DEFAULT_LICENSE)))
     restrictionsOfUse = etree.SubElement(licenseInfo, ns + "restrictionsOfUse")
     restrictionsOfUse.text = item.get("restriction", SBX_DEFAULT_RESTRICTION)
+    if restrictionsOfUse.text not in METASHARE_RESTRICTIONS:
+        restrictionsOfUse.text = "other"
     if download:
         distributionAccessMedium = etree.SubElement(licenseInfo, ns + "distributionAccessMedium")
         distributionAccessMedium.text = "downloadable"
