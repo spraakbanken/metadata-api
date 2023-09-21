@@ -242,9 +242,8 @@ def _set_licence_info(item, distInfo, download=True):
         if re.match(r"(.+) \d\.\d", license_str):
             license_str = re.sub(r"^(.+) \d\.\d$", r"\1", license_str)
             license_str = license_str.replace(" ", "-")
-            licence_str = licence_str
         if license_str not in METASHARE_LICENSES:
-            licence_str = "other"
+            license_str = "other"
         return license_str
 
     ns = METASHARE_NAMESPACE
