@@ -22,19 +22,16 @@ parser.add_argument("--debug", action="store_true", help="Print debug info")
 parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
 
 
-def main(resource_types=["collection", "lexicon", "corpus", "model"], debug=False, offline=False):
+def main(resource_types=["lexicon", "corpus", "model"], debug=False, offline=False):
     """Read YAML metadata files, compile and prepare information for the API (main wrapper)."""
     resource_ids = []
     all_resources = {}
     resource_texts = defaultdict(dict)
     collection_mappings = {}
 
-    for resource_type in resource_types:
-        if debug:
-            print(f"Processing {resource_type} resources")
+    for filepath in sorted(Path(YAML_DIR).glob("**/*.yaml")):
         # Get resources from yaml
-        yaml_resources = get_yaml(YAML_DIR / resource_type, resource_texts, collection_mappings,
-                                  resource_type, debug=debug, offline=offline)
+        yaml_resources = get_yaml(filepath, resource_texts, collection_mappings, debug=debug, offline=offline)
         # Get resource-text-mapping
         resource_ids.extend(list(yaml_resources.keys()))
         # Save result in all_resources
@@ -52,87 +49,83 @@ def main(resource_types=["collection", "lexicon", "corpus", "model"], debug=Fals
 
     # Set has_description for every resource and save as json
     for resource_type in resource_types:
-        if not resource_type == "collection":
-            res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
-            set_description_bool(res_json, resource_texts)
-            write_json(STATIC_DIR / f"{resource_type}.json", res_json)
+        res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
+        set_description_bool(res_json, resource_texts)
+        write_json(STATIC_DIR / f"{resource_type}.json", res_json)
     write_json(STATIC_DIR / "collection.json", collection_json)
 
 
-def get_yaml(directory, resource_texts, collections, res_type, debug=False, offline=False):
+def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
     """Gather all yaml resource files of one type, update resource texts and collections dict."""
     resources = {}
 
-    for filepath in sorted(Path(directory).iterdir()):
-        if not filepath.suffix == ".yaml":
-            continue
+    try:
+        if debug:
+            print(f"  Processing {filepath}")
+        with open(filepath, encoding="utf-8") as f:
+            res = yaml.load(f, Loader=yaml.FullLoader)
+            fileid = filepath.stem
+            new_res = {"id": fileid}
+            # Make sure size attrs only contain numbers
+            for k, v in res.get("size", {}).items():
+                if not str(v).isdigit():
+                    res["size"][k] = 0
 
-        try:
-            if debug:
-                print(f"  Processing {filepath}")
-            with open(filepath, encoding="utf-8") as f:
-                res = yaml.load(f, Loader=yaml.FullLoader)
-                fileid = filepath.stem
-                new_res = {"id": fileid}
-                # Make sure size attrs only contain numbers
-                for k, v in res.get("size", {}).items():
-                    if not str(v).isdigit():
-                        res["size"][k] = 0
+            # Update resouce_texts and remove long_descriptions for now
+            if res.get("description", {}).get("swe", "").strip():
+                resource_texts[fileid]["swe"] = res["description"]["swe"]
+            if res.get("description", {}).get("eng", "").strip():
+                resource_texts[fileid]["eng"] = res["description"]["eng"]
+            res.pop("description", None)
 
-                # Update resouce_texts and remove long_descriptions for now
-                if res.get("description", {}).get("swe", "").strip():
-                    resource_texts[fileid]["swe"] = res["description"]["swe"]
-                if res.get("description", {}).get("eng", "").strip():
-                    resource_texts[fileid]["eng"] = res["description"]["eng"]
-                res.pop("description", None)
+            # Get full language info
+            langs = res.get("languages", [])
+            for langcode in res.get("language_codes", []):
+                if langcode not in [l.get("code") for l in langs]:
+                    try:
+                        english_name, swedish_name = get_lang_names(langcode)
+                        langs.append(
+                            {
+                                "code": langcode,
+                                "name": {
+                                    "swe": swedish_name,
+                                    "eng": english_name
+                                }
+                            })
+                    except LookupError:
+                        print(f"Error: Could not find language code {langcode} (resource: {fileid})")
+            res["languages"] = langs
+            res.pop("language_codes", "")
 
-                # Get full language info
-                langs = res.get("languages", [])
-                for langcode in res.get("language_codes", []):
-                    if langcode not in [l.get("code") for l in langs]:
-                        try:
-                            english_name, swedish_name = get_lang_names(langcode)
-                            langs.append(
-                                {
-                                    "code": langcode,
-                                    "name": {
-                                        "swe": swedish_name,
-                                        "eng": english_name
-                                    }
-                                })
-                        except LookupError:
-                            print(f"Error: Could not find language code {langcode} (resource: {fileid})")
-                res["languages"] = langs
-                res.pop("language_codes", "")
+            if not offline:
+                # Add file info for downloadables
+                res_type = res.get("type")
+                for d in res.get("downloads", []):
+                    url = d.get("url")
+                    if url and not ("size" in d and "last-modified" in d):
+                        size, date = get_download_metadata(url, fileid, res_type)
+                        d["size"] = size
+                        d["last-modified"] = date
 
-                if not offline:
-                    # Add file info for downloadables
-                    for d in res.get("downloads", []):
-                        url = d.get("url")
-                        if url and not ("size" in d and "last-modified" in d):
-                            size, date = get_download_metadata(url, fileid, res_type)
-                            d["size"] = size
-                            d["last-modified"] = date
+            new_res.update(res)
+            resources[fileid] = new_res
 
-                new_res.update(res)
-                resources[fileid] = new_res
+            # Update collections dict
+            if res.get("collection") == True:
+                collections[fileid] = collections.get(fileid, [])
+                if res.get("resources"):
+                    collections[fileid].extend(res["resources"])
+                    collections[fileid] = sorted(list(set(collections[fileid])))
 
-                # Update collections dict
-                if res.get("collection") == True:
-                    collections[fileid] = collections.get(fileid, [])
-                    if res.get("resources"):
-                        collections[fileid].extend(res["resources"])
-                        collections[fileid] = sorted(list(set(collections[fileid])))
+            if res.get("in_collections"):
+                for collection_id in res["in_collections"]:
+                    collections[collection_id] = collections.get(collection_id, [])
+                    collections[collection_id].append(fileid)
+                    collections[collection_id] = sorted(list(set(collections[collection_id])))
 
-                if res.get("in_collections"):
-                    for collection_id in res["in_collections"]:
-                        collections[collection_id] = collections.get(collection_id, [])
-                        collections[collection_id].append(fileid)
-                        collections[collection_id] = sorted(list(set(collections[collection_id])))
-
-        except Exception as e:
-            print(f"Error: failed to process '{filepath}'")
-            print(traceback.format_exc())
+    except Exception as e:
+        print(f"Error: failed to process '{filepath}'")
+        print(traceback.format_exc())
 
     return resources
 
