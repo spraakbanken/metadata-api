@@ -8,7 +8,7 @@ from flask import current_app, jsonify
 
 def get_single_resource(resource_id, corpora, lexicons, models):
     """Get resource from resource dictionaries and add resource text (if available)."""
-    resource_texts = load_data(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
+    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}
@@ -25,7 +25,15 @@ def get_single_resource(resource_id, corpora, lexicons, models):
     return jsonify(resource)
 
 
-def load_data(jsonfile, prefix=""):
+def load_resources():
+    """Load corpora, lexicons and models."""
+    corpora = load_json(current_app.config.get("CORPORA_FILE"))
+    lexicons = load_json(current_app.config.get("LEXICONS_FILE"))
+    models = load_json(current_app.config.get("MODELS_FILE"))
+    return corpora, lexicons, models
+
+
+def load_json(jsonfile, prefix=""):
     """Load data from cache."""
     if current_app.config.get("NO_CACHE"):
         return read_static_json(jsonfile)
@@ -68,7 +76,7 @@ def dict_to_list(input_obj):
 
 def get_resource_type(rtype, resource_file):
     """Get list of resources of one resource type."""
-    resource_type = load_data(current_app.config.get(resource_file))
+    resource_type = load_json(current_app.config.get(resource_file))
     data = dict_to_list(resource_type)
 
     return jsonify({

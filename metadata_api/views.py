@@ -18,9 +18,7 @@ def documentation():
 @general.route("/")
 def metadata():
     """Return corpus and lexicon metadata as a JSON object."""
-    corpora = utils.load_data(current_app.config.get("CORPORA_FILE"))
-    lexicons = utils.load_data(current_app.config.get("LEXICONS_FILE"))
-    models = utils.load_data(current_app.config.get("MODELS_FILE"))
+    corpora, lexicons, models = utils.load_resources()
 
     resource = request.args.get("resource")
     if resource:
@@ -56,14 +54,11 @@ def models():
 @general.route("/collections")
 def collections():
     """Return collections metadata as a JSON object."""
-    corpora = utils.load_data(current_app.config.get("CORPORA_FILE"))
-    data = dict([(name, data) for (name, data) in corpora.items() if data.get("collection")])
+    corpora, lexicons, models = utils.load_resources()
 
-    lexicons = utils.load_data(current_app.config.get("LEXICONS_FILE"))
+    data = dict([(name, data) for (name, data) in corpora.items() if data.get("collection")])
     lexicons = dict([(name, data) for (name, data) in lexicons.items() if data.get("collection")])
     data.update(lexicons)
-
-    models = utils.load_data(current_app.config.get("MODELS_FILE"))
     models = dict([(name, data) for (name, data) in models.items() if data.get("collection")])
     data.update(models)
 
@@ -73,6 +68,35 @@ def collections():
     })
 
 
+@general.route("/list-ids")
+def list_ids():
+    """List all existing resource IDs."""
+    resource_IDs = [k for res_type in utils.load_resources() for k in list(res_type.keys())]
+    return sorted(resource_IDs)
+
+
+@general.route("/check-id-availability")
+def check_id():
+    """Check if a given resource ID is available."""
+    input_id = request.args.get("id")
+    if not input_id:
+        return jsonify({
+            "id": None,
+            "error": "No ID provided"
+        })
+    resource_IDs = set([k for res_type in utils.load_resources() for k in list(res_type.keys())])
+    if input_id in resource_IDs:
+        return jsonify({
+            "id": input_id,
+            "available": False
+        })
+    else:
+        return jsonify({
+            "id": input_id,
+            "available": True
+        })
+
+
 @general.route("/renew-cache")
 def renew_cache():
     """Flush cache and re-read json files."""
@@ -80,10 +104,8 @@ def renew_cache():
         if not current_app.config.get("NO_CACHE"):
             mc = current_app.config.get("cache_client")
             mc.flush_all()
-        utils.load_data(current_app.config.get("CORPORA_FILE"))
-        utils.load_data(current_app.config.get("LEXICONS_FILE"))
-        utils.load_data(current_app.config.get("MODELS_FILE"))
-        utils.load_data(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
+        utils.load_resources()
+        utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
         success = True
         error = None
     except Exception:
