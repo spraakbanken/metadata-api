@@ -158,6 +158,47 @@ paths:
                     description: Array of collection objects
                     items:
                       $ref: '#/components/schemas/resource'
+  /list-ids:
+    get:
+      summary: List resource IDs
+      description: List all existing resource IDs.
+      tags:
+        - General
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Array of resource IDs
+  /check-id-availability:
+    get:
+      summary: Check availability of a resource ID
+      description: Check whether a given resource ID is in use or not.
+      tags:
+        - General
+      parameters:
+        - name: id
+          in: query
+          description: Resource ID to check
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: str
+                    description: The input ID
+                    example: my-corpus
+                  available:
+                    type: boolean
+                    description: States whether the ID is available
   /renew-cache:
     get:
       summary: Renew cache
