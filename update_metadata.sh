@@ -50,7 +50,7 @@ if [[ $? -ne 0 ]]; then
     >&2 echo $git_output3
 fi
 # Commit and push all changes
-git_output4=$(git diff-index --quiet HEAD || git -c user.name='sb-sparv' -c user.email='38045079+sb-sparv@users.noreply.github.com' commit -m "cron update" 2>&1)
+git_output4=$(git diff-index --quiet HEAD || git -c user.name='sb-sparv' -c user.email='38045079+sb-sparv@users.noreply.github.com' commit -m "update metashare through cron" 2>&1)
 if [[ $? -ne 0 ]]; then
     >&2 echo $git_output4
 fi
