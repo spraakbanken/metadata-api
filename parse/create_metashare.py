@@ -72,7 +72,7 @@ def create_metashare(yaml_path, out=None, debug=False):
     """Create META-SHARE format from yaml metadata."""
     # Read yaml metadata
     with open(yaml_path, encoding="utf-8") as f:
-        yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
+        yaml_metadata = yaml.safe_load(f)
 
     # Skip unlisted resources
     if yaml_metadata.get("unlisted") == True:
@@ -163,7 +163,7 @@ def update_metashare(yaml_path, metashare_path, debug=False):
     """Update metashare with newer information from YAML metadata."""
     # Read yaml metadata
     with open(yaml_path, encoding="utf-8") as f:
-        yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
+        yaml_metadata = yaml.safe_load(f)
 
     res_id = yaml_path.stem
     res_type = yaml_metadata.get("type")

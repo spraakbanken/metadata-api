@@ -63,7 +63,7 @@ def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
         if debug:
             print(f"  Processing {filepath}")
         with open(filepath, encoding="utf-8") as f:
-            res = yaml.load(f, Loader=yaml.FullLoader)
+            res = yaml.safe_load(f)
             fileid = filepath.stem
             new_res = {"id": fileid}
             # Make sure size attrs only contain numbers
