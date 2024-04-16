@@ -12,7 +12,7 @@ def main():
         if "templates" in p:
             continue
         with open(p) as f:
-            metadata = yaml.load(f, Loader=yaml.FullLoader)
+            metadata = yaml.safe_load(f)
 
         for k, v in metadata.get("size", {}).items():
             if not v:
@@ -99,10 +99,10 @@ def convert2yaml():
 
     # for p in path.rglob("**/*.yaml"):
     with open(p) as f:
-        metadata = yaml.load(f, Loader=yaml.FullLoader)
+        metadata = yaml.safe_load(f)
         print(metadata)
         # try:
-        #     metadata = yaml.load(f, Loader=yaml.FullLoader)
+        #     metadata = yaml.safe_load(f)
         # except json.decoder.JSONDecodeError:
         #     print(f"failed to convert {p}")
             # continue
