@@ -19,14 +19,24 @@ from translate_lang import get_lang_names
 METASHARE_URL = "http://www.ilsp.gr/META-XMLSchema"
 METASHARE_NAMESPACE = f"{{{METASHARE_URL}}}"
 SBX_SAMPLES_LOCATION = "https://spraakbanken.gu.se/en/resources/"
-METASHARE_TEMPLATES_DIR = "../metadata/metadata_conversions/metashare-templates/"
+METASHARE_TEMPLATES_DIR = "./metadata/metadata_conversions/metashare-templates/"
 METASHARE_TEMPLATE = "%s-template.xml"
-METASHARE_SCHEMA = "../metadata/metadata_conversions/metashare-templates/META-SHARE-Resource.xsd"
-METASHARE_DIR = "../metadata/metadata_conversions/metashare/"
-YAML_DIR = "../metadata/yaml/"
+METASHARE_SCHEMA = "./metadata/metadata_conversions/metashare-templates/META-SHARE-Resource.xsd"
+METASHARE_DIR = "./metadata/metadata_conversions/metashare/"
+YAML_DIR = "./metadata/yaml/"
+# TODO
+# METASHARE_TEMPLATES_DIR = "../metadata/metadata_conversions/metashare-templates/"
+#METASHARE_SCHEMA = "../metadata/metadata_conversions/metashare-templates/META-SHARE-Resource.xsd"
+#METASHARE_DIR = "../metadata/metadata_conversions/metashare/"
+#YAML_DIR = "../metadata/yaml/"
 
 SBX_DEFAULT_LICENSE = "CC-BY"
 SBX_DEFAULT_RESTRICTION = "attribution"
+
+# YAML tags/attributes for fields
+YAML_FIELD_SLUG = "slug"
+YAML_FIELD_PID = "pid"
+YAML_FIELD_HANDLE = "handle"
 
 
 METASHARE_LICENSES = ["CC-BY", "CC-BY-NC", "CC-BY-NC-ND", "CC-BY-NC-SA", "CC-BY-ND", "CC-BY-SA", "CC-ZERO",
@@ -51,6 +61,7 @@ def main(validate=False, debug=False):
     """Loop through all yaml files, create missing metashare files and update outdated ones."""
     metasharelist = list(i.stem for i in Path(METASHARE_DIR).glob("**/*.xml"))
     yamldir = Path(YAML_DIR)
+
     for thisdir in yamldir.glob("*/"):
         if thisdir.stem not in ["corpus", "lexicon", "model"]:
             continue
@@ -59,7 +70,7 @@ def main(validate=False, debug=False):
                 out = Path(METASHARE_DIR) / thisdir.stem / f"{f.stem}.xml"
                 create_metashare(f, out, debug)
             else:
-                metashare_path = Path(METASHARE_DIR) / f.parts[3] / (f.stem + ".xml")
+                metashare_path = Path(METASHARE_DIR) / f.parts[2] / (f.stem + ".xml")
                 yaml_time = os.path.getmtime(f)
                 metashare_time = os.path.getmtime(metashare_path)
                 if yaml_time > metashare_time:
@@ -83,6 +94,9 @@ def create_metashare(yaml_path, out=None, debug=False):
     res_id = yaml_path.stem
     res_type = yaml_metadata.get("type")
 
+    if debug:
+        print("Creating: ", res_id)
+
     # Parse template and handle META SHARE namespace
     xml = etree.parse(METASHARE_TEMPLATES_DIR / Path(METASHARE_TEMPLATE % res_type)).getroot()
     # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
@@ -92,7 +106,11 @@ def create_metashare(yaml_path, out=None, debug=False):
     identificationInfo = xml.find(ns + "identificationInfo")
     for i in identificationInfo.findall(ns + "resourceShortName"):
         i.text = res_id
-    identificationInfo.find(ns + "identifier").text = res_id
+    _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_id, YAML_FIELD_SLUG)
+    res_pid = yaml_metadata.get(YAML_FIELD_PID)
+    _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_pid, YAML_FIELD_PID)
+    res_handle = yaml_metadata.get(YAML_FIELD_HANDLE)
+    _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_handle, YAML_FIELD_HANDLE)
 
     # Set name
     _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("swe", ""), "swe")
@@ -130,7 +148,8 @@ def create_metashare(yaml_path, out=None, debug=False):
 
     # Set lingualityType
     # TODO not represented in yaml yet
-    xml.find(".//" + ns + "lingualityType").text = "monolingual"  # monolingual, bilingual, multilingual
+    if res_type == "corpus":
+        xml.find(".//" + ns + "lingualityType").text = "monolingual"  # monolingual, bilingual, multilingual
 
     if res_type == "lexicon":
         # TODO not represented in yaml yet
@@ -138,8 +157,8 @@ def create_metashare(yaml_path, out=None, debug=False):
         xml.find(".//" + ns + "lexicalConceptualResourceType").text = "computationalLexicon"
 
     # Set languageInfo (languageId, languageName)
-    # if res_type in ["corpus", "lexicon"]: ??
-    _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
+    if res_type in ["corpus", "lexicon"]:
+        _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
 
     # Set sizeInfo
     if res_type == "corpus":
@@ -181,6 +200,12 @@ def update_metashare(yaml_path, metashare_path, debug=False):
     _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("eng", ""), "eng")
     _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("swe", ""), "swe")
     _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("eng", ""), "eng")
+    # Assume "slug" has not changed
+    res_pid = yaml_metadata.get(YAML_FIELD_PID)
+    _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_pid, YAML_FIELD_PID)
+    res_handle = yaml_metadata.get(YAML_FIELD_HANDLE)
+    _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_handle, YAML_FIELD_HANDLE)
+
 
     # Update licenceInfos
     distInfo = xml.find(".//" + ns + "distributionInfo")
@@ -230,6 +255,13 @@ def _set_text(elems, text, lang):
     """Set text for elems to 'text' for the correct language."""
     for i in elems:
         if i.attrib["lang"] == lang:
+            i.text = text
+
+
+def _set_text_with_type(elems, text, attrib):
+    """Set text for elems to 'text' for the correct language."""
+    for i in elems:
+        if i.attrib["type"] == attrib:
             i.text = text
 
 
