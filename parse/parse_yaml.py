@@ -190,7 +190,7 @@ def write_json(filename, data):
     outfile.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = outfile.parent / (outfile.name + ".new")
     with open(tmp_path, "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, default=str)
     tmp_path.rename(filename)
 
 
