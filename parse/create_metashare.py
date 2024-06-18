@@ -131,7 +131,7 @@ def create_metashare(yaml_path, out=None, debug=False):
     # Set lingualityType
     # TODO not represented in yaml yet
     linguality_type_el = xml.find(".//" + ns + "lingualityType")
-    if linguality_type_el:
+    if linguality_type_el is not None:
         linguality_type_el.text = "monolingual"  # monolingual, bilingual, multilingual
 
     if res_type == "lexicon":
@@ -360,7 +360,7 @@ def _set_language_info(language_codes, xml, yaml_path):
                 indent_xml(languageInfo, level=5)
                 # Insert after after last languageInfo
                 language_info_el = xml.find(".//" + ns + "languageInfo")
-                if language_info_el:
+                if language_info_el is not None:
                     parent = language_info_el.getparent()
                     i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
                     parent.insert(i + 1, languageInfo)
