@@ -125,7 +125,7 @@ def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
 
     except Exception as e:
         print(f"Error: failed to process '{filepath}'")
-        #print(traceback.format_exc())
+        print(traceback.format_exc())
 
     return resources
 
@@ -163,21 +163,14 @@ def update_collections(collection_mappings, collection_json, all_resources):
 
 
 def get_download_metadata(url, name, res_type):
-    try:
-        """Check headers of file from url and return the file size and last modified date."""
-        res = requests.head(url)
-        size = int(res.headers.get("Content-Length")) if res.headers.get("Content-Length") else None
-        date = res.headers.get("Last-Modified")
-        if date:
-            date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
-        if res.status_code == 404:
-            print(f"Error: Could not find downloadable for {res_type} '{name}': {url}")
-    except Exception as e:
-        print(f"Error: Could not get downloadable '{name}': {url}")
-        # print(traceback.format_exc())
-        # set to some kind of neutral values
-        size = 0
-        date = datetime.today().strftime('%Y-%m-%d')
+    """Check headers of file from url and return the file size and last modified date."""
+    res = requests.head(url)
+    size = int(res.headers.get("Content-Length")) if res.headers.get("Content-Length") else None
+    date = res.headers.get("Last-Modified")
+    if date:
+        date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
+    if res.status_code == 404:
+        print(f"Error: Could not find downloadable for {res_type} '{name}': {url}")
     return size, date
 
 
