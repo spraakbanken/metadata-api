@@ -2,13 +2,13 @@
 
 import argparse
 import datetime
-import json
+#import json
 import netrc
 import re
 import sys
 import traceback
-import urllib.parse
-from collections import defaultdict
+#import urllib.parse
+#from collections import defaultdict
 from pathlib import Path
 
 import requests
@@ -20,7 +20,7 @@ try:
     HANDLE_MAP_FILE = Path("./data/hdl2doi.tsv")
     DOI_KEY = "doi"
     DMS_URL = "https://api.datacite.org/dois"
-    DMS_AUTH_USER, DMS_AUTH_ACCOUNT, DMS_AUTH_PASSWORD = netrc.netrc().authenticators("example.com")  # TODO: error checking
+    DMS_AUTH_USER, DMS_AUTH_ACCOUNT, DMS_AUTH_PASSWORD = netrc.netrc().authenticators("datacite.org")
     DMS_HEADERS = {"content-type": "application/json"}
     DMS_PREFIX = "10.23695"
     DMS_REPOID = "SND.SPRKB"
@@ -29,7 +29,7 @@ try:
     DMS_TARGET_URL_PREFIX = "https://spraakbanken.gu.se/resurser/"
     DMS_RESOURCE_TYPE_GENERAL = "Dataset"
     DMS_RESOURCE_TYPE_COLLECTION = "Collection"
-    DMS_DEFAULT_YEAR = "2024" # TODO later
+    DMS_DEFAULT_YEAR = "2024" # Set for resources without a date
     DMS_SLUG = "slug" # Språkbanken Texts resource ID ("slug") type
     DMS_HANDLE = "handle"
     DMS_LANG_ENG = "en"
@@ -44,27 +44,10 @@ try:
     RESPONSE_CREATED = 201
 
 except Exception as e:
-    print("Error: failed init.")
+    print("gen_pids: Failed init. Exiting.")
     print(traceback.format_exc())
     sys.exit()
 
-
-"""Test repo"""
-# TODO remove after test
-
-"""
-DMS_URL = "https://api.test.datacite.org/dois"
-DMS_PREFIX = "10.80361"
-DMS_REPOID = "PMAL.ENABIE"
-DMS_AUTH_USER = DMS_REPOID
-DMS_AUTH_PASSWORD = "spraakbanken7!"
-"""
-
-#DMS_URL = "https://api.test.datacite.org/dois"
-#DMS_PREFIX = "10.80361"
-#DMS_REPOID = "PMAL.ENABIE"
-DMS_AUTH_USER = DMS_REPOID
-DMS_AUTH_PASSWORD = "2230/3.ja"
 
 # Instantiate command line arg parser
 parser = argparse.ArgumentParser(description="Read YAML metadata files, create DOIs for those that are missing it, create and update Datacite metadata.")
@@ -72,45 +55,23 @@ parser.add_argument("--debug", "-d", action="store_true", help="Print debug info
 parser.add_argument("--test", "-t", action="store_true", help="Test - don't write")
 
 
-def str_presenter(dumper, data):
-    """Configure yaml package for dumping multiline strings (for preserving format).
-
-    # https://github.com/yaml/pyyaml/issues/240
-    # https://pythonhint.com/post/9957829820118202/yamldump-adding-unwanted-newlines-in-multiline-strings
-    # Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
-    """
-    if data.count("\n") > 0:  # check for multiline string
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
 
-yaml.add_representer(str, str_presenter)
-yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
-
-
-class IndentDumper(yaml.Dumper):
-    """Indent list items (for preserving format).
-
-    https://reorx.com/blog/python-yaml-tips/#enhance-list-indentation-dump
-    """
-
-    def increase_indent(self, flow=False, indentless=False):  # noqa: D102, ANN201, ANN001
-        return super(IndentDumper, self).increase_indent(flow, False)  # noqa
-
-
-def main(param_debug: bool=True, param_test: bool=True) -> None:
+def main(param_debug: bool=False, param_test: bool=False) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
     
-    1. get all resources
-        import into dict from YAML metadata
-        (deprecated: import handles mapping)
+    Arguments:
+        param_debug {bool} -- Print messages about what it is doing.
+        param_test {bool} -- Do not modify YAML (but DMS is still created/updated).
+
+    1. get all resources YAML metadata
     2. assign DOIs
-        put DMS metadata into Datacite repos
-        if it already exists in Datacite repos, update ALL information
-        assign DOI to dict record for the resource
-    3. save as YAML from DICT
-        DOI is (already) added to dict
-    4. map collections and successors into relatedIdentifiers
+        if metadata has no DOI
+            look up in DataCite repos (using slug/name) if it exists anyway, and get DOI
+            if not, put metadata into Datacite repos and get a DOI
+            add DOI to YAML metadata file
+        if it has DOI, update ALL information
+    3. map collections and successors into relatedIdentifiers
         update Datacite repos
     """
 
@@ -120,20 +81,23 @@ def main(param_debug: bool=True, param_test: bool=True) -> None:
     files_yaml = {}
 
     if param_debug:
-        print("gen_pids/main: reading resources from YAML")
+        print("gen_pids/main: Reading resources from YAML.")
 
     # Path.glob(pattern, *, case_sensitive=None) - returns list of found files
     # **/*.yaml - all files in this dir and subdirs, recursively
     for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
         # Get resources from yaml
-        # TODO error handling
-        res_id = filepath.stem
-        files_yaml[res_id] = filepath
-        with filepath.open(encoding="utf-8") as file_yaml:
-            res = yaml.safe_load(file_yaml)
-            if not get_key_value(res, "unlisted") == True:
-                resources[res_id] = res
- 
+        try:
+            res_id = filepath.stem
+            files_yaml[res_id] = filepath
+            with filepath.open(encoding="utf-8") as file_yaml:
+                res = yaml.safe_load(file_yaml)
+                if not get_key_value(res, "unlisted") == True:
+                    resources[res_id] = res
+        except Exception as e:
+            print("gen_pids/main: Error when opening YAML files. Exiting.")
+            print(traceback.format_exc())
+            sys.exit()
     # Get list of SweClarin handles <-> res_id mappings
     """
     if param_debug:
@@ -142,75 +106,55 @@ def main(param_debug: bool=True, param_test: bool=True) -> None:
     """
 
     # 2. Assign DOIs (so both Collections and Resources have them)
-    # TODO Error handling, logging
     if param_debug:
-        print("gen_pids/main: assign DOIs")
+        print("gen_pids/main: Assign DOIs")
     for res_id, res in resources.items():
         if param_debug:
-            print("gen_pids/main: assign DOI", res_id)
+            print("gen_pids/main: Work on", res_id)
         if res:
             if DOI_KEY not in res:
                 # Metadata.yaml could be autogenerated by Sparv
                 # so look up if it already exists
-                # even though resource has no DOI in metadata
+                # even though resource has no DOI in metadata.
                 # Unique key for a resource is res_id
-                doi = get_dms_lookup_doi(res_id,
-                                         param_debug)
+                doi = dms_doi_get(res_id, param_debug)
                 if not doi:
                     """
                     handle = get_key_value(handles, res_id)
                     """
                     # generate DOI
-                    doi = get_dms_doi(res_id, 
-                                      res, 
-                                      param_debug)
+                    doi = dms_doi_create(res_id, res, param_debug)
                 if doi:
                     resources[res_id][DOI_KEY] = doi
                     if param_debug:
-                        print("gen_pids/main: assign DOI", res_id, doi)
+                        print("gen_pids/main: Assign DOI for", res_id, doi)
                     if not param_test:
-                        with files_yaml[res_id].open(mode="r+", encoding="utf-8") as file_yaml:
-                            # find out if last char is \n
-                            while True:
-                                char = file_yaml.read(1)
-                                if not char:
-                                    break
-                                last_char_is_newline = (char == '\n')
-                            if last_char_is_newline:
-                                file_yaml.write(f"doi: {doi}\n")
-                            else:
-                                print(res_id)
-                                file_yaml.write(f"\ndoi: {doi}\n")
-
+                        # add line with "doi:"
+                        try:
+                            with files_yaml[res_id].open(mode="r+", encoding="utf-8") as file_yaml:
+                                # find out if last char is \n
+                                while True:
+                                    char = file_yaml.read(1)
+                                    if not char:
+                                        break
+                                    last_char_is_newline = (char == '\n')
+                                if last_char_is_newline:
+                                    file_yaml.write(f"doi: {doi}\n")
+                                else:
+                                    print(res_id)
+                                    file_yaml.write(f"\ndoi: {doi}\n")
+                        except Exception as e:
+                            print("gen_pids/main: Error adding DOI to YAML", res_id, doi)
                 else:
-                    if param_debug:
-                        print("gen_pids/main: could not assign DOI key", res_id, doi, file=sys.stderr)
+                    print("gen_pids/main: Error creating DOI for YAML", res_id, doi)
             else:
-                # The metadata already exists in DMS, so update it (to be sure)
+                # The metadata already exists in DMS, so update resource (to be sure)
                 """
                 handle = get_key_value(handles, res_id)
                 """
-                dms_update(res_id, 
-                    res, 
-                    param_debug)
+                dms_update(res_id, res, param_debug)
 
-        """3. Save as YAML """
-        """
-        if param_debug:
-            print("gen_pids/main: save YAML")
-        if not param_test:
-            with files_yaml[res_id].open("a") as file_yaml:
-                yaml.dump(
-                    res,
-                    file_yaml,
-                    Dumper=IndentDumper, 
-                    sort_keys=False, 
-                    default_flow_style=False, 
-                    allow_unicode=True
-                )
-        """
-
-    """4. Map Collections and Resources in both directions
+    """3a. Map Collections and Resources in both directions
 
     Fill dict with all resources that have parts ('collection' + 'resources')
     or are part of collection ('in_collection').
@@ -219,69 +163,74 @@ def main(param_debug: bool=True, param_test: bool=True) -> None:
     All previous related identifiers are removed when setting new field.
 
     """
-    if param_debug:
-        print("gen_pids/main: map collections")
 
     c = dict()
     for res_id, res in resources.items():
-        if get_key_value(res, "collection"):
-            if res_id not in c:
-                c[res_id] = dict()
-                c[res_id][DMS_RELATION_TYPE_HASPART] = []
-        member_list = get_key_list_value(res, "resources")
-        if member_list:
-            for member_res_id in member_list:
-                if member_res_id not in c:
-                    c[member_res_id] = dict()
-                    c[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
-                if DMS_RELATION_TYPE_HASPART not in c[res_id]:
+        try:
+            if param_debug:
+                print("gen_pids/main: Map collections for", res_id)
+            if get_key_value(res, "collection"):
+                if res_id not in c:
+                    c[res_id] = dict()
                     c[res_id][DMS_RELATION_TYPE_HASPART] = []
-                if member_res_id not in c[res_id][DMS_RELATION_TYPE_HASPART]:
-                    c[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
-                if res_id not in c[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                    c[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
-        parent_list = get_key_list_value(res, "in_collections")
-        if parent_list:
-            for parent_res_id in parent_list:
-                if parent_res_id not in c:
-                    c[parent_res_id] = dict()
-                    c[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
-                if DMS_RELATION_TYPE_ISPARTOF not in c[res_id]:
-                    c[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
-                if parent_res_id not in c[res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                    c[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
-                if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
-                    c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
+            member_list = get_key_list_value(res, "resources")
+            if member_list:
+                for member_res_id in member_list:
+                    if member_res_id not in c:
+                        c[member_res_id] = dict()
+                        c[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+                    if DMS_RELATION_TYPE_HASPART not in c[res_id]:
+                        c[res_id][DMS_RELATION_TYPE_HASPART] = []
+                    if member_res_id not in c[res_id][DMS_RELATION_TYPE_HASPART]:
+                        c[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
+                    if res_id not in c[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                        c[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
+            parent_list = get_key_list_value(res, "in_collections")
+            if parent_list:
+                for parent_res_id in parent_list:
+                    if parent_res_id not in c:
+                        c[parent_res_id] = dict()
+                        c[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
+                    if DMS_RELATION_TYPE_ISPARTOF not in c[res_id]:
+                        c[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+                    if parent_res_id not in c[res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                        c[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
+                    if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
+                        c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
+        except Exception as e:
+            print("gen_pids/main: Error when mapping collections for", res_id)
+            print(traceback.format_exc())
 
-    """4b. Sucessors
+    """3b. Successors
     
     Fill dict with all resources that have successors.
-    XML:
-    successors:
-        - sweanalogy
     Set Datacite Metadata Schema field 12 - RelatedIdentifier
         IsObsoletedBy
         Obsoletes
     """
-    if param_debug:
-        print("gen_pids/main: map obsoleted/successors")
 
     for res_id, res in resources.items():
-        successor_list = get_key_list_value(res, "successors")
-        if successor_list:
-            if res_id not in c:
-                c[res_id] = dict()
-                c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = successor_list
-            else:
-                c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
-            for successor_res_id in successor_list:
-                if successor_res_id not in c:
-                    c[successor_res_id] = dict()
-                    c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES] = [res_id]
+        try:
+            if param_debug:
+                print("gen_pids/main: Map successors for", res_id)
+            successor_list = get_key_list_value(res, "successors")
+            if successor_list:
+                if res_id not in c:
+                    c[res_id] = dict()
+                    c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = successor_list
                 else:
-                    c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
+                    c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
+                for successor_res_id in successor_list:
+                    if successor_res_id not in c:
+                        c[successor_res_id] = dict()
+                        c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES] = [res_id]
+                    else:
+                        c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
+        except Exception as e:
+            print("gen_pids/main: Error when mapping successors for", res_id)
+            print(traceback.format_exc())
 
-    """Update DMS
+    """3c. Update DMS
 
     All previous related identifiers are removed when setting new field
     so all relations has to be set at the same time.
@@ -290,21 +239,25 @@ def main(param_debug: bool=True, param_test: bool=True) -> None:
         print("gen_pids/main: update relation metadata at Datacite")
 
     for res in c.items():
-        res_id = res[0]
-        # if not param_test:
-        # TODO
-        set_dms_related(resources,
-                        res_id,
-                        get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
-                        get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
-                        get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
-                        get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
-                        param_debug
-                        )
+        try:
+            res_id = res[0]
+            if param_debug:
+                print("gen_pids/main: Update DMS for", res_id)
+            dms_related_set(resources,
+                            res_id,
+                            get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
+                            get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
+                            get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
+                            get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
+                            param_debug
+                            )
+        except Exception as e:
+            print("gen_pids/main: Error when updating DMS for", res_id)
+            print(traceback.format_exc())
 
 
 
-def get_dms_doi(res_id: str, res: dict, param_debug: bool) -> str:
+def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
     """Construct DMS and call Datacite API.
     
     Return: DOI
@@ -384,10 +337,9 @@ def get_dms_doi(res_id: str, res: dict, param_debug: bool) -> str:
                 # 20. On. Related items that don't have an ID/DOI
                 # DOI target
                 "url": DMS_TARGET_URL_PREFIX + res_id,
-            },  # attributes                #"dates": [],
-
+            },  # attributes
         }  # data
-    }
+    } # data_json = {
 
     # Add fields if they are not empty.
 
@@ -487,8 +439,6 @@ def get_dms_doi(res_id: str, res: dict, param_debug: bool) -> str:
 
     doi = ""
     
-    # TODO what if it already exists? It shouldn't, because this only gets called if resources has a DOI key...
-    # status_code: 201 // response["reason"] = "Created"
     if response.status_code == RESPONSE_CREATED:
         d = response.json()
         if "data" in d:
@@ -497,15 +447,12 @@ def get_dms_doi(res_id: str, res: dict, param_debug: bool) -> str:
                 if (len(data) > 0):
                     doi = data[0]["id"]
                     if (len(data) > 1):
-                        # TODO This should never happen, as res_id should be unique among Språkbanken Text
-                        print("gen_pids/get_dms_doi: multiple answers", file=sys.stderr)
+                        # This should never happen, as res_id should be unique among Språkbanken Text
+                        print("gen_pids/get_dms_doi: Error, multiple answers for", res_id)
             else:
                 doi = data["id"]
-
     else:
-        print("gen_pids/get_dms_doi: could not create DOI for ", res_id, file=sys.stderr)
-        print("gen_pids/get_dms_doi: response:content", response.content, file=sys.stderr)
-
+        print("gen_pids/get_dms_doi: Error, could not create DOI for ", res_id, response.content)
     return doi
 
 
@@ -675,13 +622,13 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> int:
     if param_debug:
         print("gen_pids/dms_update: response", response.status_code)
     if (response.status_code >= 300):
-        print("gen_pids/dms_update: error updating", res_id, doi, response.status_code, file=sys.stderr)
+        print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code)
 
     return response.status_code
 
 
 
-def set_dms_related(resources: dict, rid: str, 
+def dms_related_set(resources: dict, rid: str, 
                     has_part: list, is_part_of: list,
                     obsoletes: list, is_obsoleted_by: list,
                     param_debug: bool) -> bool:
@@ -745,11 +692,9 @@ def set_dms_related(resources: dict, rid: str,
     }
 
     if param_debug:
-        print("gen_pids/dms_set_dms_related: ", data_json)
+        print("gen_pids/dms_related_set: Set related identifiers for", rid)
 
     # Update resource
-    # TODO urllib.parse.quote() necessary?
-    #url = DMS_URL + "/" + urllib.parse.quote(get_doi_from_rid(resources, rid), safe='')
     url = DMS_URL + "/" + get_doi_from_rid(resources, rid)
     response = requests.put(
         url,
@@ -759,8 +704,11 @@ def set_dms_related(resources: dict, rid: str,
     )
 
     if param_debug:
-        print("gen_pids/dms_set_dms_related: ", response.status_code)
+        print("gen_pids/dms_related_set: ", response.status_code)
         # print(json.dumps(response.json(), indent=4, ensure_ascii=False))
+
+    if (response.status_code != RESPONSE_OK):
+        print("gen_pids/dms_related_set: Error setting related", rid, response.status_code)
 
     return response.status_code == RESPONSE_OK
 
@@ -881,6 +829,7 @@ def get_key_value(dictionary: dict, key: str, key2: str = None) -> any:
         else:
             return ""
 
+
 def get_key_list_value(dictionary: dict, key: str) -> list:
     """Return key value from dictionary, else empty list, []."""
     return dictionary.get(key, [])
@@ -918,7 +867,7 @@ def get_doi_from_rid(res: dict, rid: str) -> str:
     return ""
 
 
-def get_dms_lookup_doi(res_id: str, param_debug: bool) -> str:
+def dms_doi_get(res_id: str, param_debug: bool) -> str:
     """Metadata.yaml could be autogenerated, so look up if existing at DC.
     "alternateIdentifiers": [
     {
@@ -942,7 +891,7 @@ def get_dms_lookup_doi(res_id: str, param_debug: bool) -> str:
     )
 
     if param_debug:
-        print("gen_pids/get_dms_lookup_doi", res_id, response.status_code)
+        print("gen_pids/dms_doi_get: Get DOI from res id", res_id)
     if response.status_code == RESPONSE_OK:
         d = response.json()
         if "data" in d:
@@ -951,12 +900,11 @@ def get_dms_lookup_doi(res_id: str, param_debug: bool) -> str:
                 if (len(data) > 0):
                     doi = data[0]["id"]
                     if (len(data) > 1):
-                        # TODO This should never happen, as res_id should be unique among Språkbanken Text
-                        print("gen_pids/get_dms_lookup_doi: multiple answers", res_id, file=sys.stderr)
+                        # This should never happen, as res_id should be unique among Språkbanken Text
+                        print("gen_pids/dms_doi_get: Error, multiple answers", res_id)
             else:
                 doi = data["id"]
     return doi
-
 
 
 def get_dms_lookup_handle(res_id: str, param_debug: bool) -> str:
@@ -994,8 +942,7 @@ def get_dms_lookup_handle(res_id: str, param_debug: bool) -> str:
     return handle
 
 
-
-
+"""Main"""
 
 if __name__ == "__main__":
     args = parser.parse_args()

@@ -34,7 +34,8 @@ SBX_DEFAULT_RESTRICTION = "attribution"
 YAML_FIELD_SLUG = "slug"
 YAML_FIELD_DOI = "doi"
 #YAML_FIELD_HANDLE = "handle"
-
+METASHARE_IDENTIFIER_PREFIX_DOI = "doi:"
+METASHARE_IDENTIFIER_PREFIX_HANDLE = "hdl:"
 
 METASHARE_LICENSES = ["CC-BY", "CC-BY-NC", "CC-BY-NC-ND", "CC-BY-NC-SA", "CC-BY-ND", "CC-BY-SA", "CC-ZERO",
                       "MS-C-NoReD", "MS-C-NoReD-FF", "MS-C-NoReD-ND", "MS-C-NoReD-ND-FF", "MS-NC-NoReD",
@@ -105,9 +106,34 @@ def create_metashare(yaml_path, out=None, debug=False):
         identificationInfo = xml.find(ns + "identificationInfo")
         for i in identificationInfo.findall(ns + "resourceShortName"):
             i.text = res_id
-        _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_id, YAML_FIELD_SLUG)
+        # old code:
+        # identificationInfo.find(ns + "identifier").text = res_id
+        # now add both res_id
+        # and res_doi (with prefix "doi:")
+        # add DOI (assume there already is none)
+        identificationInfo.find(ns + "identifier").text = res_id
         res_doi = yaml_metadata.get(YAML_FIELD_DOI)
-        _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_doi, YAML_FIELD_DOI)
+        if res_doi != None:
+            if not _set_identifier(identificationInfo.findall(ns + "identifier"), res_doi, METASHARE_IDENTIFIER_PREFIX_DOI):
+                # DOI identifier did not exist so add it
+                sub = etree.SubElement(identificationInfo, "identifier")
+                sub.text = "doi:" + res_doi
+        """
+        for update check all identifiers to see if they begin with "doi:"
+        and then update that one or ADD one
+
+        
+        """
+        """
+        <identificationInfo>
+            <identifier>hdl:10794/1ad675e959b72.76282189</identifier>
+            <identifier>ao</identifier>
+        </identificationInfo>
+        """
+        #_set_text_with_type(identificationInfo.findall(ns + "identifier"), res_id, YAML_FIELD_SLUG)
+        #res_doi = yaml_metadata.get(YAML_FIELD_DOI)
+        #_set_text_with_type(identificationInfo.findall(ns + "identifier"), res_doi, YAML_FIELD_DOI)
+        
         """Don't handle handles
         res_handle = get_dms_lookup_handle(res_id, debug)
         _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_handle, YAML_FIELD_HANDLE)
@@ -148,8 +174,12 @@ def create_metashare(yaml_path, out=None, debug=False):
 
         # Set lingualityType
         # TODO not represented in yaml yet
-        if res_type == "corpus":
-            xml.find(".//" + ns + "lingualityType").text = "monolingual"  # monolingual, bilingual, multilingual
+        linguality_type_el = xml.find(".//" + ns + "lingualityType")
+        if linguality_type_el is not None:
+            linguality_type_el.text = "monolingual"  # monolingual, bilingual, multilingual
+
+        #if res_type == "corpus":
+        #    xml.find(".//" + ns + "lingualityType").text = "monolingual"  # monolingual, bilingual, multilingual
 
         if res_type == "lexicon":
             # TODO not represented in yaml yet
@@ -157,8 +187,8 @@ def create_metashare(yaml_path, out=None, debug=False):
             xml.find(".//" + ns + "lexicalConceptualResourceType").text = "computationalLexicon"
 
         # Set languageInfo (languageId, languageName)
-        if res_type in ["corpus", "lexicon"]:
-            _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
+        # if res_type in ["corpus", "lexicon"]:
+        _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
 
         # Set sizeInfo
         if res_type == "corpus":
@@ -208,7 +238,11 @@ def update_metashare(yaml_path, metashare_path, debug=False):
         # Assume "slug" has not changed, so update possible pid (DOI) and Handle (från Datacite repos)
         res_doi = yaml_metadata.get(YAML_FIELD_DOI)
         if res_doi != None:
-            _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_doi, YAML_FIELD_DOI)
+            #_set_text_with_type(identificationInfo.findall(ns + "identifier"), res_doi, YAML_FIELD_DOI)
+            if not _set_identifier(identificationInfo.findall(ns + "identifier"), res_doi, METASHARE_IDENTIFIER_PREFIX_DOI):
+                # DOI identifier did not exist so add it
+                sub = etree.SubElement(identificationInfo, "identifier")
+                sub.text = "doi:" + res_doi
         """Don't handle Handles
         res_handle = get_dms_lookup_handle(res_id, debug)
         if res_handle != "":
@@ -264,15 +298,32 @@ def update_metashare(yaml_path, metashare_path, debug=False):
 def _set_text(elems, text, lang):
     """Set text for elems to 'text' for the correct language."""
     for i in elems:
-        if i.attrib["lang"] == lang:
-            i.text = text
+        if "lang" in i.attrib:
+            if i.attrib["lang"] == lang:
+                i.text = text
 
 
 def _set_text_with_type(elems, text, attrib):
-    """Set text for elems to 'text' for the correct language."""
+    """Set text for elems to 'text' for the correct attribute (type)."""
     for i in elems:
-        if i.attrib["type"] == attrib:
+        if "type" in i.attrib:
+            if i.attrib["type"] == attrib:
+                i.text = text
+        
+
+
+def _set_identifier(elems, text, type):
+    """Set text for elems to 'text' if the text starts with 'type'.
+    Used for replacing eg 'identifier' which can be 'hdl:xxx' or 'doi:yyy'
+    Return true if any replacement was done.
+    """
+    done = False
+    for i in elems:
+        if i.text.startswith(type):
             i.text = text
+            done = True
+    return done
+
 
 
 def _set_licence_info(item, distInfo, download=True):
@@ -399,9 +450,12 @@ def _set_language_info(language_codes, xml, yaml_path):
                 # Prettify element
                 indent_xml(languageInfo, level=5)
                 # Insert after after last languageInfo
-                parent = xml.find(".//" + ns + "languageInfo").getparent()
-                i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
-                parent.insert(i + 1, languageInfo)
+                language_info_el = xml.find(".//" + ns + "languageInfo")
+                if language_info_el is not None:
+                    parent = language_info_el.getparent()
+                    i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
+                    parent.insert(i + 1, languageInfo)
+
             except LookupError:
                 sys.stderr.write(f"Could not find language code {langcode} (resource: {yaml_path})")
 
