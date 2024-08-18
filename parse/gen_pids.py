@@ -457,176 +457,185 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
 
 
 
-def dms_update(res_id: str, res: dict, param_debug: bool) -> int:
-    """Construct DMS and call Datacite API."""
+def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
+    """Update existing DMS metadata.
+    
+    Returns:
+        bool -- If metadata was updated.
+    """
+
+    updated = False
 
     doi = get_key_value(res, DOI_KEY)
+    yaml_created, yaml_updated = get_dates(res_id, res)
+    dms_created, dms_updated = dms_doi_get_updated(doi, param_debug)
 
-    # Resource type
-    if get_key_value(res, "collection") == True:
-        dms_resource_type = DMS_RESOURCE_TYPE_COLLECTION
-        dms_resource_type_general = DMS_RESOURCE_TYPE_COLLECTION
-    else:
-        dms_resource_type = get_key_value(res, "type")
-        dms_resource_type_general = DMS_RESOURCE_TYPE_GENERAL
+    # only update DataCite record if it is older than YAML record
+    if (dms_updated < yaml_updated) or (yaml_updated == ""):
 
-    # Creators (optional)
-    dms_creators = get_creators(res)
+        dms_created = yaml_created
+        dms_updated = yaml_updated
+        
+        updated = True
+        # Resource type
+        if get_key_value(res, "collection") == True:
+            dms_resource_type = DMS_RESOURCE_TYPE_COLLECTION
+            dms_resource_type_general = DMS_RESOURCE_TYPE_COLLECTION
+        else:
+            dms_resource_type = get_key_value(res, "type")
+            dms_resource_type_general = DMS_RESOURCE_TYPE_GENERAL
 
-    # Dates (optional)
-    dms_created, dms_updated = get_dates(res_id, res)
+        # Creators (optional)
+        dms_creators = get_creators(res)
 
-    data_json = {
-        "data": {
-            "type": "dois",
-            "attributes": {
-                # M - Mandatory. R - recommended. O - optional.
-                # 1 - 1 value allowed. n - multiple values allowed.
-                # 1. M1. DOI
-                # 2. Mn. Creator
-                "creators": dms_creators,
-                # 3. Mn. Title - added later
-                # 4. M1. Publisher
-                "publisher": {
-                    "name": DMS_CREATOR_NAME,
-                    "publisherIdentifier": DMS_CREATOR_ROR,
-                    "publisherIdentifierScheme": "ROR",
-                    "schemeURI": "https://ror.org/",
-                },
-                # 5. M1. Publication date
-                "publicationYear": DMS_DEFAULT_YEAR,
-                # 6. Rn. Subject
-                "subjects": [
-                    {
-                        "subject": "Language Technology (Computational Linguistics)",
-                        "subjectScheme": "Standard för svensk indelning av forskningsämnen 2011",
-                        "classificationCode": "10208",
-                        "schemeURI": "https://www.scb.se/dokumentation/klassifikationer-och-standarder/standard-for-svensk-indelning-av-forskningsamnen",
-                    }
-                ],
-                # 9. O1. Primary language
-                "language": get_res_lang_code(get_key_value(res, "language_codes")),
-                # 10. M1. Resource type, Type/TypeGeneral should form a pair
-                "types": {
-                    "resourceType": dms_resource_type,
-                    "resourceTypeGeneral": dms_resource_type_general
+        data_json = {
+            "data": {
+                "type": "dois",
+                "attributes": {
+                    # M - Mandatory. R - recommended. O - optional.
+                    # 1 - 1 value allowed. n - multiple values allowed.
+                    # 1. M1. DOI
+                    # 2. Mn. Creator
+                    "creators": dms_creators,
+                    # 3. Mn. Title - added later
+                    # 4. M1. Publisher
+                    "publisher": {
+                        "name": DMS_CREATOR_NAME,
+                        "publisherIdentifier": DMS_CREATOR_ROR,
+                        "publisherIdentifierScheme": "ROR",
+                        "schemeURI": "https://ror.org/",
                     },
-                # 11. On. Alternate identifier
-                # resource ID (which is unique within Språkbanken Text)
-                "alternateIdentifiers": [
-                    {
-                        "alternateIdentifierType": DMS_SLUG, 
-                        "alternateIdentifier": res_id
-                    }
-                ],
-                # 13. On. Size. - added later
-                # 17. Rn. Description take short and filter HTML - added later
-                "descriptions": [],
-                # DOI target
-                "url": DMS_TARGET_URL_PREFIX + res_id,
-            },  # attributes
-        }  # data
-    }
+                    # 5. M1. Publication date
+                    "publicationYear": DMS_DEFAULT_YEAR,
+                    # 6. Rn. Subject
+                    "subjects": [
+                        {
+                            "subject": "Language Technology (Computational Linguistics)",
+                            "subjectScheme": "Standard för svensk indelning av forskningsämnen 2011",
+                            "classificationCode": "10208",
+                            "schemeURI": "https://www.scb.se/dokumentation/klassifikationer-och-standarder/standard-for-svensk-indelning-av-forskningsamnen",
+                        }
+                    ],
+                    # 9. O1. Primary language
+                    "language": get_res_lang_code(get_key_value(res, "language_codes")),
+                    # 10. M1. Resource type, Type/TypeGeneral should form a pair
+                    "types": {
+                        "resourceType": dms_resource_type,
+                        "resourceTypeGeneral": dms_resource_type_general
+                        },
+                    # 11. On. Alternate identifier
+                    # resource ID (which is unique within Språkbanken Text)
+                    "alternateIdentifiers": [
+                        {
+                            "alternateIdentifierType": DMS_SLUG, 
+                            "alternateIdentifier": res_id
+                        }
+                    ],
+                    # 13. On. Size. - added later
+                    # 17. Rn. Description take short and filter HTML - added later
+                    "descriptions": [],
+                    # DOI target
+                    "url": DMS_TARGET_URL_PREFIX + res_id,
+                },  # attributes
+            }  # data
+        }
 
-    # 3 - Title
-    value = get_key_value(res, "name", "swe")
-    if value:
-        data_json["data"]["attributes"]["titles"] = []
-        data_json["data"]["attributes"]["titles"].append(
-            {
-                "lang": DMS_LANG_SWE,
-                "title": value
-            }
-        )
-    value = get_key_value(res, "name", "eng")
-    if value:
-        if "titles" not in data_json["data"]["attributes"]:
+        # 3 - Title
+        value = get_key_value(res, "name", "swe")
+        if value:
             data_json["data"]["attributes"]["titles"] = []
-        data_json["data"]["attributes"]["titles"].append(
-            {
-                "lang": DMS_LANG_ENG,
-                "title": value
-            }
-        )
+            data_json["data"]["attributes"]["titles"].append(
+                {
+                    "lang": DMS_LANG_SWE,
+                    "title": value
+                }
+            )
+        value = get_key_value(res, "name", "eng")
+        if value:
+            if "titles" not in data_json["data"]["attributes"]:
+                data_json["data"]["attributes"]["titles"] = []
+            data_json["data"]["attributes"]["titles"].append(
+                {
+                    "lang": DMS_LANG_ENG,
+                    "title": value
+                }
+            )
 
-    # 8 - Dates (optional)
-    dms_created, dms_updated = get_dates(res_id, res)
-    if dms_created or dms_updated:
-        data_json["data"]["attributes"]["dates"] = []
-    if dms_created:
-        data_json["data"]["attributes"]["dates"].append(
-            {
-                "date": dms_created,
-                "dateType": "Created"
-            }
-        )
-    if dms_updated:
-        data_json["data"]["attributes"]["dates"].append(
-            {
-                "date": dms_updated,
-                "dateType": "Updated"
-            }
-        )
+        # 8 - Dates (optional)
+        if dms_created or dms_updated:
+            data_json["data"]["attributes"]["dates"] = []
+        if dms_created:
+            data_json["data"]["attributes"]["dates"].append(
+                {
+                    "date": dms_created,
+                    "dateType": "Created"
+                }
+            )
+        if dms_updated:
+            data_json["data"]["attributes"]["dates"].append(
+                {
+                    "date": dms_updated,
+                    "dateType": "Updated"
+                }
+            )
 
-    # 11 - Handle
-    """
-    if handle:
-        if "alternateIdentifiers" not in data_json["data"]["attributes"]:
-            data_json["data"]["attributes"]["alternateIdentifiers"] = []
-        data_json["data"]["attributes"]["alternateIdentifiers"].append(
-            {
-                "alternateIdentifierType": DMS_HANDLE,
-                "alternateIdentifier": handle
-            },
-        )
-    """
+        # 11 - Handle
+        """
+        if handle:
+            if "alternateIdentifiers" not in data_json["data"]["attributes"]:
+                data_json["data"]["attributes"]["alternateIdentifiers"] = []
+            data_json["data"]["attributes"]["alternateIdentifiers"].append(
+                {
+                    "alternateIdentifierType": DMS_HANDLE,
+                    "alternateIdentifier": handle
+                },
+            )
+        """
 
-    # 13 - Sizes
-    value = get_res_size(get_key_value(res, "size"))
-    if value:
-        data_json["data"]["attributes"]["size"] = value
+        # 13 - Sizes
+        value = get_res_size(get_key_value(res, "size"))
+        if value:
+            data_json["data"]["attributes"]["size"] = value
 
-    # 17 - Description
-    value = get_key_value(res, "short_description", "swe")
-    if value:
-        data_json["data"]["attributes"]["descriptions"] = []
-        data_json["data"]["attributes"]["descriptions"].append(
-            {
-                "lang": DMS_LANG_SWE,
-                "description": get_clean_string(value),
-                "descriptionType": "Abstract",
-            }
-        )
-    value = get_key_value(res, "short_description", "eng")
-    if value:
-        if "descriptions" not in data_json["data"]["attributes"]:
+        # 17 - Description
+        value = get_key_value(res, "short_description", "swe")
+        if value:
             data_json["data"]["attributes"]["descriptions"] = []
-        data_json["data"]["attributes"]["descriptions"].append(
-            {
-                "lang": DMS_LANG_ENG,
-                "description": get_clean_string(value),
-                "descriptionType": "Abstract",
-            }
+            data_json["data"]["attributes"]["descriptions"].append(
+                {
+                    "lang": DMS_LANG_SWE,
+                    "description": get_clean_string(value),
+                    "descriptionType": "Abstract",
+                }
+            )
+        value = get_key_value(res, "short_description", "eng")
+        if value:
+            if "descriptions" not in data_json["data"]["attributes"]:
+                data_json["data"]["attributes"]["descriptions"] = []
+            data_json["data"]["attributes"]["descriptions"].append(
+                {
+                    "lang": DMS_LANG_ENG,
+                    "description": get_clean_string(value),
+                    "descriptionType": "Abstract",
+                }
+            )
+
+        if param_debug:
+            print("gen_pids/dms_update: updating", res_id, doi)
+            # print(json.dumps(data_json, indent=4, ensure_ascii=False))
+
+        # Update resource
+        url = DMS_URL + "/" + doi
+        response = requests.put(
+            url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
         )
 
-    if param_debug:
-        print("gen_pids/dms_update: updating", res_id, doi)
-        # print(json.dumps(data_json, indent=4, ensure_ascii=False))
+        if param_debug:
+            print("gen_pids/dms_update: response", response.status_code)
+        if (response.status_code >= 300):
+            print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code)
 
-    # Update resource
-    url = DMS_URL + "/" + doi
-    response = requests.put(
-        url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
-    )
-
-    if param_debug:
-        print("gen_pids/dms_update: response", response.status_code)
-    if (response.status_code >= 300):
-        print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code)
-
-    return response.status_code
-
-
+    return updated
 
 def dms_related_set(resources: dict, rid: str, 
                     has_part: list, is_part_of: list,
@@ -867,7 +876,7 @@ def get_doi_from_rid(res: dict, rid: str) -> str:
     return ""
 
 
-def dms_doi_get(res_id: str, param_debug: bool) -> str:
+def dms_doi_get(res_id: str, param_debug: bool) -> tuple[str, str]:
     """Metadata.yaml could be autogenerated, so look up if existing at DC.
     "alternateIdentifiers": [
     {
@@ -877,6 +886,9 @@ def dms_doi_get(res_id: str, param_debug: bool) -> str:
 
     Confusingly it is called "identifiers" in JSON, not "alternateIdentifiers" (as in XML).
 
+    Returns:
+        str -- DOI or "" if rid not found.
+        str -- date when record was last updated (string, format YYYY-MM-DD)
     """
     search_url = DMS_URL + \
         "?client-id=" + DMS_REPOID + "&" + \
@@ -885,6 +897,7 @@ def dms_doi_get(res_id: str, param_debug: bool) -> str:
         "&detail=true"
 
     doi = ""
+    dms_updated = ""
 
     response = requests.get(
         url = search_url,
@@ -899,12 +912,61 @@ def dms_doi_get(res_id: str, param_debug: bool) -> str:
             if type(data) is list:
                 if (len(data) > 0):
                     doi = data[0]["id"]
+                    #
+                    dms_updated = datetime.datetime.strftime(data[0]["updated"], "%Y-%m-%d")
                     if (len(data) > 1):
                         # This should never happen, as res_id should be unique among Språkbanken Text
                         print("gen_pids/dms_doi_get: Error, multiple answers", res_id)
             else:
                 doi = data["id"]
-    return doi
+    return doi, dms_updated
+
+
+def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str]:
+    """Get date "Created" and "Updated" of a DMS record
+    (The "updated" field from the YAML metadata, not the Datacite "updated".)
+
+    JSON example:
+        "dates": [
+          {
+            "date": "2017-09-13",
+            "dateType": "Updated"
+          }
+        ],
+
+    Returns:
+        str -- date for created value (eg "dates" : [{"date": "2024-06-18", "dateType": "Created"}])
+        str -- date for updated value (eg "dates" : [{"date": "2024-06-18", "dateType": "Updated"}])
+
+    """
+    search_url = DMS_URL + "/" + doi
+    # "&detail=true"
+
+    dms_updated = ""
+    dms_created = ""
+
+    response = requests.get(
+        url = search_url,
+    )
+
+    if param_debug:
+        print("gen_pids/dms_doi_get_updated: Get updated ", doi)
+    if response.status_code == RESPONSE_OK:
+        d = response.json()
+        if "data" in d:
+            data = d["data"]
+            if "attributes" in data:
+                attributes = data["attributes"]
+                if "dates" in attributes:
+                    dates = attributes["dates"]
+                    for x in dates:
+                        if x["dateType"] == "Updated":
+                            dms_updated = x["date"]
+                        elif x["dateType"] == "Created":
+                            dms_created = x["date"]
+
+    return dms_created, dms_updated
+
 
 
 def get_dms_lookup_handle(res_id: str, param_debug: bool) -> str:
