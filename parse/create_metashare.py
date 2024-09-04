@@ -83,7 +83,7 @@ def create_metashare(yaml_path, out=None, debug=False):
     try:
         # Read yaml metadata
         with open(yaml_path, encoding="utf-8") as f:
-            yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
+            yaml_metadata = yaml.safe_load(f)
 
         # Skip unlisted resources
         if yaml_metadata.get("unlisted") == True:
@@ -121,10 +121,7 @@ def create_metashare(yaml_path, out=None, debug=False):
         """
         for update check all identifiers to see if they begin with "doi:"
         and then update that one or ADD one
-
-        
-        """
-        """
+        example:
         <identificationInfo>
             <identifier>hdl:10794/1ad675e959b72.76282189</identifier>
             <identifier>ao</identifier>
@@ -217,7 +214,7 @@ def update_metashare(yaml_path, metashare_path, debug=False):
     try:
         # Read yaml metadata
         with open(yaml_path, encoding="utf-8") as f:
-            yaml_metadata = yaml.load(f, Loader=yaml.FullLoader)
+            yaml_metadata = yaml.safe_load(f)
 
         res_id = yaml_path.stem
         res_type = yaml_metadata.get("type")

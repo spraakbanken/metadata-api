@@ -29,7 +29,7 @@ def main(resource_types=["lexicon", "corpus", "model"], debug=False, offline=Fal
     resource_texts = defaultdict(dict)
     collection_mappings = {}
 
-    for filepath in sorted(Path(YAML_DIR).glob("**/*.yaml")):
+    for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
         # Get resources from yaml
         yaml_resources = get_yaml(filepath, resource_texts, collection_mappings, debug=debug, offline=offline)
         # Get resource-text-mapping
@@ -63,7 +63,7 @@ def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
         if debug:
             print(f"  Processing {filepath}")
         with open(filepath, encoding="utf-8") as f:
-            res = yaml.load(f, Loader=yaml.FullLoader)
+            res = yaml.safe_load(f)
             fileid = filepath.stem
             new_res = {"id": fileid}
             # Make sure size attrs only contain numbers
