@@ -6,7 +6,7 @@
 #
 blinker==1.8.2
     # via flask
-certifi==2024.7.4
+certifi==2024.8.30
     # via requests
 charset-normalizer==3.3.2
     # via requests
@@ -16,11 +16,11 @@ flask==3.0.3
     # via
     #   -r requirements.in
     #   flask-cors
-flask-cors==4.0.1
+flask-cors==5.0.0
     # via -r requirements.in
 gunicorn==23.0.0
     # via -r requirements.in
-idna==3.7
+idna==3.8
     # via requests
 itsdangerous==2.2.0
     # via flask
@@ -44,5 +44,5 @@ requests==2.32.3
     # via -r requirements.in
 urllib3==2.2.2
     # via requests
-werkzeug==3.0.3
+werkzeug==3.0.4
     # via flask
