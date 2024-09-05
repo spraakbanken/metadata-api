@@ -44,15 +44,15 @@ try:
     RESPONSE_CREATED = 201
 
 except Exception as e:
-    print("gen_pids: Failed init. Exiting.")
-    print(traceback.format_exc())
+    print("gen_pids: Failed init. Exiting.", file=sys.stderr)
+    print(traceback.format_exc(), file=sys.stderr)
     sys.exit()
 
 
 # Instantiate command line arg parser
 parser = argparse.ArgumentParser(description="Read YAML metadata files, create DOIs for those that are missing it, create and update Datacite metadata.")
 parser.add_argument("--debug", "-d", action="store_true", help="Print debug info")
-parser.add_argument("--test", "-t", action="store_true", help="Test - don't write")
+parser.add_argument("--test", "-t", action="store_false", help="Test - don't write")
 
 
 
@@ -95,8 +95,8 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                 if not get_key_value(res, "unlisted") == True:
                     resources[res_id] = res
         except Exception as e:
-            print("gen_pids/main: Error when opening YAML files. Exiting.")
-            print(traceback.format_exc())
+            print("gen_pids/main: Error when opening YAML files. Exiting.", file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
             sys.exit()
     # Get list of SweClarin handles <-> res_id mappings
     """
@@ -144,9 +144,9 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                                     print(res_id)
                                     file_yaml.write(f"\ndoi: {doi}\n")
                         except Exception as e:
-                            print("gen_pids/main: Error adding DOI to YAML", res_id, doi)
+                            print("gen_pids/main: Error adding DOI to YAML", res_id, doi, file=sys.stderr)
                 else:
-                    print("gen_pids/main: Error creating DOI for YAML", res_id, doi)
+                    print("gen_pids/main: Error creating DOI for YAML", res_id, doi, file=sys.stderr)
             else:
                 # The metadata already exists in DMS, so update resource (to be sure)
                 """
@@ -198,8 +198,8 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                     if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
                         c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
         except Exception as e:
-            print("gen_pids/main: Error when mapping collections for", res_id)
-            print(traceback.format_exc())
+            print("gen_pids/main: Error when mapping collections for", res_id, file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
 
     """3b. Successors
     
@@ -227,8 +227,8 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                     else:
                         c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
         except Exception as e:
-            print("gen_pids/main: Error when mapping successors for", res_id)
-            print(traceback.format_exc())
+            print("gen_pids/main: Error when mapping successors for", res_id, file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
 
     """3c. Update DMS
 
@@ -252,8 +252,8 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                             param_debug
                             )
         except Exception as e:
-            print("gen_pids/main: Error when updating DMS for", res_id)
-            print(traceback.format_exc())
+            print("gen_pids/main: Error when updating DMS for", res_id, file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
 
 
 
@@ -448,11 +448,11 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
                     doi = data[0]["id"]
                     if (len(data) > 1):
                         # This should never happen, as res_id should be unique among Språkbanken Text
-                        print("gen_pids/get_dms_doi: Error, multiple answers for", res_id)
+                        print("gen_pids/get_dms_doi: Error, multiple answers for", res_id, file=sys.stderr)
             else:
                 doi = data["id"]
     else:
-        print("gen_pids/get_dms_doi: Error, could not create DOI for ", res_id, response.content)
+        print("gen_pids/get_dms_doi: Error, could not create DOI for ", res_id, response.content, file=sys.stderr)
     return doi
 
 
@@ -633,7 +633,7 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
         if param_debug:
             print("gen_pids/dms_update: response", response.status_code)
         if (response.status_code >= 300):
-            print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code)
+            print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code, file=sys.stderr)
 
     return updated
 
@@ -717,7 +717,7 @@ def dms_related_set(resources: dict, rid: str,
         # print(json.dumps(response.json(), indent=4, ensure_ascii=False))
 
     if (response.status_code != RESPONSE_OK):
-        print("gen_pids/dms_related_set: Error setting related", rid, response.status_code)
+        print("gen_pids/dms_related_set: Error setting related", rid, response.status_code, file=sys.stderr)
 
     return response.status_code == RESPONSE_OK
 
@@ -912,11 +912,11 @@ def dms_doi_get(res_id: str, param_debug: bool) -> tuple[str, str]:
             if type(data) is list:
                 if (len(data) > 0):
                     doi = data[0]["id"]
-                    #
-                    dms_updated = datetime.datetime.strftime(data[0]["updated"], "%Y-%m-%d")
+                    if "updated" in data[0]:
+                        dms_updated = datetime.datetime.strftime(data[0]["updated"], "%Y-%m-%d")
                     if (len(data) > 1):
                         # This should never happen, as res_id should be unique among Språkbanken Text
-                        print("gen_pids/dms_doi_get: Error, multiple answers", res_id)
+                        print("gen_pids/dms_doi_get: Error, multiple answers", res_id, file=sys.stderr)
             else:
                 doi = data["id"]
     return doi, dms_updated
