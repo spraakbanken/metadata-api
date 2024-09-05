@@ -178,6 +178,8 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                     if member_res_id not in c:
                         c[member_res_id] = dict()
                         c[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+                    if res_id not in c:
+                        c[res_id] = dict()
                     if DMS_RELATION_TYPE_HASPART not in c[res_id]:
                         c[res_id][DMS_RELATION_TYPE_HASPART] = []
                     if member_res_id not in c[res_id][DMS_RELATION_TYPE_HASPART]:
@@ -190,6 +192,8 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                     if parent_res_id not in c:
                         c[parent_res_id] = dict()
                         c[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
+                    if res_id not in c:
+                        c[res_id] = dict()
                     if DMS_RELATION_TYPE_ISPARTOF not in c[res_id]:
                         c[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
                     if parent_res_id not in c[res_id][DMS_RELATION_TYPE_ISPARTOF]:
