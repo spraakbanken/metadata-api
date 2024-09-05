@@ -16,6 +16,8 @@ import yaml
 from lxml import etree  # Using lxml because of the getparent method
 from translate_lang import get_lang_names
 
+#from gen_pids import get_dms_lookup_handle
+
 METASHARE_URL = "http://www.ilsp.gr/META-XMLSchema"
 METASHARE_NAMESPACE = f"{{{METASHARE_URL}}}"
 SBX_SAMPLES_LOCATION = "https://spraakbanken.gu.se/en/resources/"
@@ -28,6 +30,12 @@ YAML_DIR = "../metadata/yaml/"
 SBX_DEFAULT_LICENSE = "CC-BY"
 SBX_DEFAULT_RESTRICTION = "attribution"
 
+# YAML tags/attributes for fields
+YAML_FIELD_SLUG = "slug"
+YAML_FIELD_DOI = "doi"
+#YAML_FIELD_HANDLE = "handle"
+METASHARE_IDENTIFIER_PREFIX_DOI = "doi:"
+METASHARE_IDENTIFIER_PREFIX_HANDLE = "hdl:"
 
 METASHARE_LICENSES = ["CC-BY", "CC-BY-NC", "CC-BY-NC-ND", "CC-BY-NC-SA", "CC-BY-ND", "CC-BY-SA", "CC-ZERO",
                       "MS-C-NoReD", "MS-C-NoReD-FF", "MS-C-NoReD-ND", "MS-C-NoReD-ND-FF", "MS-NC-NoReD",
@@ -51,6 +59,7 @@ def main(validate=False, debug=False):
     """Loop through all yaml files, create missing metashare files and update outdated ones."""
     metasharelist = list(i.stem for i in Path(METASHARE_DIR).glob("**/*.xml"))
     yamldir = Path(YAML_DIR)
+
     for thisdir in yamldir.glob("*/"):
         if thisdir.stem not in ["corpus", "lexicon", "model"]:
             continue
@@ -70,169 +79,248 @@ def main(validate=False, debug=False):
 
 def create_metashare(yaml_path, out=None, debug=False):
     """Create META-SHARE format from yaml metadata."""
-    # Read yaml metadata
-    with open(yaml_path, encoding="utf-8") as f:
-        yaml_metadata = yaml.safe_load(f)
 
-    # Skip unlisted resources
-    if yaml_metadata.get("unlisted") == True:
+    try:
+        # Read yaml metadata
+        with open(yaml_path, encoding="utf-8") as f:
+            yaml_metadata = yaml.safe_load(f)
+
+        # Skip unlisted resources
+        if yaml_metadata.get("unlisted") == True:
+            if debug:
+                print(f"Skipping unlisted resource {yaml_path.stem}")
+            return
+
+        res_id = yaml_path.stem
+        res_type = yaml_metadata.get("type")
+
         if debug:
-            print(f"Skipping unlisted resource {yaml_path.stem}")
-        return
+            print("Creating: ", res_id)
 
-    res_id = yaml_path.stem
-    res_type = yaml_metadata.get("type")
+        # Parse template and handle META SHARE namespace
+        xml = etree.parse(METASHARE_TEMPLATES_DIR / Path(METASHARE_TEMPLATE % res_type)).getroot()
+        # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
+        ns = METASHARE_NAMESPACE
 
-    # Parse template and handle META SHARE namespace
-    xml = etree.parse(METASHARE_TEMPLATES_DIR / Path(METASHARE_TEMPLATE % res_type)).getroot()
-    # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
-    ns = METASHARE_NAMESPACE
+        # Set idenfification info
+        identificationInfo = xml.find(ns + "identificationInfo")
+        for i in identificationInfo.findall(ns + "resourceShortName"):
+            i.text = res_id
+        # old code:
+        # identificationInfo.find(ns + "identifier").text = res_id
+        # now add both res_id
+        # and res_doi (with prefix "doi:")
+        # add DOI (assume there already is none)
+        identificationInfo.find(ns + "identifier").text = res_id
+        res_doi = yaml_metadata.get(YAML_FIELD_DOI)
+        if res_doi != None:
+            if not _set_identifier(identificationInfo.findall(ns + "identifier"), res_doi, METASHARE_IDENTIFIER_PREFIX_DOI):
+                # DOI identifier did not exist so add it
+                sub = etree.SubElement(identificationInfo, "identifier")
+                sub.text = "doi:" + res_doi
+        """
+        for update check all identifiers to see if they begin with "doi:"
+        and then update that one or ADD one
+        example:
+        <identificationInfo>
+            <identifier>hdl:10794/1ad675e959b72.76282189</identifier>
+            <identifier>ao</identifier>
+        </identificationInfo>
+        """
+        #_set_text_with_type(identificationInfo.findall(ns + "identifier"), res_id, YAML_FIELD_SLUG)
+        #res_doi = yaml_metadata.get(YAML_FIELD_DOI)
+        #_set_text_with_type(identificationInfo.findall(ns + "identifier"), res_doi, YAML_FIELD_DOI)
+        
+        """Don't handle handles
+        res_handle = get_dms_lookup_handle(res_id, debug)
+        _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_handle, YAML_FIELD_HANDLE)
+        """
+        # Set name
+        _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("swe", ""), "swe")
+        _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("eng", ""), "eng")
 
-    # Set idenfification info
-    identificationInfo = xml.find(ns + "identificationInfo")
-    for i in identificationInfo.findall(ns + "resourceShortName"):
-        i.text = res_id
-    identificationInfo.find(ns + "identifier").text = res_id
+        # Set description
+        _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("swe", ""), "swe")
+        _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("eng", ""), "eng")
 
-    # Set name
-    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("swe", ""), "swe")
-    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("eng", ""), "eng")
+        # Set metadata creation date in metadataInfo
+        xml.find(".//" + ns + "metadataCreationDate").text = str(time.strftime("%Y-%m-%d"))
 
-    # Set description
-    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("swe", ""), "swe")
-    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("eng", ""), "eng")
-
-    # Set metadata creation date in metadataInfo
-    xml.find(".//" + ns + "metadataCreationDate").text = str(time.strftime("%Y-%m-%d"))
-
-    # Set availability
-    # TODO not represented in yaml yet
-    xml.find(".//" + ns + "availability").text = "available-unrestrictedUse"
-
-    # Set licenceInfos
-    distInfo = xml.find(".//" + ns + "distributionInfo")
-    for d in yaml_metadata.get("downloads", []):
-        _set_licence_info(d, distInfo)
-    ms_download = {
-            "url": f"https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/{res_type}/{res_id}.xml",
-            "licence": SBX_DEFAULT_LICENSE,
-            "restriction": "attribution",
-        }
-    for i in yaml_metadata.get("interface", []):
-        _set_licence_info(i, distInfo, download=False)
-    _set_licence_info(ms_download, distInfo)
-
-    # Set contactPerson
-    _set_contact_info(yaml_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
-
-    # Set samplesLocation
-    xml.find(".//" + ns + "samplesLocation").text = f"{SBX_SAMPLES_LOCATION}{res_id}"
-
-    # Set lingualityType
-    # TODO not represented in yaml yet
-    linguality_type_el = xml.find(".//" + ns + "lingualityType")
-    if linguality_type_el is not None:
-        linguality_type_el.text = "monolingual"  # monolingual, bilingual, multilingual
-
-    if res_type == "lexicon":
+        # Set availability
         # TODO not represented in yaml yet
-        # wordList, computationalLexicon, ontology, wordnet, thesaurus, framenet, terminologicalResource, machineReadableDictionary, lexicon
-        xml.find(".//" + ns + "lexicalConceptualResourceType").text = "computationalLexicon"
+        xml.find(".//" + ns + "availability").text = "available-unrestrictedUse"
 
-    # Set languageInfo (languageId, languageName)
-    # if res_type in ["corpus", "lexicon"]: ??
-    _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
+        # Set licenceInfos
+        distInfo = xml.find(".//" + ns + "distributionInfo")
+        for d in yaml_metadata.get("downloads", []):
+            _set_licence_info(d, distInfo)
+        ms_download = {
+                "url": f"https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/{res_type}/{res_id}.xml",
+                "licence": SBX_DEFAULT_LICENSE,
+                "restriction": "attribution",
+            }
+        for i in yaml_metadata.get("interface", []):
+            _set_licence_info(i, distInfo, download=False)
+        _set_licence_info(ms_download, distInfo)
 
-    # Set sizeInfo
-    if res_type == "corpus":
-        sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("tokens", "0"))
-        sizeInfos[1].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("sentences", "0"))
-    elif res_type == "lexicon":
-        sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("entries", "0"))
+        # Set contactPerson
+        _set_contact_info(yaml_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
 
-    output = _dump_with_comment(xml)
+        # Set samplesLocation
+        xml.find(".//" + ns + "samplesLocation").text = f"{SBX_SAMPLES_LOCATION}{res_id}"
 
-    # Write XML to file
-    with open(out, mode="w", encoding="utf-8") as outfile:
-        outfile.write(output)
-    if debug:
-        print(f"Created META-SHARE {out}")
+        # Set lingualityType
+        # TODO not represented in yaml yet
+        linguality_type_el = xml.find(".//" + ns + "lingualityType")
+        if linguality_type_el is not None:
+            linguality_type_el.text = "monolingual"  # monolingual, bilingual, multilingual
+
+        #if res_type == "corpus":
+        #    xml.find(".//" + ns + "lingualityType").text = "monolingual"  # monolingual, bilingual, multilingual
+
+        if res_type == "lexicon":
+            # TODO not represented in yaml yet
+            # wordList, computationalLexicon, ontology, wordnet, thesaurus, framenet, terminologicalResource, machineReadableDictionary, lexicon
+            xml.find(".//" + ns + "lexicalConceptualResourceType").text = "computationalLexicon"
+
+        # Set languageInfo (languageId, languageName)
+        # if res_type in ["corpus", "lexicon"]:
+        _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
+
+        # Set sizeInfo
+        if res_type == "corpus":
+            sizeInfos = xml.findall(".//" + ns + "sizeInfo")
+            sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("tokens", "0"))
+            sizeInfos[1].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("sentences", "0"))
+        elif res_type == "lexicon":
+            sizeInfos = xml.findall(".//" + ns + "sizeInfo")
+            sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("entries", "0"))
+
+        output = _dump_with_comment(xml)
+
+        # Write XML to file
+        with open(out, mode="w", encoding="utf-8") as outfile:
+            outfile.write(output)
+        if debug:
+            print(f"Created META-SHARE {out}")
+    except Exception as e:
+        print("Error: failed to create MetaShare for", yaml_path.stem)
+        print(e)
 
 
 def update_metashare(yaml_path, metashare_path, debug=False):
     """Update metashare with newer information from YAML metadata."""
-    # Read yaml metadata
-    with open(yaml_path, encoding="utf-8") as f:
-        yaml_metadata = yaml.safe_load(f)
 
-    res_id = yaml_path.stem
-    res_type = yaml_metadata.get("type")
+    try:
+        # Read yaml metadata
+        with open(yaml_path, encoding="utf-8") as f:
+            yaml_metadata = yaml.safe_load(f)
 
-    # Parse metashare and handle META SHARE namespace
-    xml = etree.parse(metashare_path).getroot()
-    output1 = _dump_with_comment(xml)
+        res_id = yaml_path.stem
+        res_type = yaml_metadata.get("type")
 
-    # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
-    ns = METASHARE_NAMESPACE
+        # Parse metashare and handle META SHARE namespace
+        xml = etree.parse(metashare_path).getroot()
+        output1 = _dump_with_comment(xml)
 
-    # Update names and descriptions
-    identificationInfo = xml.find(ns + "identificationInfo")
-    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("swe", ""), "swe")
-    _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("eng", ""), "eng")
-    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("swe", ""), "swe")
-    _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("eng", ""), "eng")
+        # etree.register_namespace("", METASHARE_URL) # Needed when using xml.etree.ElementTree
+        ns = METASHARE_NAMESPACE
 
-    # Update licenceInfos
-    distInfo = xml.find(".//" + ns + "distributionInfo")
-    for l in distInfo.findall(ns + "licenceInfo"):
-        distInfo.remove(l)
-    for d in yaml_metadata.get("downloads", []):
-        _set_licence_info(d, distInfo)
-    ms_download = {
-            "url": f"https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/{res_type}/{res_id}.xml",
-            "licence": SBX_DEFAULT_LICENSE,
-            "restriction": "attribution",
-        }
-    for i in yaml_metadata.get("interface", []):
-        _set_licence_info(i, distInfo, download=False)
-    _set_licence_info(ms_download, distInfo)
+        # Update names and descriptions
+        identificationInfo = xml.find(ns + "identificationInfo")
+        _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("swe", ""), "swe")
+        _set_text(identificationInfo.findall(ns + "resourceName"), yaml_metadata.get("name", {}).get("eng", ""), "eng")
+        _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("swe", ""), "swe")
+        _set_text(identificationInfo.findall(ns + "description"), yaml_metadata.get("short_description", {}).get("eng", ""), "eng")
+        # Assume "slug" has not changed, so update possible pid (DOI) and Handle (från Datacite repos)
+        res_doi = yaml_metadata.get(YAML_FIELD_DOI)
+        if res_doi != None:
+            #_set_text_with_type(identificationInfo.findall(ns + "identifier"), res_doi, YAML_FIELD_DOI)
+            if not _set_identifier(identificationInfo.findall(ns + "identifier"), res_doi, METASHARE_IDENTIFIER_PREFIX_DOI):
+                # DOI identifier did not exist so add it
+                sub = etree.SubElement(identificationInfo, "identifier")
+                sub.text = "doi:" + res_doi
+        """Don't handle Handles
+        res_handle = get_dms_lookup_handle(res_id, debug)
+        if res_handle != "":
+            _set_text_with_type(identificationInfo.findall(ns + "identifier"), res_handle, YAML_FIELD_HANDLE)
+        """
+        # Update licenceInfos
+        distInfo = xml.find(".//" + ns + "distributionInfo")
+        for l in distInfo.findall(ns + "licenceInfo"):
+            distInfo.remove(l)
+        for d in yaml_metadata.get("downloads", []):
+            _set_licence_info(d, distInfo)
+        ms_download = {
+                "url": f"https://svn.spraakdata.gu.se/sb-arkiv/pub/metadata/{res_type}/{res_id}.xml",
+                "licence": SBX_DEFAULT_LICENSE,
+                "restriction": "attribution",
+            }
+        for i in yaml_metadata.get("interface", []):
+            _set_licence_info(i, distInfo, download=False)
+        _set_licence_info(ms_download, distInfo)
 
-    # Update contactPerson
-    _update_contact_person(yaml_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
+        # Update contactPerson
+        _update_contact_person(yaml_metadata.get("contact_info", {}), xml.find(".//" + ns + "contactPerson"))
 
-    # Update languageInfo (languageId, languageName)
-    if res_type in ["corpus", "lexicon"]:
-        _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
+        # Update languageInfo (languageId, languageName)
+        if res_type in ["corpus", "lexicon"]:
+            _set_language_info(yaml_metadata.get("language_codes", []), xml, yaml_path)
 
-    # Update sizeInfo
-    if res_type == "corpus":
-        sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        if sizeInfos and len(sizeInfos) == 2:
-            if yaml_metadata.get("size", {}).get("tokens"):
-                sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("tokens"))
-            if yaml_metadata.get("size", {}).get("sentences"):
-                sizeInfos[1].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("sentences"))
-    elif res_type == "lexicon":
-        sizeInfos = xml.findall(".//" + ns + "sizeInfo")
-        if sizeInfos and yaml_metadata.get("size", {}).get("entries"):
-            sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("entries", "0"))
+        # Update sizeInfo
+        if res_type == "corpus":
+            sizeInfos = xml.findall(".//" + ns + "sizeInfo")
+            if sizeInfos and len(sizeInfos) == 2:
+                if yaml_metadata.get("size", {}).get("tokens"):
+                    sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("tokens"))
+                if yaml_metadata.get("size", {}).get("sentences"):
+                    sizeInfos[1].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("sentences"))
+        elif res_type == "lexicon":
+            sizeInfos = xml.findall(".//" + ns + "sizeInfo")
+            if sizeInfos and yaml_metadata.get("size", {}).get("entries"):
+                sizeInfos[0].find(ns + "size").text = str(yaml_metadata.get("size", {}).get("entries", "0"))
 
-    output = _dump_with_comment(xml)
-    if output != output1:
-        # Write XML to file
-        with open(metashare_path, mode="w", encoding="utf-8") as outfile:
-            outfile.write(output)
-        if debug:
-            print(f"Updated META-SHARE {metashare_path}")
+        output = _dump_with_comment(xml)
+        if output != output1:
+            # Write XML to file
+            with open(metashare_path, mode="w", encoding="utf-8") as outfile:
+                outfile.write(output)
+            if debug:
+                print(f"Updated META-SHARE {metashare_path}")
+    except Exception as e:
+        print("Error: failed to update MetaShare for", yaml_path.stem)
+        print(e)
 
 
 def _set_text(elems, text, lang):
     """Set text for elems to 'text' for the correct language."""
     for i in elems:
-        if i.attrib["lang"] == lang:
+        if "lang" in i.attrib:
+            if i.attrib["lang"] == lang:
+                i.text = text
+
+
+def _set_text_with_type(elems, text, attrib):
+    """Set text for elems to 'text' for the correct attribute (type)."""
+    for i in elems:
+        if "type" in i.attrib:
+            if i.attrib["type"] == attrib:
+                i.text = text
+        
+
+
+def _set_identifier(elems, text, type):
+    """Set text for elems to 'text' if the text starts with 'type'.
+    Used for replacing eg 'identifier' which can be 'hdl:xxx' or 'doi:yyy'
+    Return true if any replacement was done.
+    """
+    done = False
+    for i in elems:
+        if i.text.startswith(type):
             i.text = text
+            done = True
+    return done
+
 
 
 def _set_licence_info(item, distInfo, download=True):
@@ -364,6 +452,7 @@ def _set_language_info(language_codes, xml, yaml_path):
                     parent = language_info_el.getparent()
                     i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
                     parent.insert(i + 1, languageInfo)
+                    
             except LookupError:
                 sys.stderr.write(f"Could not find language code {langcode} (resource: {yaml_path})")
 

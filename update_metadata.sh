@@ -31,11 +31,32 @@ if [[ "$git_output2" != *"Already"* ]]; then
   echo ">>> Done" >> $LOGFILE
 fi
 
-# Parse metadata files and flush cache
-echo ">>> Parsing meta data" >> $LOGFILE
+# Prepare for parsing with Python scripts
 cd $THISDIR
 source venv/bin/activate
-cd parse
+
+# Parse metadata files and generate PIDs
+echo ">>> Parsing meta data - generate PIDs" >> $LOGFILE
+cd $THISDIR/parse
+python gen_pids.py >> $LOGFILE
+cd $THISDIR/metadata/yaml
+git_output3=$(git add --all . 2>&1)
+if [[ $? -ne 0 ]]; then
+    >&2 echo $git_output3
+fi
+# Commit and push all changes
+git_output4=$(git diff-index --quiet HEAD || git -c user.name='sb-sparv' -c user.email='38045079+sb-sparv@users.noreply.github.com' commit -m "added PIDs through cron" 2>&1)
+if [[ $? -ne 0 ]]; then
+    >&2 echo $git_output4
+fi
+git_output5=$(git push 2>&1)
+if [[ $? -ne 0 ]]; then
+    >&2 echo $git_output5
+fi
+
+# Parse metadata files for Metadata API and flush cache
+echo ">>> Parsing meta data - Metadata API" >> $LOGFILE
+cd $THISDIR/parse
 python parse_yaml.py >> $LOGFILE
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
@@ -58,7 +79,6 @@ git_output5=$(git push 2>&1)
 if [[ $? -ne 0 ]]; then
     >&2 echo $git_output5
 fi
-
 
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`
