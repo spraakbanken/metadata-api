@@ -452,7 +452,7 @@ def _set_language_info(language_codes, xml, yaml_path):
                     parent = language_info_el.getparent()
                     i = list(parent).index(parent.findall(ns + "languageInfo")[-1])
                     parent.insert(i + 1, languageInfo)
-
+                    
             except LookupError:
                 sys.stderr.write(f"Could not find language code {langcode} (resource: {yaml_path})")
 
