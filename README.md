@@ -84,5 +84,5 @@ newer versions). This attribute holds a list of resource IDs.
 
 For documentation see the code comments and the /docs directory.
 
-## Storing credetianls
+## Storing credentials
 The Datacite login credentials are store in a .netrc file located in /home/fksbwww on the server.
