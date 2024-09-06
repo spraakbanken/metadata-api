@@ -1,6 +1,11 @@
-# metadata-api
+This repo contains several components:
+* **/metadata-api** - a REST-API that serves meta data for SB's corpora, lexicons and models (mainly used by our site at spraakbanken.gu.se). For documentation see below.
+* **/parse/create_metashare.py** - a script that creates metashare files for our Clarin repo
+* **/parse/gen_pids.py** - a Python script that generates new PIDs (Datacite DOIs) by reading our metadata YAML-files and registering resources at Datacite. For documentation see below (after the metadata-api documentation).
+* **/parse/parse_yaml.py** - a sript that prepares data for the REST-API
+* **update_metadata.sh** - a shell script that runs periodically on the server and calls and starts the other components. It also handles all the git stuff as both gen_pids.py and parse_yaml.py works with our [metadata](https://github.com/spraakbanken/metadata) repository
 
-REST-API that serves meta data for SB's corpora, lexicons and models.
+# metadata-api
 
 ## Requirements
 
@@ -74,3 +79,10 @@ accessed directly via their URL. This is used as a quick and dirty versioning sy
 
 The `successors` attribute can be used for resources that have been superseded by one or more other resources (e.g.
 newer versions). This attribute holds a list of resource IDs.
+
+# gen_pids.py
+
+For documentation see the code comments and the /docs directory.
+
+## Storing credetianls
+The Datacite login credentials are store in a .netrc file located in /home/fksbwww on the server.
