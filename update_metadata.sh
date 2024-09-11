@@ -25,7 +25,7 @@ fi
 cd $THISDIR
 git_output2=`git pull 2>&1`
 echo -e ">>> Result of 'git pull': $git_output2" >> $LOGFILE
-if [[ "$git_output2" != *"Already"* ]]; then
+if [[ "$git_output2" != *"Redan"* ]]; then
   echo ">>> Restart sb-metadata" >> $LOGFILE
   supervisorctl -c ~/fksbwww.conf restart metadata
   echo ">>> Done" >> $LOGFILE
