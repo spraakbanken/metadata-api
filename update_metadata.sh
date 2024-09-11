@@ -13,7 +13,7 @@ echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
 echo ">>> Update metadata from GIT" >> $LOGFILE
 cd $THISDIR/metadata
-git_output1=`git pull`
+git_output1=`git pull 2>&1`
 # Send output to stderr if git command had a non-zero exit
 if [[ $? -ne 0 ]] ; then
     >&2 echo $git_output1
@@ -23,7 +23,7 @@ fi
 
 # Fetch application updates from GitHub and restart if necessary
 cd $THISDIR
-git_output2=`git pull`
+git_output2=`git pull 2>&1`
 echo -e ">>> Result of 'git pull': $git_output2" >> $LOGFILE
 if [[ "$git_output2" != *"Already"* ]]; then
   echo ">>> Restart sb-metadata" >> $LOGFILE
