@@ -53,17 +53,16 @@ except Exception as e:
 parser = argparse.ArgumentParser(description="Read YAML metadata files, create DOIs for those that are missing it, create and update Datacite metadata.")
 parser.add_argument("--debug", "-d", action="store_true", help="Print debug info")
 parser.add_argument("--test", "-t", action="store_true", help="Test - don't write")
+parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
 
 
-
-
-def main(param_debug: bool=False, param_test: bool=False) -> None:
+def main(param_noupdate: bool=False, param_debug: bool=False, param_test: bool=False) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
     
     Arguments:
         param_debug {bool} -- Print messages about what it is doing.
         param_test {bool} -- Do not modify YAML (but DMS is still created/updated).
-
+        param_noupdate {bool} -- Do not update Datacite metadata, only create DOIs for resources without
     1. get all resources YAML metadata
     2. assign DOIs
         if metadata has no DOI
@@ -151,7 +150,8 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
                 """
                 handle = get_key_value(handles, res_id)
                 """
-                dms_update(res_id, res, param_debug)
+                if not param_noupdate:
+                    dms_update(res_id, res, param_debug)
 
     """3a. Map Collections and Resources in both directions
 
@@ -163,100 +163,101 @@ def main(param_debug: bool=False, param_test: bool=False) -> None:
 
     """
 
-    c = dict()
-    for res_id, res in resources.items():
-        try:
-            if param_debug:
-                print("gen_pids/main: Map collections for", res_id)
-            if get_key_value(res, "collection"):
-                if res_id not in c:
-                    c[res_id] = dict()
-                    c[res_id][DMS_RELATION_TYPE_HASPART] = []
-            member_list = get_key_list_value(res, "resources")
-            if member_list:
-                for member_res_id in member_list:
-                    if member_res_id not in c:
-                        c[member_res_id] = dict()
-                        c[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+    if not param_noupdate:
+        c = dict()
+        for res_id, res in resources.items():
+            try:
+                if param_debug:
+                    print("gen_pids/main: Map collections for", res_id)
+                if get_key_value(res, "collection"):
                     if res_id not in c:
                         c[res_id] = dict()
-                    if DMS_RELATION_TYPE_HASPART not in c[res_id]:
                         c[res_id][DMS_RELATION_TYPE_HASPART] = []
-                    if member_res_id not in c[res_id][DMS_RELATION_TYPE_HASPART]:
-                        c[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
-                    if res_id not in c[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                        c[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
-            parent_list = get_key_list_value(res, "in_collections")
-            if parent_list:
-                for parent_res_id in parent_list:
-                    if parent_res_id not in c:
-                        c[parent_res_id] = dict()
-                        c[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
+                member_list = get_key_list_value(res, "resources")
+                if member_list:
+                    for member_res_id in member_list:
+                        if member_res_id not in c:
+                            c[member_res_id] = dict()
+                            c[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+                        if res_id not in c:
+                            c[res_id] = dict()
+                        if DMS_RELATION_TYPE_HASPART not in c[res_id]:
+                            c[res_id][DMS_RELATION_TYPE_HASPART] = []
+                        if member_res_id not in c[res_id][DMS_RELATION_TYPE_HASPART]:
+                            c[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
+                        if res_id not in c[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                            c[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
+                parent_list = get_key_list_value(res, "in_collections")
+                if parent_list:
+                    for parent_res_id in parent_list:
+                        if parent_res_id not in c:
+                            c[parent_res_id] = dict()
+                            c[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
+                        if res_id not in c:
+                            c[res_id] = dict()
+                        if DMS_RELATION_TYPE_ISPARTOF not in c[res_id]:
+                            c[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+                        if parent_res_id not in c[res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                            c[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
+                        if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
+                            c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
+            except Exception as e:
+                print("gen_pids/main: Error when mapping collections for", res_id, file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr)
+
+        """3b. Successors
+        
+        Fill dict with all resources that have successors.
+        Set Datacite Metadata Schema field 12 - RelatedIdentifier
+            IsObsoletedBy
+            Obsoletes
+        """
+
+        for res_id, res in resources.items():
+            try:
+                if param_debug:
+                    print("gen_pids/main: Map successors for", res_id)
+                successor_list = get_key_list_value(res, "successors")
+                if successor_list:
                     if res_id not in c:
                         c[res_id] = dict()
-                    if DMS_RELATION_TYPE_ISPARTOF not in c[res_id]:
-                        c[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
-                    if parent_res_id not in c[res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                        c[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
-                    if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
-                        c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
-        except Exception as e:
-            print("gen_pids/main: Error when mapping collections for", res_id, file=sys.stderr)
-            print(traceback.format_exc(), file=sys.stderr)
-
-    """3b. Successors
-    
-    Fill dict with all resources that have successors.
-    Set Datacite Metadata Schema field 12 - RelatedIdentifier
-        IsObsoletedBy
-        Obsoletes
-    """
-
-    for res_id, res in resources.items():
-        try:
-            if param_debug:
-                print("gen_pids/main: Map successors for", res_id)
-            successor_list = get_key_list_value(res, "successors")
-            if successor_list:
-                if res_id not in c:
-                    c[res_id] = dict()
-                    c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = successor_list
-                else:
-                    c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
-                for successor_res_id in successor_list:
-                    if successor_res_id not in c:
-                        c[successor_res_id] = dict()
-                        c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES] = [res_id]
+                        c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = successor_list
                     else:
-                        c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
-        except Exception as e:
-            print("gen_pids/main: Error when mapping successors for", res_id, file=sys.stderr)
-            print(traceback.format_exc(), file=sys.stderr)
+                        c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
+                    for successor_res_id in successor_list:
+                        if successor_res_id not in c:
+                            c[successor_res_id] = dict()
+                            c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES] = [res_id]
+                        else:
+                            c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
+            except Exception as e:
+                print("gen_pids/main: Error when mapping successors for", res_id, file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr)
 
-    """3c. Update DMS
+        """3c. Update DMS
 
-    All previous related identifiers are removed when setting new field
-    so all relations has to be set at the same time.
-    """
-    if param_debug:
-        print("gen_pids/main: update relation metadata at Datacite")
+        All previous related identifiers are removed when setting new field
+        so all relations has to be set at the same time.
+        """
+        if param_debug:
+            print("gen_pids/main: update relation metadata at Datacite")
 
-    for res in c.items():
-        try:
-            res_id = res[0]
-            if param_debug:
-                print("gen_pids/main: Update DMS for", res_id)
-            dms_related_set(resources,
-                            res_id,
-                            get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
-                            get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
-                            get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
-                            get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
-                            param_debug
-                            )
-        except Exception as e:
-            print("gen_pids/main: Error when updating DMS for", res_id, file=sys.stderr)
-            print(traceback.format_exc(), file=sys.stderr)
+        for res in c.items():
+            try:
+                res_id = res[0]
+                if param_debug:
+                    print("gen_pids/main: Update DMS for", res_id)
+                dms_related_set(resources,
+                                res_id,
+                                get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
+                                get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
+                                get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
+                                get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
+                                param_debug
+                                )
+            except Exception as e:
+                print("gen_pids/main: Error when updating DMS for", res_id, file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr)
 
 
 
@@ -1011,4 +1012,4 @@ def get_dms_lookup_handle(res_id: str, param_debug: bool) -> str:
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(param_debug = args.debug, param_test = args.test)
+    main(param_noupdate = args.noupdate, param_debug = args.debug, param_test = args.test)
