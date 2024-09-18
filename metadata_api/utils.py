@@ -1,7 +1,7 @@
 """Util functions used by the metadata API."""
 
 import json
-import os
+from pathlib import Path
 
 from flask import current_app, jsonify
 
@@ -55,16 +55,16 @@ def load_json(jsonfile, prefix=""):
 
 def read_static_json(jsonfile):
     """Load json file from static folder and return as object."""
-    print("Reading json", jsonfile)
-    file_path = os.path.join(current_app.config.get("STATIC"), jsonfile)
-    with open(file_path, "r") as f:
+    print("Reading json", jsonfile)  # noqa: T201
+    file_path = Path(current_app.config.get("STATIC")) / jsonfile
+    with file_path.open("r") as f:
         return json.load(f)
 
 
 def add_prefix(key, prefix):
     """Add prefix to key."""
     if prefix:
-        key = "{}_{}".format(prefix, key)
+        key = f"{prefix}_{key}"
     return key
 
 
