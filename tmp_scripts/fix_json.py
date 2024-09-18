@@ -1,17 +1,21 @@
-"""Script for changing the json metadata format."""
+"""Script for changing the json metadata format (batch job)."""
+
+# ruff: noqa: T201 (`print` found)
 
 import json
 from pathlib import Path
+
 import yaml
 
 
 def main():
+    """Loop through all yaml files and do some conversion."""
     path = Path("../yaml")
 
     for p in path.rglob("**/*.yaml"):
         if "templates" in p:
             continue
-        with open(p) as f:
+        with p.open() as f:
             metadata = yaml.safe_load(f)
 
         for k, v in metadata.get("size", {}).items():
@@ -21,15 +25,16 @@ def main():
                 metadata["size"][k] = int(v)
 
         print(f"writing {p}")
-        with open(p, "w") as yaml_file:
+        with p.open("w") as yaml_file:
             dump_pretty(metadata, yaml_file)
 
 
 def sort_json():
+    """Sort json fields so all files have the same order."""
     path = Path("../json")
 
     for p in path.rglob("**/*.json"):
-        with open(p) as f:
+        with p.open() as f:
             metadata = json.load(f)
 
         new_metadata = {
@@ -38,7 +43,7 @@ def sort_json():
             "type": metadata["type"],
             "trainingdata": metadata.get("trainingdata", False),
             "unlisted": metadata.get("unlisted", False),
-            "successors": metadata.get("successors", [])
+            "successors": metadata.get("successors", []),
         }
         metadata.pop("name", "")
         metadata.pop("short_description", "")
@@ -90,56 +95,46 @@ def sort_json():
             print(metadata)
 
         print(f"writing {p}")
-        with open(p, "w") as f:
+        with p.open("w") as f:
             json.dump(new_metadata, f, ensure_ascii=False, indent=2)
 
 
-def convert2yaml():
-    p = Path("../yaml/collection/superlim.yaml")
-
-    # for p in path.rglob("**/*.yaml"):
-    with open(p) as f:
-        metadata = yaml.safe_load(f)
-        print(metadata)
-        # try:
-        #     metadata = yaml.safe_load(f)
-        # except json.decoder.JSONDecodeError:
-        #     print(f"failed to convert {p}")
-            # continue
-
-        # print(metadata.get("description", {}).get("eng"))
-
-    print(f"writing {p}")
-    with open(p, "w") as yaml_file:
-        dump_pretty(metadata, yaml_file)
-
-
 def dump_pretty(data, path):
-    """Dump config YAML to string. (stolen from Sparv)"""
+    """Dump config YAML to string.
+
+    (stolen from Sparv)
+    """
+
     class IndentDumper(yaml.Dumper):
         """Customized YAML dumper that indents lists."""
 
-        def increase_indent(self, flow=False, indentless=False):
+        def increase_indent(self, flow=False):
             """Force indentation."""
-            return super(IndentDumper, self).increase_indent(flow)
+            return super().increase_indent(flow)
 
     # Add custom string representer for prettier multiline strings
     def str_representer(dumper, data):
         if len(data.splitlines()) > 1:  # Check for multiline string
-            data = '\n'.join([line.rstrip() for line in data.strip().splitlines()])
+            data = "\n".join([line.rstrip() for line in data.strip().splitlines()])
             return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
         return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
     yaml.add_representer(str, str_representer)
 
-    return yaml.dump(data, path, sort_keys=False, allow_unicode=True, Dumper=IndentDumper, indent=2, line_break=None,
-                     default_flow_style=False)
-
+    return yaml.dump(
+        data,
+        path,
+        sort_keys=False,
+        allow_unicode=True,
+        Dumper=IndentDumper,
+        indent=2,
+        line_break=None,
+        default_flow_style=False,
+    )
 
 
 if __name__ == "__main__":
-
     # convert2yaml()
 
     main()
     # sort_json()
-    pass

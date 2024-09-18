@@ -1,16 +1,16 @@
 """Read YAML metadata files, compile and prepare information for the API."""
 
+# ruff: noqa: T201 (`print` found)
+
 import argparse
 import datetime
 import json
-import traceback
 from collections import defaultdict
 from pathlib import Path
 
 import requests
 import yaml
 from translate_lang import get_lang_names
-
 
 STATIC_DIR = Path("../metadata_api/static")
 YAML_DIR = Path("../metadata/yaml")
@@ -22,8 +22,10 @@ parser.add_argument("--debug", action="store_true", help="Print debug info")
 parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
 
 
-def main(resource_types=["lexicon", "corpus", "model"], debug=False, offline=False):
+def main(resource_types=None, debug=False, offline=False):
     """Read YAML metadata files, compile and prepare information for the API (main wrapper)."""
+    if resource_types is None:
+        resource_types = ["lexicon", "corpus", "model"]
     resource_ids = []
     all_resources = {}
     resource_texts = defaultdict(dict)
@@ -62,7 +64,7 @@ def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
     try:
         if debug:
             print(f"  Processing {filepath}")
-        with open(filepath, encoding="utf-8") as f:
+        with filepath.open(encoding="utf-8") as f:
             res = yaml.safe_load(f)
             fileid = filepath.stem
             new_res = {"id": fileid}
@@ -84,14 +86,7 @@ def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
                 if langcode not in [l.get("code") for l in langs]:
                     try:
                         english_name, swedish_name = get_lang_names(langcode)
-                        langs.append(
-                            {
-                                "code": langcode,
-                                "name": {
-                                    "swe": swedish_name,
-                                    "eng": english_name
-                                }
-                            })
+                        langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
                     except LookupError:
                         print(f"Error: Could not find language code {langcode} (resource: {fileid})")
             res["languages"] = langs
@@ -111,21 +106,21 @@ def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
             resources[fileid] = new_res
 
             # Update collections dict
-            if res.get("collection") == True:
+            if res.get("collection") is True:
                 collections[fileid] = collections.get(fileid, [])
                 if res.get("resources"):
                     collections[fileid].extend(res["resources"])
-                    collections[fileid] = sorted(list(set(collections[fileid])))
+                    collections[fileid] = sorted(set(collections[fileid]))
 
             if res.get("in_collections"):
                 for collection_id in res["in_collections"]:
                     collections[collection_id] = collections.get(collection_id, [])
                     collections[collection_id].append(fileid)
-                    collections[collection_id] = sorted(list(set(collections[collection_id])))
+                    collections[collection_id] = sorted(set(collections[collection_id]))
 
-    except Exception as e:
+    except Exception:
         print(f"Error: failed to process '{filepath}'")
-        #print(traceback.format_exc())
+        # print(traceback.format_exc())
 
     return resources
 
@@ -135,8 +130,10 @@ def update_collections(collection_mappings, collection_json, all_resources):
     for collection, res_list in collection_mappings.items():
         col = collection_json.get(collection)
         if not col:
-            print(f"ERROR: Collection '{collection}' is not defined but was referenced by the following resource: "
-                f"{', '.join(res_list)}. Removing collection from these resources.")
+            print(
+                f"ERROR: Collection '{collection}' is not defined but was referenced by the following resource: "
+                f"{', '.join(res_list)}. Removing collection from these resources."
+            )
             for res_id in res_list:
                 res = all_resources.get(res_id, {})
                 col_list = res.get("in_collections", [])
@@ -146,38 +143,37 @@ def update_collections(collection_mappings, collection_json, all_resources):
             continue
 
         # Remove resource IDs for non-existing resources
-        res_list = [i for i in res_list if i in all_resources]
+        new_res_list = [i for i in res_list if i in all_resources]
 
         col_id = col.get("id")
         if col:
             col["size"] = col.get("size", {})
-            col["size"]["resources"] = len(res_list)
-            col["resources"] = res_list
+            col["size"]["resources"] = len(new_res_list)
+            col["resources"] = new_res_list
 
             # Add in_collections info to json of the collection's resources
-            for res_id in res_list:
+            for res_id in new_res_list:
                 res_item = all_resources.get(res_id)
                 if res_item and col_id not in res_item.get("in_collections", []):
-                        res_item["in_collections"] = res_item.get("in_collections", [])
-                        res_item["in_collections"].append(col_id)
+                    res_item["in_collections"] = res_item.get("in_collections", [])
+                    res_item["in_collections"].append(col_id)
 
 
 def get_download_metadata(url, name, res_type):
+    """Check headers of file from url and return the file size and last modified date."""
     try:
-        """Check headers of file from url and return the file size and last modified date."""
         res = requests.head(url)
         size = int(res.headers.get("Content-Length")) if res.headers.get("Content-Length") else None
         date = res.headers.get("Last-Modified")
         if date:
             date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
-        if res.status_code == 404:
+        if res.status_code == 404:  # noqa: PLR2004
             print(f"Error: Could not find downloadable for {res_type} '{name}': {url}")
-    except Exception as e:
+    except Exception:
         print(f"Error: Could not get downloadable '{name}': {url}")
-        # print(traceback.format_exc())
-        # set to some kind of neutral values
+        # Set to some kind of neutral values
         size = 0
-        date = datetime.today().strftime('%Y-%m-%d')
+        date = datetime.today().strftime("%Y-%m-%d")
     return size, date
 
 
@@ -196,11 +192,11 @@ def write_json(filename, data):
     outfile = Path(filename)
     outfile.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = outfile.parent / (outfile.name + ".new")
-    with open(tmp_path, "w") as f:
+    with tmp_path.open("w") as f:
         json.dump(data, f, default=str)
     tmp_path.rename(filename)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parser.parse_args()
     main(debug=args.debug, offline=args.offline)

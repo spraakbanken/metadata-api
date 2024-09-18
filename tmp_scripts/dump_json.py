@@ -1,8 +1,11 @@
 """Get json metadata from SB's metadata API and save it (if it does not exist already)."""
 
-import requests
-from pathlib import Path
+# ruff: noqa: T201 (`print` found)
+
 import json
+from pathlib import Path
+
+import requests
 
 JSON_PATH = "json"
 URL = "https://ws.spraakbanken.gu.se/ws/metadata/"
@@ -30,7 +33,7 @@ for resources in jsonresponse.values():
                 try:
                     res = requests.get(rurl).json()
                     # print(res)
-                except Exception as e:
+                except Exception:
                     print(f"Failed to get long description from {rid} ({rurl}). Aborting.")
                     continue
                 description_sv = res.get("long_description_sv")
@@ -42,6 +45,6 @@ for resources in jsonresponse.values():
 
             # Save json
             dump = json.dumps(resource, indent=4, ensure_ascii=False)
-            with open(metadata_path, "w") as f:
+            with metadata_path.open("w") as f:
                 f.write(dump)
                 print(f"written {metadata_path}")
