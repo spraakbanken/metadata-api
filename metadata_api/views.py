@@ -49,6 +49,12 @@ def models():
     return utils.get_resource_type("model", "MODELS_FILE")
 
 
+@general.route("/analyses")
+def analyses():
+    """Return models metadata as a JSON object."""
+    return utils.get_resource_type("analysis", "ANALYSES_FILE")
+
+
 @general.route("/collections")
 def collections():
     """Return collections metadata as a JSON object."""
