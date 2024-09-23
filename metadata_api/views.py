@@ -16,16 +16,17 @@ def documentation():
 @general.route("/")
 def metadata():
     """Return corpus and lexicon metadata as a JSON object."""
-    corpora, lexicons, models = utils.load_resources()
+    corpora, lexicons, models, analyses = utils.load_resources()
 
     resource = request.args.get("resource")
     if resource:
-        return utils.get_single_resource(resource, corpora, lexicons, models)
+        return utils.get_single_resource(resource, corpora, lexicons, models, analyses)
 
     data = {
         "corpora": utils.dict_to_list(corpora),
         "lexicons": utils.dict_to_list(lexicons),
         "models": utils.dict_to_list(models),
+        "analyses": utils.dict_to_list(analyses),
     }
 
     return jsonify(data)
@@ -51,20 +52,22 @@ def models():
 
 @general.route("/analyses")
 def analyses():
-    """Return models metadata as a JSON object."""
+    """Return analyses metadata as a JSON object."""
     return utils.get_resource_type("analysis", "ANALYSES_FILE")
 
 
 @general.route("/collections")
 def collections():
     """Return collections metadata as a JSON object."""
-    corpora, lexicons, models = utils.load_resources()
+    corpora, lexicons, models, analyses = utils.load_resources()
 
     data = {name: data for (name, data) in corpora.items() if data.get("collection")}
     lexicons = {name: data for (name, data) in lexicons.items() if data.get("collection")}
     data.update(lexicons)
     models = {name: data for (name, data) in models.items() if data.get("collection")}
     data.update(models)
+    analyses = {name: data for (name, data) in models.items() if data.get("collection")}
+    data.update(analyses)
 
     return jsonify({"hits": len(data), "resources": utils.dict_to_list(data)})
 
