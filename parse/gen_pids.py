@@ -93,7 +93,7 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
             files_yaml[res_id] = filepath
             with filepath.open(encoding="utf-8") as file_yaml:
                 res = yaml.safe_load(file_yaml)
-                if get_key_value(res, "unlisted") is True:
+                if get_key_value(res, "unlisted") is False:
                     resources[res_id] = res
         except Exception:  # noqa: PERF203
             print("gen_pids/main: Error when opening YAML files. Exiting.", file=sys.stderr)
@@ -108,7 +108,7 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
 
     # 2. Assign DOIs (so both Collections and Resources have them)
     if param_debug:
-        print("gen_pids/main: Assign DOIs")
+        print(f"gen_pids/main: Assign DOIs to {len(resources)} resources.")
     for res_id, res in resources.items():
         if param_debug:
             print("gen_pids/main: Work on", res_id)
@@ -224,13 +224,17 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
                         c[res_id] = {}
                         c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = successor_list
                     else:
+                        if DMS_RELATION_TYPE_ISOBSOLETEDBY not in c[res_id]:
+                            c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = []
                         c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
                     for successor_res_id in successor_list:
                         if successor_res_id not in c:
                             c[successor_res_id] = {}
                             c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES] = [res_id]
                         else:
-                            c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
+                            if DMS_RELATION_TYPE_ISOBSOLETEDBY not in c[successor_res_id]:
+                                c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = []
+                            c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY].append(res_id)
             except Exception:  # noqa: PERF203
                 print("gen_pids/main: Error when mapping successors for", res_id, file=sys.stderr)
                 print(traceback.format_exc(), file=sys.stderr)
@@ -246,16 +250,17 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
         for res in c.items():
             try:
                 res_id = res[0]
-                if param_debug:
-                    print("gen_pids/main: Update DMS for", res_id)
-                dms_related_set(
-                    resources,
-                    res_id,
-                    get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
-                    get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
-                    get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
-                    get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
-                    param_debug,
+                if param_test is False:
+                    if param_debug:
+                        print("gen_pids/main: Update DMS for", res_id)
+                    dms_related_set(
+                        resources,
+                        res_id,
+                        get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
+                        get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
+                        get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
+                        get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
+                        param_debug,
                 )
             except Exception:  # noqa: PERF203
                 print("gen_pids/main: Error when updating DMS for", res_id, file=sys.stderr)
@@ -277,6 +282,14 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
 
     # Creators (optional)
     dms_creators = get_creators(res)
+
+    # Created and Updated
+    dms_created, dms_updated = get_dates(res)
+    # Datacite Publication Year is year of Created, else current year (https://github.com/spraakbanken/metadata-api/issues/21)
+    if dms_created:
+        publication_year = dms_created[:4]
+    else:
+        publication_year = datetime.date.today().strftime("%Y")
 
     # Construct json from metadata.
     # This is stored at Datacite and used
@@ -302,7 +315,7 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
                     "schemeURI": "https://ror.org/",
                 },
                 # 5. M1. Publication date
-                "publicationYear": DMS_DEFAULT_YEAR,
+                "publicationYear": publication_year,
                 # 6. Rn. Subject
                 "subjects": [
                     {
@@ -351,7 +364,7 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
         data_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_ENG, "title": value})
 
     # 8 - Dates (optional)
-    dms_created, dms_updated = get_dates(res)
+    # dms_created, dms_updated = get_dates(res)
     if dms_created or dms_updated:
         data_json["data"]["attributes"]["dates"] = []
     if dms_created:
@@ -450,6 +463,7 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
         dms_updated = yaml_updated
 
         updated = True
+
         # Resource type
         if get_key_value(res, "collection") is True:
             dms_resource_type = DMS_RESOURCE_TYPE_COLLECTION
@@ -460,6 +474,13 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
 
         # Creators (optional)
         dms_creators = get_creators(res)
+
+        # Created and Updated
+        # Datacite Publication Year is year of Created, else current year (https://github.com/spraakbanken/metadata-api/issues/21)
+        if dms_created != "":
+            publication_year = dms_created[:4]
+        else:
+            publication_year = datetime.date.today().strftime("%Y")
 
         data_json = {
             "data": {
@@ -479,7 +500,7 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
                         "schemeURI": "https://ror.org/",
                     },
                     # 5. M1. Publication date
-                    "publicationYear": DMS_DEFAULT_YEAR,
+                    "publicationYear": publication_year,
                     # 6. Rn. Subject
                     "subjects": [
                         {
@@ -604,77 +625,86 @@ def dms_related_set(  # noqa: D417
     Returns:
         bool -- Success.
     """
-    # Build list of relatedIdentifiers (HasPart)
-    result = []
-    for related_rid in has_part:
-        doi = get_doi_from_rid(resources, related_rid)
-        result.append(
-            {
-                "relatedIdentifierType": "DOI",
-                "relationType": DMS_RELATION_TYPE_HASPART,
-                "resourceTypeGeneral": DMS_RESOURCE_TYPE_GENERAL,
-                "relatedIdentifier": doi,
+
+    # Get DOI of resource with related other resources
+    res_doi = get_doi_from_rid(resources, rid)
+    if (res_doi != ""):
+        # Build list of relatedIdentifiers (HasPart)
+        result = []
+        for related_rid in has_part:
+            doi = get_doi_from_rid(resources, related_rid)
+            if (doi != ""):
+                result.append(
+                    {
+                        "relatedIdentifierType": "DOI",
+                        "relationType": DMS_RELATION_TYPE_HASPART,
+                        "resourceTypeGeneral": DMS_RESOURCE_TYPE_GENERAL,
+                        "relatedIdentifier": doi,
+                    }
+                )
+        # Build list of relatedIdentifiers (IsPartOf)
+        for related_rid in is_part_of:
+            doi = get_doi_from_rid(resources, related_rid)
+            if (doi != ""):
+                result.append(
+                    {
+                        "relatedIdentifierType": "DOI",
+                        "relationType": DMS_RELATION_TYPE_ISPARTOF,
+                        "resourceTypeGeneral": DMS_RESOURCE_TYPE_COLLECTION,
+                        "relatedIdentifier": doi,
+                    }
+                )
+        # Build list of relatedIdentifiers (Obsoletes)
+        for related_rid in obsoletes:
+            doi = get_doi_from_rid(resources, related_rid)
+            if (doi != ""):
+                result.append(
+                    {
+                        "relatedIdentifierType": "DOI",
+                        "relationType": DMS_RELATION_TYPE_OBSOLETES,
+                        "resourceTypeGeneral": DMS_RESOURCE_TYPE_GENERAL,
+                        "relatedIdentifier": doi,
+                    }
+                )
+        # Build list of relatedIdentifiers (IsObsoletedBy)
+        for related_rid in is_obsoleted_by:
+            doi = get_doi_from_rid(resources, related_rid)
+            if (doi != ""):
+                result.append(
+                    {
+                        "relatedIdentifierType": "DOI",
+                        "relationType": DMS_RELATION_TYPE_ISOBSOLETEDBY,
+                        "resourceTypeGeneral": DMS_RESOURCE_TYPE_GENERAL,
+                        "relatedIdentifier": doi,
+                    }
+                )
+        # Build json payload
+        data_json = {
+            "data": {
+                "type": "dois",
+                "attributes": {"relatedIdentifiers": result},
             }
-        )
-    # Build list of relatedIdentifiers (IsPartOf)
-    for related_rid in is_part_of:
-        doi = get_doi_from_rid(resources, related_rid)
-        result.append(
-            {
-                "relatedIdentifierType": "DOI",
-                "relationType": DMS_RELATION_TYPE_ISPARTOF,
-                "resourceTypeGeneral": DMS_RESOURCE_TYPE_COLLECTION,
-                "relatedIdentifier": doi,
-            }
-        )
-    # Build list of relatedIdentifiers (Obsoletes)
-    for related_rid in obsoletes:
-        doi = get_doi_from_rid(resources, related_rid)
-        result.append(
-            {
-                "relatedIdentifierType": "DOI",
-                "relationType": DMS_RELATION_TYPE_OBSOLETES,
-                "resourceTypeGeneral": DMS_RESOURCE_TYPE_GENERAL,
-                "relatedIdentifier": doi,
-            }
-        )
-    # Build list of relatedIdentifiers (IsObsoletedBy)
-    for related_rid in is_obsoleted_by:
-        doi = get_doi_from_rid(resources, related_rid)
-        result.append(
-            {
-                "relatedIdentifierType": "DOI",
-                "relationType": DMS_RELATION_TYPE_ISOBSOLETEDBY,
-                "resourceTypeGeneral": DMS_RESOURCE_TYPE_GENERAL,
-                "relatedIdentifier": doi,
-            }
-        )
-    # Build json payload
-    data_json = {
-        "data": {
-            "type": "dois",
-            "attributes": {"relatedIdentifiers": result},
         }
-    }
 
-    if param_debug:
-        print("gen_pids/dms_related_set: Set related identifiers for", rid)
+        if param_debug:
+            print("gen_pids/dms_related_set: Set related identifiers for", rid)
 
-    # Update resource
-    url = DMS_URL + "/" + get_doi_from_rid(resources, rid)
-    response = requests.put(
-        url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
-    )
+        # Update resource
+        url = DMS_URL + "/" + res_doi
+        response = requests.put(
+            url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
+        )
 
-    if param_debug:
-        print("gen_pids/dms_related_set: ", response.status_code)
-        # print(json.dumps(response.json(), indent=4, ensure_ascii=False))
+        if param_debug:
+            print("gen_pids/dms_related_set: ", response.status_code)
+            # print(json.dumps(response.json(), indent=4, ensure_ascii=False))
 
-    if response.status_code != RESPONSE_OK:
-        print("gen_pids/dms_related_set: Error setting related", rid, response.status_code, file=sys.stderr)
+        if response.status_code != RESPONSE_OK:
+            print("gen_pids/dms_related_set: Error setting related", rid, response.status_code, file=sys.stderr)
 
-    return response.status_code == RESPONSE_OK
-
+        return response.status_code == RESPONSE_OK
+    else:
+        return False
 
 """
 Helper functions
