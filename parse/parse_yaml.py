@@ -25,7 +25,7 @@ parser.add_argument("--offline", action="store_true", help="Skip getting file in
 def main(resource_types=None, debug=False, offline=False):
     """Read YAML metadata files, compile and prepare information for the API (main wrapper)."""
     if resource_types is None:
-        resource_types = ["lexicon", "corpus", "model", "analysis"]
+        resource_types = ["lexicon", "corpus", "model", "analysis", "utility"]
     resource_ids = []
     all_resources = {}
     resource_texts = defaultdict(dict)
