@@ -16,17 +16,18 @@ def documentation():
 @general.route("/")
 def metadata():
     """Return corpus and lexicon metadata as a JSON object."""
-    corpora, lexicons, models, analyses = utils.load_resources()
+    corpora, lexicons, models, analyses, utilities = utils.load_resources()
 
     resource = request.args.get("resource")
     if resource:
-        return utils.get_single_resource(resource, corpora, lexicons, models, analyses)
+        return utils.get_single_resource(resource, corpora, lexicons, models, analyses, utilities)
 
     data = {
         "corpora": utils.dict_to_list(corpora),
         "lexicons": utils.dict_to_list(lexicons),
         "models": utils.dict_to_list(models),
         "analyses": utils.dict_to_list(analyses),
+        "utilities": utils.dict_to_list(utilities),
     }
 
     return jsonify(data)
@@ -56,6 +57,12 @@ def analyses():
     return utils.get_resource_type("analysis", "ANALYSES_FILE")
 
 
+@general.route("/utilities")
+def utilities():
+    """Return utilities metadata as a JSON object."""
+    return utils.get_resource_type("utilities", "UTILITIES_FILE")
+
+
 @general.route("/collections")
 def collections():
     """Return collections metadata as a JSON object."""
@@ -68,6 +75,8 @@ def collections():
     data.update(models)
     analyses = {name: data for (name, data) in models.items() if data.get("collection")}
     data.update(analyses)
+    utilities = {name: data for (name, data) in models.items() if data.get("collection")}
+    data.update(utilities)
 
     return jsonify({"hits": len(data), "resources": utils.dict_to_list(data)})
 
