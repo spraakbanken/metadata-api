@@ -66,7 +66,7 @@ def utilities():
 @general.route("/collections")
 def collections():
     """Return collections metadata as a JSON object."""
-    corpora, lexicons, models, analyses = utils.load_resources()
+    corpora, lexicons, models, analyses, utilities = utils.load_resources()
 
     data = {name: data for (name, data) in corpora.items() if data.get("collection")}
     lexicons = {name: data for (name, data) in lexicons.items() if data.get("collection")}
