@@ -61,25 +61,6 @@ python parse_yaml.py >> $LOGFILE
 echo ">>> Flush cache" >> $LOGFILE
 curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
-# Create missing META-SHARE files and add to git
-echo ">>> Create missing META-SHARE files" >> $LOGFILE
-python create_metashare.py --validate >> $LOGFILE
-echo ">>> Add new META-SHARE to git" >> $LOGFILE
-cd $THISDIR/metadata/metadata_conversions/metashare
-git_output3=$(git add --all . 2>&1)
-if [[ $? -ne 0 ]]; then
-    >&2 echo $git_output3
-fi
-# Commit and push all changes
-git_output4=$(git diff-index --quiet HEAD || git -c user.name='sb-sparv' -c user.email='38045079+sb-sparv@users.noreply.github.com' commit -m "update metashare through cron" 2>&1)
-if [[ $? -ne 0 ]]; then
-    >&2 echo $git_output4
-fi
-git_output5=$(git push 2>&1)
-if [[ $? -ne 0 ]]; then
-    >&2 echo $git_output5
-fi
-
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`
 this_month=`date +%m`

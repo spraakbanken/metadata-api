@@ -1,6 +1,5 @@
 This repo contains several components:
 * **/metadata-api** - a REST-API that serves meta data for SB's corpora, lexicons and models (mainly used by our site at spraakbanken.gu.se). For documentation see below.
-* **/parse/create_metashare.py** - a script that creates metashare files for our Clarin repo
 * **/parse/gen_pids.py** - a Python script that generates new PIDs (Datacite DOIs) by reading our metadata YAML-files and registering resources at Datacite. For documentation see below (after the metadata-api documentation).
 * **/parse/parse_yaml.py** - a sript that prepares data for the REST-API
 * **update_metadata.sh** - a shell script that runs periodically on the server and calls and starts the other components. It also handles all the git stuff as both gen_pids.py and parse_yaml.py works with our [metadata](https://github.com/spraakbanken/metadata) repository
@@ -36,7 +35,7 @@ Available API calls:
   pip install -r requirements.txt
   ```
 
-- Get an initial copy of the metadata files (YAML and META-SHARE):
+- Get an initial copy of the metadata files:
   ```
    git clone https://github.com/spraakbanken/metadata.git
   ```
@@ -51,7 +50,6 @@ Available API calls:
   - updates the metadata files stored in git
   - runs the python script for parsing these files
   - updates the repository from GitHub and restarts the service if needed
-  - creates missing META-SHARE files
 
   The following cron job is run on fksbwww@k2:
   ```
