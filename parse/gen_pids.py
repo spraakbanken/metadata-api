@@ -57,9 +57,10 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--debug", "-d", action="store_true", help="Print debug info")
 parser.add_argument("--test", "-t", action="store_true", help="Test - don't write")
 parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
+parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
 
 
-def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bool = False) -> None:  # noqa: D417
+def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bool = False, param_analyses: bool = False) -> None:  # noqa: D417
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Arguments:
@@ -93,8 +94,16 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
             files_yaml[res_id] = filepath
             with filepath.open(encoding="utf-8") as file_yaml:
                 res = yaml.safe_load(file_yaml)
-                if get_key_value(res, "unlisted") is True:
-                    resources[res_id] = res
+                if not get_key_value(res, "unlisted"):
+                    type = get_key_value(res, "type")
+                    if param_analyses:
+                        # include all
+                        resources[res_id] = res
+                    else:
+                        # filter out "analysis" and "utility"
+                        if type != "analysis" and type != "utility":
+                            resources[res_id] = res
+
         except Exception:  # noqa: PERF203
             print("gen_pids/main: Error when opening YAML files. Exiting.", file=sys.stderr)
             print(traceback.format_exc(), file=sys.stderr)
@@ -124,7 +133,7 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
                     handle = get_key_value(handles, res_id)
                     """
                     # generate DOI
-                    doi = dms_doi_create(res_id, res, param_debug)
+                    doi = dms_doi_create(res_id, res, param_debug, param_test)
                 if doi:
                     resources[res_id][DOI_KEY] = doi
                     if param_debug:
@@ -153,7 +162,7 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
                 handle = get_key_value(handles, res_id)
                 """
                 if not param_noupdate:
-                    dms_update(res_id, res, param_debug)
+                    dms_update(res_id, res, param_debug, param_test)
 
     """3a. Map Collections and Resources in both directions
 
@@ -262,7 +271,7 @@ def main(param_noupdate: bool = False, param_debug: bool = False, param_test: bo
                 print(traceback.format_exc(), file=sys.stderr)
 
 
-def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
+def dms_doi_create(res_id: str, res: dict, param_debug: bool, param_test: bool) -> str:
     """Construct DMS and call Datacite API.
 
     Return: DOI
@@ -301,8 +310,6 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
                     "publisherIdentifierScheme": "ROR",
                     "schemeURI": "https://ror.org/",
                 },
-                # 5. M1. Publication date
-                "publicationYear": DMS_DEFAULT_YEAR,
                 # 6. Rn. Subject
                 "subjects": [
                     {
@@ -349,6 +356,14 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
         if "titles" not in data_json["data"]["attributes"]:
             data_json["data"]["attributes"]["titles"] = []
         data_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_ENG, "title": value})
+
+    # 5. M1. Publication date
+    yaml_created, yaml_updated = get_dates(res)
+    if yaml_updated:
+        data_json["data"]["attributes"]["publicationYear"] = yaml_updated[:4]
+    else:
+        # no update info, so set publication year to current year
+        data_json["data"]["attributes"]["publicationYear"] = datetime.datetime.now().date().strftime("%Y")
 
     # 8 - Dates (optional)
     dms_created, dms_updated = get_dates(res)
@@ -404,35 +419,38 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool) -> str:
         print("gen_pids/get_dms_doi: call with JSON")
         # print(json.dumps(data_json, indent=4, ensure_ascii=False))
 
-    # Register resource
-    response = requests.post(
-        DMS_URL, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
-    )
+    if not param_test:
+        # Register resource
+        response = requests.post(
+            DMS_URL, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
+        )
 
-    if param_debug:
-        print("gen_pids/get_dms_doi: response", response.status_code)
-        # print(json.dumps(response.json(), indent=4, ensure_ascii=False))
+        if param_debug:
+            print("gen_pids/get_dms_doi: response", response.status_code)
+            # print(json.dumps(response.json(), indent=4, ensure_ascii=False))
 
-    doi = ""
+        doi = ""
 
-    if response.status_code == RESPONSE_CREATED:
-        d = response.json()
-        if "data" in d:
-            data = d["data"]
-            if type(data) is list:
-                if len(data) > 0:
-                    doi = data[0]["id"]
-                    if len(data) > 1:
-                        # This should never happen, as res_id should be unique among Språkbanken Text
-                        print("gen_pids/get_dms_doi: Error, multiple answers for", res_id, file=sys.stderr)
-            else:
-                doi = data["id"]
+        if response.status_code == RESPONSE_CREATED:
+            d = response.json()
+            if "data" in d:
+                data = d["data"]
+                if type(data) is list:
+                    if len(data) > 0:
+                        doi = data[0]["id"]
+                        if len(data) > 1:
+                            # This should never happen, as res_id should be unique among Språkbanken Text
+                            print("gen_pids/get_dms_doi: Error, multiple answers for", res_id, file=sys.stderr)
+                else:
+                    doi = data["id"]
+        else:
+            print("gen_pids/get_dms_doi: Error, could not create DOI for ", res_id, response.content, file=sys.stderr)
+        return doi
     else:
-        print("gen_pids/get_dms_doi: Error, could not create DOI for ", res_id, response.content, file=sys.stderr)
-    return doi
+        return ""
 
 
-def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
+def dms_update(res_id: str, res: dict, param_debug: bool, param_test: bool) -> bool:
     """Update existing DMS metadata.
 
     Returns:
@@ -446,8 +464,10 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
 
     # only update DataCite record if it is older than YAML record
     if dms_updated < yaml_updated or yaml_updated == "":  # noqa: PLC1901
-        dms_created = yaml_created
-        dms_updated = yaml_updated
+        if yaml_created != "":
+            dms_created = yaml_created
+        if yaml_updated != "":
+            dms_updated = yaml_updated
 
         updated = True
         # Resource type
@@ -478,8 +498,6 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
                         "publisherIdentifierScheme": "ROR",
                         "schemeURI": "https://ror.org/",
                     },
-                    # 5. M1. Publication date
-                    "publicationYear": DMS_DEFAULT_YEAR,
                     # 6. Rn. Subject
                     "subjects": [
                         {
@@ -515,6 +533,13 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
             if "titles" not in data_json["data"]["attributes"]:
                 data_json["data"]["attributes"]["titles"] = []
             data_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_ENG, "title": value})
+
+        # 5. M1. Publication date
+        if dms_updated:
+            data_json["data"]["attributes"]["publicationYear"] = dms_updated[:4]
+        else:
+            # no update info, so set publication year to current year
+            data_json["data"]["attributes"]["publicationYear"] = datetime.datetime.now().date().strftime("%Y")
 
         # 8 - Dates (optional)
         if dms_created or dms_updated:
@@ -569,16 +594,17 @@ def dms_update(res_id: str, res: dict, param_debug: bool) -> bool:
             print("gen_pids/dms_update: updating", res_id, doi)
             # print(json.dumps(data_json, indent=4, ensure_ascii=False))
 
-        # Update resource
-        url = DMS_URL + "/" + doi
-        response = requests.put(
-            url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
-        )
+        if not param_test:
+            # Update resource
+            url = DMS_URL + "/" + doi
+            response = requests.put(
+                url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
+            )
 
-        if param_debug:
-            print("gen_pids/dms_update: response", response.status_code)
-        if response.status_code >= 300:  # noqa: PLR2004
-            print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code, file=sys.stderr)
+            if param_debug:
+                print("gen_pids/dms_update: response", response.status_code)
+            if response.status_code >= 300:  # noqa: PLR2004
+                print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code, file=sys.stderr)
 
     return updated
 
@@ -790,7 +816,7 @@ def get_key_list_value(dictionary: dict, key: str) -> list:
 
 def get_dates(res: dict) -> tuple[str, str]:
     """Return 'created' and 'updated' dates as strings and check that they are valid."""
-    created = get_key_value(res, "created")  # datetime.date or ""
+    created = get_key_value(res, "created")
     created_str = datetime.datetime.strftime(created, "%Y-%m-%d") if created else ""
     updated = get_key_value(res, "updated")
     updated_str = datetime.datetime.strftime(updated, "%Y-%m-%d") if updated else ""
@@ -957,4 +983,4 @@ def get_dms_lookup_handle(res_id: str, param_debug: bool) -> str:
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(param_noupdate=args.noupdate, param_debug=args.debug, param_test=args.test)
+    main(param_debug=args.debug, param_test=args.test, param_noupdate=args.noupdate, param_analyses=args.analyses)
