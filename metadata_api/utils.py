@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import current_app, jsonify
 
 
-def get_single_resource(resource_id, corpora, lexicons, models):
+def get_single_resource(resource_id, corpora, lexicons, models, analyses, utilities):
     """Get resource from resource dictionaries and add resource text (if available)."""
     resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
     long_description = resource_texts.get(resource_id, {})
@@ -18,6 +18,10 @@ def get_single_resource(resource_id, corpora, lexicons, models):
         resource = lexicons[resource_id]
     elif models.get(resource_id):
         resource = models[resource_id]
+    elif analyses.get(resource_id):
+        resource = analyses[resource_id]
+    elif utilities.get(resource_id):
+        resource = utilities[resource_id]
 
     if resource and long_description:
         resource["description"] = long_description
@@ -30,7 +34,9 @@ def load_resources():
     corpora = load_json(current_app.config.get("CORPORA_FILE"))
     lexicons = load_json(current_app.config.get("LEXICONS_FILE"))
     models = load_json(current_app.config.get("MODELS_FILE"))
-    return corpora, lexicons, models
+    analyses = load_json(current_app.config.get("ANALYSES_FILE"))
+    utilities = load_json(current_app.config.get("UTILITIES_FILE"))
+    return corpora, lexicons, models, analyses, utilities
 
 
 def load_json(jsonfile, prefix=""):

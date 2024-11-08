@@ -1,5 +1,6 @@
 This repo contains several components:
-* **/metadata-api** - a REST-API that serves meta data for SB's corpora, lexicons and models (mainly used by our site at spraakbanken.gu.se). For documentation see below.
+
+* **/metadata-api** - a REST-API that serves meta data for SB's corpora, lexicons, models, and analyses (mainly used by our site at spraakbanken.gu.se). For documentation see below.
 * **/parse/gen_pids.py** - a Python script that generates new PIDs (Datacite DOIs) by reading our metadata YAML-files and registering resources at Datacite. For documentation see below (after the metadata-api documentation).
 * **/parse/parse_yaml.py** - a sript that prepares data for the REST-API
 * **update_metadata.sh** - a shell script that runs periodically on the server and calls and starts the other components. It also handles all the git stuff as both gen_pids.py and parse_yaml.py works with our [metadata](https://github.com/spraakbanken/metadata) repository
@@ -15,10 +16,11 @@ This repo contains several components:
 
 Available API calls:
 
-- `https://ws.spraakbanken.gu.se/ws/metadata`: List all resources in three dictionaries (`corpora`, `lexicons`, and `models`)
+- `https://ws.spraakbanken.gu.se/ws/metadata`: List all resources
 - `https://ws.spraakbanken.gu.se/ws/metadata/corpora`: List all corpora
 - `https://ws.spraakbanken.gu.se/ws/metadata/lexicons`: List all lexicons
 - `https://ws.spraakbanken.gu.se/ws/metadata/models`: List all models
+- `https://ws.spraakbanken.gu.se/ws/metadata/analyses`: List all analyses
 - `https://ws.spraakbanken.gu.se/ws/metadata/collections`: List all collections
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
 - `https://ws.spraakbanken.gu.se/ws/metadata/list_ids`: List all existing resource IDs
