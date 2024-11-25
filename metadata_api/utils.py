@@ -109,7 +109,7 @@ def get_bibtex(resource_type, resource_id):
             if lexicons.get(resource_id):
                 resource = lexicons[resource_id]
                 if resource:
-                    bibtex = create_bibtex(resource)
+                    bibtex = "test ok" #create_bibtex(resource)
         case "model":
             models = load_json(current_app.config.get("MODELS_FILE"))
             if models.get(resource_id):
