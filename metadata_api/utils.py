@@ -198,7 +198,7 @@ def create_bibtex(resource):
                 + "  title = {" + f_title + "},\n"
                 + "  publisher = {Språkbanken Text},\n"
                 + "  year = {" + f_year + "}\n"
-                + "}\n")
+                + "}")
 
         return bibtex
 
