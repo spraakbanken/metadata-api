@@ -92,6 +92,7 @@ def get_resource_type(rtype, resource_file):
         "resources": data
     })
 
+
 def get_bibtex(resource_type, resource_id):
     
     bibtex = ""
@@ -132,6 +133,7 @@ def get_bibtex(resource_type, resource_id):
 
 
 def create_bibtex(resource):
+    """Create bibtex record for resource"""
 
     # DOI
     f_doi = resource["doi"]
@@ -146,8 +148,8 @@ def create_bibtex(resource):
     # languages
     f_languages = resource["languages"]
     if len(f_languages) > 0:
-        f_language = ', '.join(f_languages["code"]);
-    else
+        f_language = ', '.join(f_languages["code"])
+    else:
         f_language = ""
     # name, title
     f_title = resource["name"]["eng"]
@@ -173,7 +175,7 @@ def create_bibtex(resource):
         case _:
             # fallback
             f_url = "https://spraakbanken.gu.se/resurser/"
-               
+
     # build bibtex string
     bibtex = ("@misc(" + f_id + ",\n"
             + "  doi =  {" + f_doi + "},\n"
