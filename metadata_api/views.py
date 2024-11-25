@@ -120,12 +120,13 @@ def bibtex():
     """Return bibtex citation as text."""
     try:
         res_type = request.args.get("type")
-        res_id = request.args.get("id")
+        res_id = request.args.get("resource")
         if res_type and res_id:
             bibtex = utils.get_bibtex(res_type, res_id)
         else:
-            bibtex = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&id=<id>"
+            bibtex = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&resource=<id>"
     except Exception as e:
         bibtex = f"Error when creating bibtex: {str(e)}"
 
-    return '{"bibtex":' + '"' + bibtex + '"}'
+    #return '{"bibtex":' + '"' + bibtex + '"}'
+    return jsonify({"bibtex":bibtex})
