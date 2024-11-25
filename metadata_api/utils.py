@@ -135,6 +135,61 @@ def get_bibtex(resource_type, resource_id):
 def create_bibtex(resource):
     """Create bibtex record for resource"""
 
-    # DOI
-    f_doi = resource["doi"]
-    return f_doi
+    try:
+        # DOI
+        f_doi = resource["doi"]
+        # id/slug/maskinnamn
+        f_id = resource["id"]
+        # creators, "Skapad av"
+        f_creators = resource["creators"]
+        if len(f_creators) > 0:
+            f_author = ' and '.join(f_creators)
+        else:
+            f_author = "Språkbanken Text"
+        # languages
+        f_languages = resource["languages"]
+        if len(f_languages) > 0:
+            f_language = ', '.join(f_languages["code"])
+        else:
+            f_language = ""
+        # name, title
+        f_title = resource["name"]["eng"]
+        if not f_title:
+            f_title = resource["name"]["swe"]
+        # year
+        f_updated = resource["updated"]
+        if f_updated:
+            f_year = f_updated[:4]
+        else:
+            f_created = resource["created"]
+            if f_created:
+                f_year = f_created[:4]
+            else:
+                # fallback to current year
+                f_year = datetime.datetime.now().date().year
+        # target URL
+        match resource["type"]:
+            case "analysis" | "utility":
+                f_url = "https://spraakbanken.gu.se/analyser/"
+            case "corpus" | "lexicon" | "model":
+                f_url = "https://spraakbanken.gu.se/resurser/"
+            case _:
+                # fallback
+                f_url = "https://spraakbanken.gu.se/resurser/"
+
+        # build bibtex string
+        bibtex = ("@misc(" + f_id + ",\n"
+                + "  doi =  {" + f_doi + "},\n"
+                + "  url = {" + f_url + f_id + "},\n"
+                + "  author = {" + f_author + "},\n"
+                + "  keywords = {Language Technology (Computational Linguistics)},\n"
+                + "  language = {" + f_language + "},\n"
+                + "  title = {" + f_title + "},\n"
+                + "  publisher = {Språkbanken Text},\n"
+                + "  year = {" + f_year + "}\n"
+                + "}\n")
+
+        return bibtex
+
+    except Exception as e:
+        return str(e)
