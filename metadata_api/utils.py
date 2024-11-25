@@ -149,7 +149,8 @@ def create_bibtex(resource):
         # languages
         f_languages = resource["languages"]
         if len(f_languages) > 0:
-            f_language = ', '.join(f_languages["code"])
+            #f_language = ', '.join(f_languages["code"])
+            f_language = ""
         else:
             f_language = ""
         # name, title
