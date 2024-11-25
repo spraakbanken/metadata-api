@@ -25,6 +25,7 @@ Available API calls:
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
 - `https://ws.spraakbanken.gu.se/ws/metadata/list_ids`: List all existing resource IDs
 - `https://ws.spraakbanken.gu.se/ws/metadata/check-id-availability?id=my-resource`: Check if a given resource ID is free
+- `https://ws.spraakbanken.gu.se/ws/metadata/bibtex?resource=<id>&type=<type>`: Return bibtex citation for specified resource
 - `https://ws.spraakbanken.gu.se/ws/metadata/doc`: Serve API documentation as YAML
 - `https://ws.spraakbanken.gu.se/ws/metadata/renew-cache`: Flush cache and fill with fresh values
 
