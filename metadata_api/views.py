@@ -114,3 +114,16 @@ def renew_cache():
     except Exception:
         success = False
     return jsonify({"cache_renewed": success, "error": error})
+
+@general.route("/bibtex")
+def bibtex():
+    """Return bibtex citation as text."""
+
+    res_type = request.args.get("type")
+    res_id = request.args.get("id")
+    if res_type and res_id:
+        data = utils.get_bibtex(res_type, res_id)
+    else:
+        data = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&id=<id>"
+
+    return data
