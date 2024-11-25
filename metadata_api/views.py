@@ -118,12 +118,14 @@ def renew_cache():
 @general.route("/bibtex")
 def bibtex():
     """Return bibtex citation as text."""
+    try:
+        res_type = request.args.get("type")
+        res_id = request.args.get("id")
+        if res_type and res_id:
+            bibtex = utils.get_bibtex(res_type, res_id)
+        else:
+            bibtex = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&id=<id>"
+    except Exception as e:
+        bibtex = f"Error when creating bibtex: {str(e)}"
 
-    res_type = request.args.get("type")
-    res_id = request.args.get("id")
-    if res_type and res_id:
-        data = utils.get_bibtex(res_type, res_id)
-    else:
-        data = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&id=<id>"
-
-    return data
+    return jsonify("bibtex", bibtex)
