@@ -362,7 +362,7 @@ def dms_doi_create(res_id: str, res: dict, param_debug: bool, param_test: bool) 
 
     # 5. M1. Publication date
     # Datacite Publication Year is year of Created, else current year (https://github.com/spraakbanken/metadata-api/issues/21)
-    _yaml_created, yaml_updated = get_dates(res)
+    yaml_created, yaml_updated = get_dates(res)
     if yaml_updated:
         data_json["data"]["attributes"]["publicationYear"] = yaml_updated[:4]
     else:
@@ -839,9 +839,15 @@ def get_key_list_value(dictionary: dict, key: str) -> list:
 def get_dates(res: dict) -> tuple[str, str]:
     """Return 'created' and 'updated' dates as strings and check that they are valid."""
     created = get_key_value(res, "created")
-    created_str = datetime.datetime.strftime(created, "%Y-%m-%d") if created else ""
+    if created != "":
+        created_str = datetime.datetime.strftime(created, "%Y-%m-%d") if created else ""
+    else:
+        created_str = ""
     updated = get_key_value(res, "updated")
-    updated_str = datetime.datetime.strftime(updated, "%Y-%m-%d") if updated else ""
+    if updated != "":
+        updated_str = datetime.datetime.strftime(updated, "%Y-%m-%d") if updated else ""
+    else:
+        updated_str = ""
     return created_str, updated_str
 
 
