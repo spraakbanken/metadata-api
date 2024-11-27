@@ -137,10 +137,8 @@ def create_bibtex(resource):
 
     try:
         # DOI
-        # f_doi = resource["doi"]
         f_doi = resource.get("doi", "")
         # id/slug/maskinnamn
-        # f_id = resource["id"]
         f_id = resource.get("id", "")
         # creators, "Skapad av"
         f_creators = resource.get("creators", [])
@@ -154,32 +152,21 @@ def create_bibtex(resource):
             f_language = f_languages[0].get("code", "")
             for item in f_languages[1:]:
                 f_language += ", " + item.get("code", "")
-            #f_language = ', '.join(f_languages["code"])
         else:
             f_language = ""
         # name, title
         f_title = resource["name"].get("eng", "")
         if f_title == "":
             f_title = resource["name"].get("swe", "")
-        # year
-        if "updated" in resource:
-            f_updated = resource.get("updated", "")
-            if f_updated != "":
-                f_year = f_updated[:4]
-            else:
-                f_created = resource.get("created", "")
-                if f_created != "":
-                    f_year = f_created[:4]
-                else:
-                    # fallback to current year
-                    f_year = datetime.datetime.now().date().year
-        elif "created" in resource:
+        # year, fallback to current year
+        f_year = datetime.datetime.now().date().year
+        f_updated = resource.get("updated", "")
+        if f_updated != "":
+            f_year = f_updated[:4]
+        else:
             f_created = resource.get("created", "")
             if f_created != "":
                 f_year = f_created[:4]
-        else:
-            # fallback to current year
-            f_year = datetime.datetime.now().date().year
         # target URL
         match resource["type"]:
             case "analysis" | "utility":

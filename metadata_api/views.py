@@ -128,5 +128,4 @@ def bibtex():
     except Exception as e:
         bibtex = f"Error when creating bibtex: {str(e)}"
 
-    #return '{"bibtex":' + '"' + bibtex + '"}'
     return jsonify({"bibtex":bibtex})
