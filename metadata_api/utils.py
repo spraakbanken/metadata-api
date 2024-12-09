@@ -1,5 +1,6 @@
 """Util functions used by the metadata API."""
 
+import datetime
 import json
 from pathlib import Path
 
@@ -90,3 +91,105 @@ def get_resource_type(rtype, resource_file):
         "hits": len(data),
         "resources": data
     })
+
+
+def get_bibtex(resource_type, resource_id):
+    
+    bibtex = ""
+
+    match resource_type:
+        case "corpus":
+            corpora = load_json(current_app.config.get("CORPORA_FILE"))
+            if corpora.get(resource_id):
+                resource = corpora[resource_id]
+                if resource:
+                    bibtex = create_bibtex(resource)
+        case "lexicon":
+            lexicons = load_json(current_app.config.get("LEXICONS_FILE"))
+            if lexicons.get(resource_id):
+                resource = lexicons[resource_id]
+                if resource:
+                    bibtex = create_bibtex(resource)
+        case "model":
+            models = load_json(current_app.config.get("MODELS_FILE"))
+            if models.get(resource_id):
+                resource = models[resource_id]
+                if resource:
+                    bibtex = create_bibtex(resource)
+        case "analysis":
+            analyses = load_json(current_app.config.get("ANALYSES_FILE"))
+            if analyses.get(resource_id):
+                resource = analyses[resource_id]
+                if resource:
+                    bibtex = create_bibtex(resource)
+        case "utility":
+            utilities = load_json(current_app.config.get("UTILITIES_FILE"))
+            if utilities.get(resource_id):
+                resource = utilities[resource_id]
+                if resource:
+                    bibtex = create_bibtex(resource)
+
+    return bibtex
+
+
+def create_bibtex(resource):
+    """Create bibtex record for resource"""
+
+    try:
+        # DOI
+        f_doi = resource.get("doi", "")
+        # id/slug/maskinnamn
+        f_id = resource.get("id", "")
+        # creators, "Skapad av"
+        f_creators = resource.get("creators", [])
+        if len(f_creators) > 0:
+            f_author = ' and '.join(f_creators)
+        else:
+            f_author = "Språkbanken Text"
+        # languages
+        f_languages = resource.get("languages", [])
+        if len(f_languages) > 0:
+            f_language = f_languages[0].get("code", "")
+            for item in f_languages[1:]:
+                f_language += ", " + item.get("code", "")
+        else:
+            f_language = ""
+        # name, title
+        f_title = resource["name"].get("eng", "")
+        if f_title == "":
+            f_title = resource["name"].get("swe", "")
+        # year, fallback to current year
+        f_year = datetime.datetime.now().date().year
+        f_updated = resource.get("updated", "")
+        if f_updated != "":
+            f_year = f_updated[:4]
+        else:
+            f_created = resource.get("created", "")
+            if f_created != "":
+                f_year = f_created[:4]
+        # target URL
+        match resource["type"]:
+            case "analysis" | "utility":
+                f_url = "https://spraakbanken.gu.se/analyser/"
+            case "corpus" | "lexicon" | "model":
+                f_url = "https://spraakbanken.gu.se/resurser/"
+            case _:
+                # fallback
+                f_url = "https://spraakbanken.gu.se/resurser/"
+
+        # build bibtex string
+        bibtex = ("@misc(" + f_id + ",\n"
+                + "  doi =  {" + f_doi + "},\n"
+                + "  url = {" + f_url + f_id + "},\n"
+                + "  author = {" + f_author + "},\n"
+                + "  keywords = {Language Technology (Computational Linguistics)},\n"
+                + "  language = {" + f_language + "},\n"
+                + "  title = {" + f_title + "},\n"
+                + "  publisher = {Språkbanken Text},\n"
+                + "  year = {" + f_year + "}\n"
+                + "}")
+
+        return bibtex
+
+    except Exception as e:
+        return "Error:" + str(e)
