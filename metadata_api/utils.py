@@ -94,13 +94,8 @@ def get_resource_type(rtype, resource_file):
 
 
 def get_bibtex(resource_id, corpora, lexicons, models, analyses, utilities):
-    
+   
     bibtex = ""
-
-        resource = lexicons[resource_id]
-        resource = models[resource_id]
-        resource = analyses[resource_id]
-
 
     if corpora.get(resource_id):
         resource = corpora[resource_id]
