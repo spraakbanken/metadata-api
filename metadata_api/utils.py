@@ -93,41 +93,35 @@ def get_resource_type(rtype, resource_file):
     })
 
 
-def get_bibtex(resource_type, resource_id):
+def get_bibtex(resource_id, corpora, lexicons, models, analyses, utilities):
     
     bibtex = ""
 
-    match resource_type:
-        case "corpus":
-            corpora = load_json(current_app.config.get("CORPORA_FILE"))
-            if corpora.get(resource_id):
-                resource = corpora[resource_id]
-                if resource:
-                    bibtex = create_bibtex(resource)
-        case "lexicon":
-            lexicons = load_json(current_app.config.get("LEXICONS_FILE"))
-            if lexicons.get(resource_id):
-                resource = lexicons[resource_id]
-                if resource:
-                    bibtex = create_bibtex(resource)
-        case "model":
-            models = load_json(current_app.config.get("MODELS_FILE"))
-            if models.get(resource_id):
-                resource = models[resource_id]
-                if resource:
-                    bibtex = create_bibtex(resource)
-        case "analysis":
-            analyses = load_json(current_app.config.get("ANALYSES_FILE"))
-            if analyses.get(resource_id):
-                resource = analyses[resource_id]
-                if resource:
-                    bibtex = create_bibtex(resource)
-        case "utility":
-            utilities = load_json(current_app.config.get("UTILITIES_FILE"))
-            if utilities.get(resource_id):
-                resource = utilities[resource_id]
-                if resource:
-                    bibtex = create_bibtex(resource)
+        resource = lexicons[resource_id]
+        resource = models[resource_id]
+        resource = analyses[resource_id]
+
+
+    if corpora.get(resource_id):
+        resource = corpora[resource_id]
+        if resource:
+            bibtex = create_bibtex(resource)
+    elif lexicons.get(resource_id):
+        resource = lexicons[resource_id]
+        if resource:
+            bibtex = create_bibtex(resource)
+    elif models.get(resource_id):
+        resource = models[resource_id]
+        if resource:
+            bibtex = create_bibtex(resource)
+    elif analyses.get(resource_id):
+        resource = analyses[resource_id]
+        if resource:
+            bibtex = create_bibtex(resource)
+    elif utilities.get(resource_id):
+        resource = utilities[resource_id]
+        if resource:
+            bibtex = create_bibtex(resource)
 
     return bibtex
 

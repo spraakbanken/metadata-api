@@ -2,7 +2,7 @@ This repo contains several components:
 
 * **/metadata-api** - a REST-API that serves meta data for SB's corpora, lexicons, models, and analyses (mainly used by our site at spraakbanken.gu.se). For documentation see below.
 * **/parse/gen_pids.py** - a Python script that generates new PIDs (Datacite DOIs) by reading our metadata YAML-files and registering resources at Datacite. For documentation see below (after the metadata-api documentation).
-* **/parse/parse_yaml.py** - a sript that prepares data for the REST-API
+* **/parse/parse_yaml.py** - a script that prepares data for the REST-API
 * **update_metadata.sh** - a shell script that runs periodically on the server and calls and starts the other components. It also handles all the git stuff as both gen_pids.py and parse_yaml.py works with our [metadata](https://github.com/spraakbanken/metadata) repository
 
 # metadata-api
@@ -25,7 +25,7 @@ Available API calls:
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
 - `https://ws.spraakbanken.gu.se/ws/metadata/list_ids`: List all existing resource IDs
 - `https://ws.spraakbanken.gu.se/ws/metadata/check-id-availability?id=my-resource`: Check if a given resource ID is free
-- `https://ws.spraakbanken.gu.se/ws/metadata/bibtex?resource=<id>&type=<type>`: Return bibtex citation for specified resource
+- `https://ws.spraakbanken.gu.se/ws/metadata/bibtex?resource=<id>`: Return bibtex citation for specified resource
 - `https://ws.spraakbanken.gu.se/ws/metadata/doc`: Serve API documentation as YAML
 - `https://ws.spraakbanken.gu.se/ws/metadata/renew-cache`: Flush cache and fill with fresh values
 
