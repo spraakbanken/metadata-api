@@ -148,7 +148,7 @@ def create_bibtex(resource):
         if f_title == "":
             f_title = resource["name"].get("swe", "")
         # year, fallback to current year
-        f_year = datetime.datetime.now().date().year
+        f_year = str(datetime.datetime.now().date().year)
         f_updated = resource.get("updated", "")
         if f_updated != "":
             f_year = f_updated[:4]
