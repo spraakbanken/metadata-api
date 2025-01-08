@@ -167,7 +167,7 @@ def create_bibtex(resource):
                 f_url = "https://spraakbanken.gu.se/resurser/"
 
         # build bibtex string
-        bibtex = ("@misc(" + f_id + ",\n"
+        bibtex = ("@misc{" + f_id + ",\n"
                 + "  doi =  {" + f_doi + "},\n"
                 + "  url = {" + f_url + f_id + "},\n"
                 + "  author = {" + f_author + "},\n"
