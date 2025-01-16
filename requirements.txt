@@ -4,6 +4,10 @@
 #
 #    pip-compile
 #
+attrs==24.3.0
+    # via
+    #   jsonschema
+    #   referencing
 beautifulsoup4==4.12.3
     # via -r requirements.in
 blinker==1.8.2
@@ -28,6 +32,10 @@ itsdangerous==2.2.0
     # via flask
 jinja2==3.1.4
     # via flask
+jsonschema==4.23.0
+    # via -r requirements.in
+jsonschema-specifications==2024.10.1
+    # via jsonschema
 lxml==5.3.0
     # via -r requirements.in
 markdown==3.7
@@ -44,8 +52,16 @@ python-memcached==1.62
     # via -r requirements.in
 pyyaml==6.0.2
     # via -r requirements.in
+referencing==0.35.1
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 requests==2.32.3
     # via -r requirements.in
+rpds-py==0.22.3
+    # via
+    #   jsonschema
+    #   referencing
 soupsieve==2.6
     # via beautifulsoup4
 urllib3==2.2.3
