@@ -3,26 +3,30 @@
 # ruff: noqa: T201 (`print` found)
 
 import argparse
+from collections import defaultdict
 import datetime
 import json
-from collections import defaultdict
 from pathlib import Path
-
+import sys
 import requests
 import yaml
 from translate_lang import get_lang_names
+import jsonschema
+from gen_pids import is_dataset
 
 STATIC_DIR = Path("../metadata_api/static")
 YAML_DIR = Path("../metadata/yaml")
+SCHEMA_DIR = Path("../metadata/schema")
 OUT_RESOURCE_TEXTS = STATIC_DIR / "resource-texts.json"
 
 # Instatiate command line arg parser
 parser = argparse.ArgumentParser(description="Read YAML metadata files, compile and prepare information for the API")
 parser.add_argument("--debug", action="store_true", help="Print debug info")
 parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
+parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
 
 
-def main(resource_types=None, debug=False, offline=False):
+def main(resource_types=None, debug=False, offline=False, validate=False):
     """Read YAML metadata files, compile and prepare information for the API (main wrapper)."""
     if resource_types is None:
         resource_types = ["lexicon", "corpus", "model", "analysis", "utility"]
@@ -31,9 +35,18 @@ def main(resource_types=None, debug=False, offline=False):
     resource_texts = defaultdict(dict)
     collection_mappings = {}
 
+    if validate:
+        resource_schema = get_schema(SCHEMA_DIR / "metadata.json")
+        # YAML safe_load() - handle dates as strings
+        yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
+            yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
+        )
+    else:
+        resource_schema = None
+
     for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
         # Get resources from yaml
-        yaml_resources = get_yaml(filepath, resource_texts, collection_mappings, debug=debug, offline=offline)
+        yaml_resources = get_yaml(filepath, resource_texts, collection_mappings, resource_schema, debug=debug, offline=offline, validate=validate)
         # Get resource-text-mapping
         resource_ids.extend(list(yaml_resources.keys()))
         # Save result in all_resources
@@ -57,9 +70,20 @@ def main(resource_types=None, debug=False, offline=False):
     write_json(STATIC_DIR / "collection.json", collection_json)
 
 
-def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
+def get_schema(filepath):
+    try:
+       with open(filepath) as schema_file:
+            schema = json.load(schema_file)
+    except Exception:
+        print(f"Error: failed to get schema '{filepath}'")
+        schema = None
+
+    return schema
+
+def get_yaml(filepath, resource_texts, collections, resource_schema, debug=False, offline=False, validate=False):
     """Gather all yaml resource files of one type, update resource texts and collections dict."""
     resources = {}
+    add_resource = True
 
     try:
         if debug:
@@ -67,56 +91,71 @@ def get_yaml(filepath, resource_texts, collections, debug=False, offline=False):
         with filepath.open(encoding="utf-8") as f:
             res = yaml.safe_load(f)
             fileid = filepath.stem
-            new_res = {"id": fileid}
-            # Make sure size attrs only contain numbers
-            for k, v in res.get("size", {}).items():
-                if not str(v).isdigit():
-                    res["size"][k] = 0
 
-            # Update resouce_texts and remove long_descriptions for now
-            if res.get("description", {}).get("swe", "").strip():
-                resource_texts[fileid]["swe"] = res["description"]["swe"]
-            if res.get("description", {}).get("eng", "").strip():
-                resource_texts[fileid]["eng"] = res["description"]["eng"]
-            res.pop("description", None)
+            if validate:
+                # validate YAML if it is a corpus etc (not analyses yet, https://github.com/spraakbanken/metadata/issues/7)
+                if is_dataset(res):
+                    if resource_schema is not None:
+                        try:
+                            jsonschema.validate(instance=res, schema=resource_schema)
+                        except jsonschema.exceptions.ValidationError as e:
+                            print(f"Error: validation error for {fileid}: {e.message}", file=sys.stderr)
+                            add_resource = False
+                        except Exception as e:
+                            print(f"Something went wrong when validating for {fileid}", file=sys.stderr)
+                            add_resource = False
 
-            # Get full language info
-            langs = res.get("languages", [])
-            for langcode in res.get("language_codes", []):
-                if langcode not in [l.get("code") for l in langs]:
-                    try:
-                        english_name, swedish_name = get_lang_names(langcode)
-                        langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
-                    except LookupError:
-                        print(f"Error: Could not find language code {langcode} (resource: {fileid})")
-            res["languages"] = langs
-            res.pop("language_codes", "")
+            if add_resource:
+                new_res = {"id": fileid}
+                # Make sure size attrs only contain numbers
+                for k, v in res.get("size", {}).items():
+                    if not str(v).isdigit():
+                        res["size"][k] = 0
 
-            if not offline:
-                # Add file info for downloadables
-                res_type = res.get("type")
-                for d in res.get("downloads", []):
-                    url = d.get("url")
-                    if url and not ("size" in d and "last-modified" in d):
-                        size, date = get_download_metadata(url, fileid, res_type)
-                        d["size"] = size
-                        d["last-modified"] = date
+                # Update resouce_texts and remove long_descriptions for now
+                if res.get("description", {}).get("swe", "").strip():
+                    resource_texts[fileid]["swe"] = res["description"]["swe"]
+                if res.get("description", {}).get("eng", "").strip():
+                    resource_texts[fileid]["eng"] = res["description"]["eng"]
+                res.pop("description", None)
 
-            new_res.update(res)
-            resources[fileid] = new_res
+                # Get full language info
+                langs = res.get("languages", [])
+                for langcode in res.get("language_codes", []):
+                    if langcode not in [l.get("code") for l in langs]:
+                        try:
+                            english_name, swedish_name = get_lang_names(langcode)
+                            langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
+                        except LookupError:
+                            print(f"Error: Could not find language code {langcode} (resource: {fileid})")
+                res["languages"] = langs
+                res.pop("language_codes", "")
 
-            # Update collections dict
-            if res.get("collection") is True:
-                collections[fileid] = collections.get(fileid, [])
-                if res.get("resources"):
-                    collections[fileid].extend(res["resources"])
-                    collections[fileid] = sorted(set(collections[fileid]))
+                if not offline:
+                    # Add file info for downloadables
+                    res_type = res.get("type")
+                    for d in res.get("downloads", []):
+                        url = d.get("url")
+                        if url and not ("size" in d and "last-modified" in d):
+                            size, date = get_download_metadata(url, fileid, res_type)
+                            d["size"] = size
+                            d["last-modified"] = date
 
-            if res.get("in_collections"):
-                for collection_id in res["in_collections"]:
-                    collections[collection_id] = collections.get(collection_id, [])
-                    collections[collection_id].append(fileid)
-                    collections[collection_id] = sorted(set(collections[collection_id]))
+                new_res.update(res)
+                resources[fileid] = new_res
+
+                # Update collections dict
+                if res.get("collection") is True:
+                    collections[fileid] = collections.get(fileid, [])
+                    if res.get("resources"):
+                        collections[fileid].extend(res["resources"])
+                        collections[fileid] = sorted(set(collections[fileid]))
+
+                if res.get("in_collections"):
+                    for collection_id in res["in_collections"]:
+                        collections[collection_id] = collections.get(collection_id, [])
+                        collections[collection_id].append(fileid)
+                        collections[collection_id] = sorted(set(collections[collection_id]))
 
     except Exception:
         print(f"Error: failed to process '{filepath}'")
@@ -198,4 +237,4 @@ def write_json(filename, data):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(debug=args.debug, offline=args.offline)
+    main(debug=args.debug, offline=args.offline, validate=args.validate)
