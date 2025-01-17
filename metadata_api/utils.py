@@ -135,6 +135,11 @@ def create_bibtex(resource):
             f_author = ' and '.join(f_creators)
         else:
             f_author = "Språkbanken Text"
+        # keywords
+        f_words = resource.get("keywords", [])
+        f_words.insert(0, "Language Technology (Computational Linguistics)")
+        # f_keywords = "Language Technology (Computational Linguistics)"
+        f_keywords = ', '.join(f_words)
         # languages
         f_languages = resource.get("languages", [])
         if len(f_languages) > 0:
@@ -171,7 +176,7 @@ def create_bibtex(resource):
                 + "  doi =  {" + f_doi + "},\n"
                 + "  url = {" + f_url + f_id + "},\n"
                 + "  author = {" + f_author + "},\n"
-                + "  keywords = {Language Technology (Computational Linguistics)},\n"
+                + "  keywords = {" + f_keywords + "},\n"
                 + "  language = {" + f_language + "},\n"
                 + "  title = {" + f_title + "},\n"
                 + "  publisher = {Språkbanken Text},\n"
