@@ -65,7 +65,7 @@ parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update
 parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
 parser.add_argument('-f', action="store", dest="param_file", type=str)
 
-def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bool = False, param_analyses: bool = False, param_file: str = "") -> None:  # noqa: D417
+def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bool = False, param_analyses: bool = False) -> None:  # noqa: D417
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Arguments:
@@ -92,6 +92,7 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
     if param_debug:
         print("gen_pids/main: Reading resources from YAML.")
 
+    param_file = ""
     if param_file == "":
         # Path.glob(pattern, *, case_sensitive=None) - returns list of found files
         # **/*.yaml - all files in this dir and subdirs, recursively
@@ -965,4 +966,4 @@ def get_doi_from_rid(res: dict, rid: str) -> str:  # noqa: D417
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(param_debug=args.debug, param_test=args.test, param_noupdate=args.noupdate, param_analyses=args.analyses, param_file = args.param_file)
+    main(param_debug=args.debug, param_test=args.test, param_noupdate=args.noupdate, param_analyses=args.analyses)
