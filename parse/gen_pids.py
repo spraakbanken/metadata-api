@@ -35,6 +35,7 @@ try:
     DMS_HANDLE = "handle"
     DMS_LANG_ENG = "en"
     DMS_LANG_SWE = "sv"
+    DMS_LANG_MUL = "mul"
     DMS_TITLE_EXAMPLE_SWE = "Exempel (in English)"
     DMS_TITLE_EXAMPLE_ENG = "Example"
 
@@ -62,16 +63,17 @@ parser.add_argument("--debug", "-d", action="store_true", help="Print debug info
 parser.add_argument("--test", "-t", action="store_true", help="Test - don't write")
 parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
 parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
+parser.add_argument('-f', action="store", dest="param_file", type=str)
 
-
-def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bool = False, param_analyses: bool = False) -> None:  # noqa: D417
+def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bool = False, param_analyses: bool = False, param_file: str = "") -> None:  # noqa: D417
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Arguments:
         param_debug {bool} -- Print messages about what it is doing.
         param_test {bool} -- Do not modify YAML (but DMS is still created/updated).
         param_noupdate {bool} -- Do not update Datacite metadata, only create DOIs for resources without
-        para_analyses {bool} -- Also process analyses/utilities and create DOI:s for them
+        param_analyses {bool} -- Also process analyses/utilities and create DOI:s for them
+        param_file (str) -- Pass a filename that will be handled -- else all files are read. Filename built from YAML_DIR.
     1. get all resources YAML metadata
     2. assign DOIs
         if metadata has no DOI
@@ -90,10 +92,30 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
     if param_debug:
         print("gen_pids/main: Reading resources from YAML.")
 
-    # Path.glob(pattern, *, case_sensitive=None) - returns list of found files
-    # **/*.yaml - all files in this dir and subdirs, recursively
-    for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
-        # Get resources from yaml
+    if param_file == "":
+        # Path.glob(pattern, *, case_sensitive=None) - returns list of found files
+        # **/*.yaml - all files in this dir and subdirs, recursively
+        for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
+            # Get resources from yaml
+            try:
+                res_id = filepath.stem
+                files_yaml[res_id] = filepath
+                with filepath.open(encoding="utf-8") as file_yaml:
+                    res = yaml.safe_load(file_yaml)
+                    if not get_key_value(res, "unlisted"):
+                        if param_analyses or is_dataset(res):
+                            resources[res_id] = res
+
+            except Exception:
+                print("gen_pids/main: Error when opening YAML files. Exiting.", file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr)
+                sys.exit()
+    else:
+        filepath = YAML_DIR / param_file
+        if param_debug:
+            print(f"Reading from {filepath}")
+
+        # Get resource from yaml
         try:
             res_id = filepath.stem
             files_yaml[res_id] = filepath
@@ -104,7 +126,7 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
                         resources[res_id] = res
 
         except Exception:
-            print("gen_pids/main: Error when opening YAML files. Exiting.", file=sys.stderr)
+            print("gen_pids/main: Error when opening single YAML file. Exiting.", file=sys.stderr)
             print(traceback.format_exc(), file=sys.stderr)
             sys.exit()
 
@@ -418,6 +440,11 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created, d
             "schemeURI": "https://www.scb.se/dokumentation/klassifikationer-och-standarder/standard-for-svensk-indelning-av-forskningsamnen",
         }
     ]
+    # add keywords
+    keywords = get_res_keywords(res)
+    if keywords:
+        for keyword in keywords:
+            dms_json["data"]["attributes"]["subjects"].append(keyword)
 
     # 7. Rn. Contributor
     # Skip
@@ -757,7 +784,10 @@ def get_res_type_str(dataset: bool):
 def get_res_lang_code(language_list: list) -> str:
     """Translate code to ISO right version."""
     if language_list:
-        return language_list[0]
+        if len(language_list) == 1:
+            return language_list[0]
+        else:
+            return DMS_LANG_MUL # language_list[0]
     return ""
 
 
@@ -844,6 +874,19 @@ def get_res_creators(res: str) -> list:
     return dms_creators
 
 
+def get_res_keywords(res: dict) -> list:
+    """Build keywords structure."""
+    keywords = get_key_list_value(res, "keywords")
+    if keywords:
+        dms_keywords = [
+            {"subject": keyword, 
+             "subjectScheme": "keyword"}
+            for keyword in keywords]
+    else:
+        dms_keywords = []
+    return dms_keywords
+
+
 def get_res_dates(res: dict) -> tuple[str, str]:
     """Return 'created' and 'updated' dates as strings and check that they are valid."""
     created = get_key_value(res, "created")
@@ -922,4 +965,4 @@ def get_doi_from_rid(res: dict, rid: str) -> str:  # noqa: D417
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(param_debug=args.debug, param_test=args.test, param_noupdate=args.noupdate, param_analyses=args.analyses)
+    main(param_debug=args.debug, param_test=args.test, param_noupdate=args.noupdate, param_analyses=args.analyses, param_file = args.param_file)
