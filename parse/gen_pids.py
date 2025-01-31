@@ -60,7 +60,7 @@ parser = argparse.ArgumentParser(
                 "create and update Datacite metadata."
 )
 parser.add_argument("--debug", "-d", action="store_true", help="Print debug info")
-parser.add_argument("--test", "-t", action="store_true", help="Test - don't write")
+parser.add_argument("--test", "-t", action="store_true", help="Test - don't write back YAML and don't call Datacite to create DOI")
 parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
 parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
 parser.add_argument("-f", action="store", dest="param_file", type=str)
@@ -107,9 +107,9 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
                             resources[res_id] = res
 
             except Exception:
-                print("gen_pids/main: Error when opening YAML files. Exiting.", file=sys.stderr)
-                print(traceback.format_exc(), file=sys.stderr)
-                sys.exit()
+                print(f"gen_pids/main: Error when opening/reading YAML file {filepath.stem}" , file=sys.stderr)
+                # print(traceback.format_exc(), file=sys.stderr)
+                # sys.exit()
     else:
         filepath = YAML_DIR / param_file
         if param_debug:
