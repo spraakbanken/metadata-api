@@ -6,3 +6,8 @@ pycountry
 python-memcached
 pyyaml
 requests
+beautifulsoup4
+markdown
+pyyaml
+jsonschema
+

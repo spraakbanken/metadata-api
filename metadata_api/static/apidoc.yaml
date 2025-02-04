@@ -1,4 +1,4 @@
-openapi: "3.0.2"
+openapi: "3.0.3"
 
 info:
   title: Språkbanken Metadata
@@ -220,6 +220,33 @@ paths:
                     type: string
                     description: The Python error message
                     default: null
+  /bibtex:
+    get:
+      summary: Return bibtex citation as text
+      description: Create a bibtex record for the resouce passed as parameter.
+      tags:
+        - General
+      parameters:
+        - name: resource
+          in: query
+          description: ID of the resource to create bibtex for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bibtex:
+                    type: string
+                    description: BibTeX citation string
+                  error:
+                    type: string
+                    description: Error message if argument is incorrect or program error.
+                    default: ""
 
 components:
   schemas:
