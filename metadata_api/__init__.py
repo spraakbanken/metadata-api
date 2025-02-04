@@ -16,7 +16,7 @@ else:
     no_memcache = False
 
 
-def create_app():
+def create_app() -> Flask:
     """Instanciate app."""
     app = Flask(__name__)
     CORS(app)

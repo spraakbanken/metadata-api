@@ -1,6 +1,6 @@
 """Routes for the metadata API."""
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 
 from . import utils
 
@@ -8,14 +8,22 @@ general = Blueprint("general", __name__)
 
 
 @general.route("/doc")
-def documentation():
-    """Serve API documentation yaml file."""
+def documentation() -> Response:
+    """Serve API documentation yaml file.
+
+    Returns:
+        The API documentation file.
+    """
     return current_app.send_static_file("apidoc.yaml")
 
 
 @general.route("/")
-def metadata():
-    """Return corpus and lexicon metadata as a JSON object."""
+def metadata() -> Response:
+    """Return corpus and lexicon metadata as a JSON object.
+
+    Returns:
+        A JSON object containing corpus and lexicon metadata.
+    """
     corpora, lexicons, models, analyses, utilities = utils.load_resources()
 
     resource = request.args.get("resource")
@@ -34,38 +42,62 @@ def metadata():
 
 
 @general.route("/corpora")
-def corpora():
-    """Return corpus metadata as a JSON object."""
+def corpora() -> Response:
+    """Return corpus metadata as a JSON object.
+
+    Returns:
+        A JSON object containing corpus metadata.
+    """
     return utils.get_resource_type("corpus", "CORPORA_FILE")
 
 
 @general.route("/lexicons")
-def lexicons():
-    """Return lexicon metadata as a JSON object."""
+def lexicons() -> Response:
+    """Return lexicon metadata as a JSON object.
+
+    Returns:
+        A JSON object containing lexicon metadata.
+    """
     return utils.get_resource_type("lexicon", "LEXICONS_FILE")
 
 
 @general.route("/models")
-def models():
-    """Return models metadata as a JSON object."""
+def models() -> Response:
+    """Return models metadata as a JSON object.
+
+    Returns:
+        A JSON object containing models metadata.
+    """
     return utils.get_resource_type("model", "MODELS_FILE")
 
 
 @general.route("/analyses")
-def analyses():
-    """Return analyses metadata as a JSON object."""
+def analyses() -> Response:
+    """Return analyses metadata as a JSON object.
+
+    Returns:
+        A JSON object containing analyses metadata.
+    """
     return utils.get_resource_type("analysis", "ANALYSES_FILE")
 
 
 @general.route("/utilities")
-def utilities():
-    """Return utilities metadata as a JSON object."""
+def utilities() -> Response:
+    """Return utilities metadata as a JSON object.
+
+    Returns:
+        A JSON object containing utilities metadata.
+    """
     return utils.get_resource_type("utilities", "UTILITIES_FILE")
 
 
 @general.route("/collections")
-def collections():
-    """Return collections metadata as a JSON object."""
+def collections() -> Response:
+    """Return collections metadata as a JSON object.
+
+    Returns:
+        A JSON object containing collections metadata.
+    """
     corpora, lexicons, models, analyses, utilities = utils.load_resources()
 
     data = {name: data for (name, data) in corpora.items() if data.get("collection")}
@@ -82,15 +114,23 @@ def collections():
 
 
 @general.route("/list-ids")
-def list_ids():
-    """List all existing resource IDs."""
+def list_ids() -> list[str]:
+    """List all existing resource IDs.
+
+    Returns:
+        A sorted list of all existing resource IDs.
+    """
     resource_ids = [k for res_type in utils.load_resources() for k in list(res_type.keys())]
     return sorted(resource_ids)
 
 
 @general.route("/check-id-availability")
-def check_id():
-    """Check if a given resource ID is available."""
+def check_id() -> Response:
+    """Check if a given resource ID is available.
+
+    Returns:
+        A JSON object indicating whether the resource ID is available.
+    """
     input_id = request.args.get("id")
     if not input_id:
         return jsonify({"id": None, "error": "No ID provided"})
@@ -101,8 +141,12 @@ def check_id():
 
 
 @general.route("/renew-cache")
-def renew_cache():
-    """Flush cache and re-read json files."""
+def renew_cache() -> Response:
+    """Flush cache and re-read json files.
+
+    Returns:
+        A JSON object indicating whether the cache was successfully renewed.
+    """
     try:
         if not current_app.config.get("NO_CACHE"):
             mc = current_app.config.get("cache_client")
@@ -115,9 +159,14 @@ def renew_cache():
         success = False
     return jsonify({"cache_renewed": success, "error": error})
 
+
 @general.route("/bibtex")
-def bibtex():
-    """Return bibtex citation as text."""
+def bibtex() -> Response:
+    """Return bibtex citation as text.
+
+    Returns:
+        A JSON object containing the bibtex citation.
+    """
     try:
         res_id = request.args.get("resource")
         if res_id:
@@ -126,6 +175,6 @@ def bibtex():
         else:
             bibtex = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&resource=<id>"
     except Exception as e:
-        bibtex = f"Error when creating bibtex: {str(e)}"
+        bibtex = f"Error when creating bibtex: {e!s}"
 
-    return jsonify({"bibtex":bibtex})
+    return jsonify({"bibtex": bibtex})

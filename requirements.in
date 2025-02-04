@@ -1,13 +1,12 @@
+beautifulsoup4
 Flask
 Flask-Cors
 gunicorn
+jsonschema
 lxml
+markdown
 pycountry
 python-memcached
 pyyaml
-requests
-beautifulsoup4
-markdown
 pyyaml
-jsonschema
-
+requests

@@ -2,17 +2,20 @@
 
 # ruff: noqa: T201 (`print` found)
 
+from __future__ import annotations
+
 import argparse
-from collections import defaultdict
 import datetime
 import json
-from pathlib import Path
 import sys
+from collections import defaultdict
+from pathlib import Path
+
+import jsonschema
 import requests
 import yaml
-from translate_lang import get_lang_names
-import jsonschema
 from gen_pids import is_dataset
+from translate_lang import get_lang_names
 
 STATIC_DIR = Path("../metadata_api/static")
 YAML_DIR = Path("../metadata/yaml")
@@ -26,8 +29,17 @@ parser.add_argument("--offline", action="store_true", help="Skip getting file in
 parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
 
 
-def main(resource_types=None, debug=False, offline=False, validate=False):
-    """Read YAML metadata files, compile and prepare information for the API (main wrapper)."""
+def main(
+    resource_types: list[str] | None = None, debug: bool = False, offline: bool = False, validate: bool = False
+) -> None:
+    """Read YAML metadata files, compile and prepare information for the API (main wrapper).
+
+    Args:
+        resource_types: List of resource types to process.
+        debug: Print debug info.
+        offline: Skip getting file info for downloadables.
+        validate: Validate metadata using schema.
+    """
     if resource_types is None:
         resource_types = ["lexicon", "corpus", "model", "analysis", "utility"]
     resource_ids = []
@@ -46,7 +58,15 @@ def main(resource_types=None, debug=False, offline=False, validate=False):
 
     for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
         # Get resources from yaml
-        yaml_resources = get_yaml(filepath, resource_texts, collection_mappings, resource_schema, debug=debug, offline=offline, validate=validate)
+        yaml_resources = get_yaml(
+            filepath,
+            resource_texts,
+            collection_mappings,
+            resource_schema,
+            debug=debug,
+            offline=offline,
+            validate=validate,
+        )
         # Get resource-text-mapping
         resource_ids.extend(list(yaml_resources.keys()))
         # Save result in all_resources
@@ -70,9 +90,17 @@ def main(resource_types=None, debug=False, offline=False, validate=False):
     write_json(STATIC_DIR / "collection.json", collection_json)
 
 
-def get_schema(filepath):
+def get_schema(filepath: Path) -> dict:
+    """Load and return the JSON schema from the given file path.
+
+    Args:
+        filepath: Path to the JSON schema file.
+
+    Returns:
+        The loaded JSON schema.
+    """
     try:
-       with open(filepath) as schema_file:
+        with filepath.open() as schema_file:
             schema = json.load(schema_file)
     except Exception:
         print(f"Error: failed to get schema '{filepath}'")
@@ -80,8 +108,30 @@ def get_schema(filepath):
 
     return schema
 
-def get_yaml(filepath, resource_texts, collections, resource_schema, debug=False, offline=False, validate=False):
-    """Gather all yaml resource files of one type, update resource texts and collections dict."""
+
+def get_yaml(
+    filepath: Path,
+    resource_texts: defaultdict,
+    collections: dict,
+    resource_schema: dict,
+    debug: bool = False,
+    offline: bool = False,
+    validate: bool = False,
+) -> dict:
+    """Gather all YAML resource files of one type, update resource texts and collections dict.
+
+    Args:
+        filepath: Path to the YAML file.
+        resource_texts: Dictionary to store resource texts.
+        collections: Dictionary to store collections.
+        resource_schema: JSON schema for validation.
+        debug: Print debug info.
+        offline: Skip getting file info for downloadables.
+        validate: Validate metadata using schema.
+
+    Returns:
+        Dictionary of resources.
+    """
     resources = {}
     add_resource = True
 
@@ -92,18 +142,16 @@ def get_yaml(filepath, resource_texts, collections, resource_schema, debug=False
             res = yaml.safe_load(f)
             fileid = filepath.stem
 
-            if validate:
-                # validate YAML if it is a corpus etc (not analyses yet, https://github.com/spraakbanken/metadata/issues/7)
-                if is_dataset(res):
-                    if resource_schema is not None:
-                        try:
-                            jsonschema.validate(instance=res, schema=resource_schema)
-                        except jsonschema.exceptions.ValidationError as e:
-                            print(f"Error: validation error for {fileid}: {e.message}", file=sys.stderr)
-                            add_resource = False
-                        except Exception as e:
-                            print(f"Something went wrong when validating for {fileid}", file=sys.stderr)
-                            add_resource = False
+            # validate YAML if it is a corpus etc (not analyses yet, https://github.com/spraakbanken/metadata/issues/7)
+            if validate and is_dataset(res) and resource_schema is not None:
+                try:
+                    jsonschema.validate(instance=res, schema=resource_schema)
+                except jsonschema.exceptions.ValidationError as e:
+                    print(f"Error: validation error for {fileid}: {e.message}", file=sys.stderr)
+                    add_resource = False
+                except Exception:
+                    print(f"Something went wrong when validating for {fileid}", file=sys.stderr)
+                    add_resource = False
 
             if add_resource:
                 new_res = {"id": fileid}
@@ -136,7 +184,7 @@ def get_yaml(filepath, resource_texts, collections, resource_schema, debug=False
                     res_type = res.get("type")
                     for d in res.get("downloads", []):
                         url = d.get("url")
-                        if url and not ("size" in d and "last-modified" in d):
+                        if url and "size" not in d and "last-modified" not in d:
                             size, date = get_download_metadata(url, fileid, res_type)
                             d["size"] = size
                             d["last-modified"] = date
@@ -163,8 +211,14 @@ def get_yaml(filepath, resource_texts, collections, resource_schema, debug=False
     return resources
 
 
-def update_collections(collection_mappings, collection_json, all_resources):
-    """Add sizes and resource-lists to collections."""
+def update_collections(collection_mappings: dict, collection_json: dict, all_resources: dict) -> None:
+    """Add sizes and resource-lists to collections.
+
+    Args:
+        collection_mappings: Mappings of collections to resources.
+        collection_json: JSON data of collections.
+        all_resources: Dictionary of all resources.
+    """
     for collection, res_list in collection_mappings.items():
         col = collection_json.get(collection)
         if not col:
@@ -197,8 +251,17 @@ def update_collections(collection_mappings, collection_json, all_resources):
                     res_item["in_collections"].append(col_id)
 
 
-def get_download_metadata(url, name, res_type):
-    """Check headers of file from url and return the file size and last modified date."""
+def get_download_metadata(url: str, name: str, res_type: str) -> tuple[int, str]:
+    """Check headers of file from URL and return the file size and last modified date.
+
+    Args:
+        url: URL of the downloadable file.
+        name: Name of the resource.
+        res_type: Type of the resource.
+
+    Returns:
+        File size and last modified date.
+    """
     try:
         res = requests.head(url)
         size = int(res.headers.get("Content-Length")) if res.headers.get("Content-Length") else None
@@ -215,18 +278,28 @@ def get_download_metadata(url, name, res_type):
     return size, date
 
 
-def set_description_bool(resources, resource_texts):
-    """Add bool 'has_description' for every resource."""
-    for i in resources:
-        resources[i]["has_description"] = False
-        if resources[i].get("description"):
-            resources[i]["has_description"] = True
-        if resource_texts.get(i):
-            resources[i]["has_description"] = True
+def set_description_bool(resources: dict, resource_texts: defaultdict) -> None:
+    """Add bool 'has_description' for every resource.
+
+    Args:
+        resources: Dictionary of resources.
+        resource_texts: Dictionary of resource texts.
+    """
+    for resource in resources.values():
+        resource["has_description"] = False
+        if resource.get("description"):
+            resource["has_description"] = True
+        if resource_texts.get(resource["id"]):
+            resource["has_description"] = True
 
 
-def write_json(filename, data):
-    """Write as json to a temporary file, and afterwards move the file into place."""
+def write_json(filename: Path, data: dict) -> None:
+    """Write data as JSON to a temporary file, and afterwards move the file into place.
+
+    Args:
+        filename: Path to the output JSON file.
+        data: Data to be written as JSON.
+    """
     outfile = Path(filename)
     outfile.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = outfile.parent / (outfile.name + ".new")
