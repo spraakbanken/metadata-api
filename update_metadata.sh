@@ -36,7 +36,7 @@ cd $THISDIR
 source venv/bin/activate
 
 # Parse metadata files and generate PIDs
-echo ">>> Parsing meta data - generate PIDs" >> $LOGFILE
+echo ">>> Parsing metadata - generate PIDs" >> $LOGFILE
 cd $THISDIR/parse
 python gen_pids.py $1 >> $LOGFILE
 cd $THISDIR/metadata/yaml
@@ -55,7 +55,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Parse metadata files for Metadata API and flush cache
-echo ">>> Parsing meta data - Metadata API" >> $LOGFILE
+echo ">>> Parsing metadata - Metadata API" >> $LOGFILE
 cd $THISDIR/parse
 python parse_yaml.py >> $LOGFILE
 echo ">>> Flush cache" >> $LOGFILE

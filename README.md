@@ -1,8 +1,8 @@
 # metadata-api
 
-This repo contains several components:
+This repository contains the following components:
 
-- **/metadata-api** - a REST-API that serves meta data for SB's corpora, lexicons, models, and analyses (mainly used by our site at spraakbanken.gu.se). For documentation see below.
+- **/metadata-api** - a REST-API that serves metadata for SB's corpora, lexicons, models, analyses and utilities (mainly used by our site at spraakbanken.gu.se). For documentation see below.
 - **/parse/gen_pids.py** - a Python script that generates new PIDs (Datacite DOIs) by reading our metadata YAML-files and registering resources at Datacite. For documentation see the code comments and the /docs directory.
 - **/parse/parse_yaml.py** - a script that prepares data for the REST-API
 - **update_metadata.sh** - a shell script that runs periodically on the server and calls and starts the other components. It also handles all the git stuff as both gen_pids.py and parse_yaml.py works with our [metadata](https://github.com/spraakbanken/metadata) repository
@@ -21,8 +21,10 @@ Available API calls:
 - `https://ws.spraakbanken.gu.se/ws/metadata/lexicons`: List all lexicons
 - `https://ws.spraakbanken.gu.se/ws/metadata/models`: List all models
 - `https://ws.spraakbanken.gu.se/ws/metadata/analyses`: List all analyses
+- `https://ws.spraakbanken.gu.se/ws/metadata/utilities`: List all utilities
 - `https://ws.spraakbanken.gu.se/ws/metadata/collections`: List all collections
 - `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
+- `https://ws.spraakbanken.gu.se/ws/metadata/schema`: Return JSON schema for resources
 - `https://ws.spraakbanken.gu.se/ws/metadata/list_ids`: List all existing resource IDs
 - `https://ws.spraakbanken.gu.se/ws/metadata/check-id-availability?id=my-resource`: Check if a given resource ID is free
 - `https://ws.spraakbanken.gu.se/ws/metadata/bibtex?resource=<id>`: Return bibtex citation for specified resource

@@ -178,3 +178,14 @@ def bibtex() -> Response:
         bibtex = f"Error when creating bibtex: {e!s}"
 
     return jsonify({"bibtex": bibtex})
+
+
+@general.route("/schema")
+def schema() -> Response:
+    """Return JSON schema for the metadata.
+
+    Returns:
+        A JSON object containing the JSON schema.
+    """
+    schema = utils.load_json(current_app.config.get("SCHEMA_FILE"))
+    return jsonify(schema)

@@ -2,7 +2,7 @@ openapi: "3.0.3"
 
 info:
   title: Språkbanken Metadata
-  description: API for serving meta data for corpora and lexicons
+  description: API for serving metadata for corpora and lexicons
   version: "2.0"
   contact:
     name: Språkbanken
@@ -19,17 +19,21 @@ servers:
 tags:
   - name: General
     description: |
-      The purpose of this very basic API is to quickly get a list of the language resources (corpora, lexicons and models) available at Språkbanken.
-      At the moment it is used to list resources on Språkbanken's web page.
+      This API provides a quick way to retrieve a list of resources (corpora, lexicons, models, analyses, and utilities)
+      available at Språkbanken. It is used to display resources on Språkbanken's website.
 
-      Some resources have longer descriptions that are only displayed when using the `resource` parameter. For additional information about
-      descriptions please refer to the [git repository](https://github.com/spraakbanken/sb-metadata).
+      Most endpoints return lists of resources. Each resource is represented as a JSON object that adheres to the JSON
+      schema available at https://ws.spraakbanken.gu.se/ws/metadata/schema.
+
+      Some resources have detailed descriptions that are only displayed when using the `resource` parameter. For more
+      information about descriptions, please refer to the [GitHub
+      repository](https://github.com/spraakbanken/sb-metadata).
 
 paths:
   /:
     get:
       summary: List resources
-      description: Show meta data for all corpora, lexicons and models.
+      description: Show metadata for all corpora, lexicons and models.
       tags:
         - General
       parameters:
@@ -50,21 +54,21 @@ paths:
                     type: array
                     description: List of all corpora
                     items:
-                      $ref: '#/components/schemas/resource'
+                      type: object
                   lexicons:
                     type: array
                     description: List of all lexicons
                     items:
-                      $ref: '#/components/schemas/resource'
+                      type: object
                   models:
                     type: array
                     description: List of all models
                     items:
-                      $ref: '#/components/schemas/resource'
+                      type: object
   /corpora:
     get:
       summary: List corpus resources
-      description: Show meta data for all corpora.
+      description: Show metadata for all corpora.
       tags:
         - General
       responses:
@@ -85,11 +89,11 @@ paths:
                     type: array
                     description: Array of corpus objects
                     items:
-                      $ref: '#/components/schemas/resource'
+                      type: object
   /lexicons:
     get:
       summary: List lexicon resources
-      description: Show meta data for all lexicons.
+      description: Show metadata for all lexicons.
       tags:
         - General
       responses:
@@ -110,11 +114,11 @@ paths:
                     type: array
                     description: Array of lexicon objects
                     items:
-                      $ref: '#/components/schemas/resource'
+                      type: object
   /models:
     get:
       summary: List model resources
-      description: Show meta data for all models.
+      description: Show metadata for all models.
       tags:
         - General
       responses:
@@ -135,11 +139,11 @@ paths:
                     type: array
                     description: Array of model objects
                     items:
-                      $ref: '#/components/schemas/resource'
+                      type: object
   /collections:
     get:
       summary: List collection resources
-      description: Show meta data for all collections.
+      description: Show metadata for all collections.
       tags:
         - General
       responses:
@@ -157,7 +161,21 @@ paths:
                     type: array
                     description: Array of collection objects
                     items:
-                      $ref: '#/components/schemas/resource'
+                      type: object
+  /schema:
+    get:
+      summary: Return JSON schema for resource metadata
+      description: Show metadata schema for resources.
+      tags:
+        - General
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Metadata schema for resources
   /list-ids:
     get:
       summary: List resource IDs
@@ -247,138 +265,3 @@ paths:
                     type: string
                     description: Error message if argument is incorrect or program error.
                     default: ""
-
-components:
-  schemas:
-    resource:
-      type: object
-      properties:
-        id:
-          type: string
-          description: ID (machine name) of the resource
-          example: saldo
-        name:
-          type: object
-          properties:
-            swe:
-              type: string
-              description: resource name in Swedish
-              example: Saldo
-            eng:
-              type: string
-              description: resource name in English
-              example: Saldo
-        short_description:
-          type: object
-          properties:
-            swe:
-              type: string
-              description: Short description in Swedish
-            eng:
-              type: string
-              description: Short description in English
-        type:
-          type: string
-          description: type of the resource
-        trainingdata:
-          type: boolean
-          description: whether the data is suitable as trainingdata
-        unlisted:
-          type: boolean
-          description: whether the resource should be hidden from the listing
-        successors:
-          type: array
-          description: array of resources that have replaced this resource (e.g. newer versions)
-        size:
-          type: object
-          description: size of the resource (number of entries or tokens and sentences)
-        in_collections:
-          type: array
-          description: array of collection IDs that this resource is part of
-        downloads:
-          type: array
-          description: list of downloadable files
-          items:
-            type: object
-            properties:
-              url:
-                type: string
-                description: URL of the downloadable file
-              type:
-                type: string
-                description: type of the file
-                example: token frequencies
-              format:
-                type: string
-                description: format of the file
-                example: XML
-              info:
-                type: string
-                description: additional info
-              licence:
-                type: string
-                description: license of the file
-                example: CC-BY
-              restriction:
-                type: string
-                example: attribution
-              size:
-                type: int
-                description: size of the downloadable file in bytes
-              last-modified:
-                type: string
-                description: last modified date
-        interface:
-          type: array
-          description: list of URLs to resource interfaces
-          items:
-            type: object
-            properties:
-              access:
-                type: string
-                description: URL to interface
-              licence:
-                type: string
-                description: license of the file
-                example: CC-BY
-              restriction:
-                type: string
-                example: attribution
-        contact_info:
-          type: object
-          properties:
-            name:
-              type: string
-            email:
-              type: string
-            affiliation:
-              type: object
-              properties:
-                organisation:
-                  type: string
-                email:
-                  type: string
-        languages:
-          type: array
-          description: language(s) of the resource
-          items:
-            type: object
-            properties:
-              code:
-                type: string
-                description: three-letter language code
-                example: swe
-              name:
-                type: object
-                properties:
-                  swe:
-                    type: string
-                    description: Swedish name of the language
-                    example: svenska
-                  eng:
-                    type: string
-                    description: English name of the language
-                    example: Swedish
-        has_description:
-          type: boolean
-          description: whether the resource has a long description
