@@ -43,6 +43,8 @@ ignore = [
     "PLR09",   # Pylint: too-many-*
     "PLR1702", # Pylint: too-many-nested-blocks
     "SIM105",  # flake8-simplify: suppressible-exception
+    "T201",    # flake8-print
+
 ]
 preview = true
 

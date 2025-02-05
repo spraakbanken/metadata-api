@@ -1,18 +1,18 @@
 """Read YAML metadata files, set DOIs for resources that miss one."""
 
-import argparse #standard
-import datetime #standard
-import netrc #standard
-import re #standard
-import sys #standard
-import traceback #standard
-from pathlib import Path #standard
-from typing import Optional #standard
-from bs4 import BeautifulSoup #install
-import markdown #install
+import argparse  # standard
+import datetime  # standard
+import netrc  # standard
+import re  # standard
+import sys  # standard
+import traceback  # standard
+from pathlib import Path  # standard
+from typing import Optional  # standard
 
+import markdown  # install
 import requests
 import yaml
+from bs4 import BeautifulSoup  # install
 from requests.auth import HTTPBasicAuth
 
 try:
@@ -60,20 +60,28 @@ parser = argparse.ArgumentParser(
                 "create and update Datacite metadata."
 )
 parser.add_argument("--debug", "-d", action="store_true", help="Print debug info")
-parser.add_argument("--test", "-t", action="store_true", help="Test - don't write back YAML and don't call Datacite to create DOI")
+parser.add_argument("--test", "-t", action="store_true",
+                    help="Test - don't write back YAML and don't call Datacite to create DOI")
 parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
 parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
 parser.add_argument("-f", action="store", dest="param_file", type=str)
 
-def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bool = False, param_analyses: bool = False, param_file: str = None) -> None:  # noqa: D417
+
+def main(param_debug: bool = False,
+         param_test: bool = False,
+         param_noupdate: bool = False,
+         param_analyses: bool = False,
+         param_file: str | None = None) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
-    Arguments:
-        param_debug {bool} -- Print messages about what it is doing.
-        param_test {bool} -- Do not modify YAML (but DMS is still created/updated).
-        param_noupdate {bool} -- Do not update Datacite metadata, only create DOIs for resources without
-        param_analyses {bool} -- Also process analyses/utilities and create DOI:s for them
-        param_file (str) -- Pass a filename that will be handled -- else all files are read. Filename built from YAML_DIR.
+    Args:
+        param_debug: Print messages about what it is doing.
+        param_test: Do not modify YAML (but DMS is still created/updated).
+        param_noupdate: Do not update Datacite metadata, only create DOIs for resources without
+        param_analyses: Also process analyses/utilities and create DOI:s for them
+        param_file: Pass a filename that will be handled -- else all files are read.
+                            Filename built from YAML_DIR.
+
     1. get all resources YAML metadata
     2. assign DOIs
         if metadata has no DOI
@@ -92,7 +100,7 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
     if param_debug:
         print("gen_pids/main: Reading resources from YAML.")
 
-    if param_file == None:
+    if param_file is None:
         # Path.glob(pattern, *, case_sensitive=None) - returns list of found files
         # **/*.yaml - all files in this dir and subdirs, recursively
         for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
@@ -102,12 +110,11 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
                 files_yaml[res_id] = filepath
                 with filepath.open(encoding="utf-8") as file_yaml:
                     res = yaml.safe_load(file_yaml)
-                    if not get_key_value(res, "unlisted"):
-                        if param_analyses or is_dataset(res):
-                            resources[res_id] = res
+                    if not get_key_value(res, "unlisted") and (param_analyses or is_dataset(res)):
+                        resources[res_id] = res
 
-            except Exception:
-                print(f"gen_pids/main: Error when opening/reading YAML file {filepath.stem}" , file=sys.stderr)
+            except Exception:  # noqa: PERF203
+                print(f"gen_pids/main: Error when opening/reading YAML file {filepath.stem}", file=sys.stderr)
                 # print(traceback.format_exc(), file=sys.stderr)
                 # sys.exit()
     else:
@@ -121,9 +128,8 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
             files_yaml[res_id] = filepath
             with filepath.open(encoding="utf-8") as file_yaml:
                 res = yaml.safe_load(file_yaml)
-                if not get_key_value(res, "unlisted"):
-                    if param_analyses or is_dataset(res):
-                        resources[res_id] = res
+                if not get_key_value(res, "unlisted") and (param_analyses or is_dataset(res)):
+                    resources[res_id] = res
 
         except Exception:
             print("gen_pids/main: Error when opening single YAML file. Exiting.", file=sys.stderr)
@@ -168,9 +174,8 @@ def main(param_debug: bool = False, param_test: bool = False, param_noupdate: bo
                                 print("gen_pids/main: Error adding DOI to YAML", res_id, doi, file=sys.stderr)
                     else:
                         print("gen_pids/main: Error creating DOI for YAML", res_id, doi, file=sys.stderr)
-                else:
-                    if not param_noupdate:
-                        dms_update(res_id, res, res_is_dataset, param_debug, param_test)
+                elif not param_noupdate:
+                    dms_update(res_id, res, res_is_dataset, param_debug, param_test)
         except Exception:
             print(f"gen_pids/main: Error when working on {res_id}", file=sys.stderr)
             print(traceback.format_exc(), file=sys.stderr)
@@ -293,7 +298,6 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, par
 
     Return: DOI
     """
-
     # Datacite Publication Year is year of Created, else current year (https://github.com/spraakbanken/metadata-api/issues/21)
     yaml_created, yaml_updated = get_res_dates(res)
 
@@ -333,7 +337,7 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, par
         else:
             print("gen_pids/get_dms_doi: Error, could not create DOI for ", res_id, response.content, file=sys.stderr)
         return doi
-    else:
+    else:  # noqa: RET505
         return ""
 
 
@@ -350,10 +354,10 @@ def dms_update(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, 
     dms_created, dms_updated = dms_doi_get_updated(doi, param_debug)
 
     # only update DataCite record if it is older than YAML record
-    if dms_updated < yaml_updated or yaml_updated == "":
-        if yaml_created != "":
+    if dms_updated < yaml_updated or not yaml_updated:
+        if yaml_created:
             dms_created = yaml_created
-        if yaml_updated != "":
+        if yaml_updated:
             dms_updated = yaml_updated
 
         updated = True
@@ -373,17 +377,33 @@ def dms_update(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, 
             )
 
             if param_debug:
-                print("gen_pids/dms_update: response", response.status_code)
+                print("gen_pids/dms_update: response",
+                      response.status_code)
             if response.status_code >= 300:  # noqa: PLR2004
-                print("gen_pids/dms_update: Error updating", res_id, doi, response.status_code, str(data_json), file=sys.stderr)
+                print("gen_pids/dms_update: Error updating",
+                      res_id,
+                      doi,
+                      response.status_code,
+                      str(data_json),
+                      file=sys.stderr)
 
     return updated
 
 
-def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created, dms_updated):
+def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: str, dms_updated: str) -> dict:
+    """Create JSOn data strucutre for resource.
 
+    Args:
+        res_id: resource id
+        res: resource dict
+        res_is_dataset: is the resource a dataset or an analysis/utility
+        dms_created: creation date
+        dms_updated: updated date
+
+    Returns: Datacite records as JSON structure
+    """
     # Target (landing page)
-    if res_is_dataset:
+    if res_is_dataset:  # noqa: SIM108
         # corpus, lexicon, model
         dms_target = DMS_TARGET_RESOURCE_PREFIX + res_id
     else:
@@ -425,7 +445,7 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created, d
 
     # 5. M1. Publication date
     # Datacite Publication Year is year of Created, else current year (https://github.com/spraakbanken/metadata-api/issues/21)
-    if dms_created != "":
+    if dms_created:  # noqa: SIM108
         publication_year = dms_created[:4]
     else:
         publication_year = datetime.date.today().strftime("%Y")
@@ -468,7 +488,7 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created, d
             dms_resource_type_general = DMS_RESOURCE_TYPE_COLLECTION
         else:
             dms_resource_type_general = DMS_RESOURCE_TYPE_DATASET
-    else:
+    else:  # noqa: PLR5501
         # analysis/utility
         if get_key_value(res, "collection") is True:
             dms_resource_type_general = DMS_RESOURCE_TYPE_COLLECTION
@@ -510,8 +530,8 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created, d
     value_swe = get_key_value(res, "description", "swe")
     value_eng = get_key_value(res, "description", "eng")
     # swedish
-    if value_swe == "":
-        if value_eng == "":
+    if not value_swe:
+        if not value_eng:  # noqa: SIM108
             value = get_key_value(res, "short_description", "swe")
         else:
             value = value_eng
@@ -530,7 +550,7 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created, d
             }
         )
     # english
-    if value_eng == "":
+    if not value_eng:  # noqa: SIM108
         value = get_key_value(res, "short_description", "eng")
     else:
         value = value_eng
@@ -570,24 +590,26 @@ def dms_related(
 ) -> bool:
     """Set related identifiers for resource, both collections and members.
 
-    Arguments:
-        rid {str} -- ID of resource.
-        has_part {list} -- list of resources (resource IDs) that the entity is collection for (HasPart).
-        is_part_of {list} -- list of resources (resource IDs) that the entity is a member of (IsPartOf).
-        obsoletes (list) -- list of resources that are made obsoleted by entity
-        is_obsoleted_by (list) -- list of resources that have made entity obsoleted
+    Args:
+        resources: all resources
+        rid: ID of resource.
+        has_part: list of resources (resource IDs) that the entity is collection for (HasPart).
+        is_part_of: list of resources (resource IDs) that the entity is a member of (IsPartOf).
+        obsoletes: list of resources that are made obsoleted by entity
+        is_obsoleted_by: list of resources that have made entity obsoleted
+        param_debug: print information
 
     Returns:
         bool -- Success.
     """
     # Get DOI of resource with related other resources
     res_doi = get_doi_from_rid(resources, rid)
-    if (res_doi != ""):
+    if res_doi:
         # Build list of relatedIdentifiers (HasPart)
         result = []
         for related_rid in has_part:
             doi = get_doi_from_rid(resources, related_rid)
-            if (doi != ""):
+            if doi:
                 result.append(
                     {
                         "relatedIdentifierType": "DOI",
@@ -599,7 +621,7 @@ def dms_related(
         # Build list of relatedIdentifiers (IsPartOf)
         for related_rid in is_part_of:
             doi = get_doi_from_rid(resources, related_rid)
-            if (doi != ""):
+            if doi:
                 result.append(
                     {
                         "relatedIdentifierType": "DOI",
@@ -611,7 +633,7 @@ def dms_related(
         # Build list of relatedIdentifiers (Obsoletes)
         for related_rid in obsoletes:
             doi = get_doi_from_rid(resources, related_rid)
-            if (doi != ""):
+            if doi:
                 result.append(
                     {
                         "relatedIdentifierType": "DOI",
@@ -623,7 +645,7 @@ def dms_related(
         # Build list of relatedIdentifiers (IsObsoletedBy)
         for related_rid in is_obsoleted_by:
             doi = get_doi_from_rid(resources, related_rid)
-            if (doi != ""):
+            if doi:
                 result.append(
                     {
                         "relatedIdentifierType": "DOI",
@@ -657,7 +679,7 @@ def dms_related(
             print("gen_pids/dms_related: Error setting related", rid, response.status_code, file=sys.stderr)
 
         return response.status_code == RESPONSE_OK
-    else:
+    else:  # noqa: RET505
         return False
 
 
@@ -764,20 +786,23 @@ Helper functions
 """
 
 
-def is_dataset(resource: dict):
-    """Return True is resource is a dataset (corpus, lexicon, model, training data)
-    (false if it is an analysis)
+def is_dataset(resource: dict) -> bool:
+    """Return True is resource is a dataset (corpus, lexicon, model, training data), false if it is an analysis.
 
+    Args:
+        resource: a resource
+
+    Returns:
+        true is resource is dataset, ie not analysis/utility
     """
     return not (get_key_value(resource, "type") == "analysis" or get_key_value(resource, "type") == "utility")
 
 
-
-def get_res_type_str(dataset: bool):
+def get_res_type_str(dataset: bool) -> str:
     """Return string describing resource."""
     if dataset:
         return DMS_RESOURCE_TYPE_DATASET
-    else:
+    else:  # noqa: RET505
         return DMS_RESOURCE_TYPE_ANALYSIS
 
 
@@ -786,8 +811,8 @@ def get_res_lang_code(language_list: list) -> str:
     if language_list:
         if len(language_list) == 1:
             return language_list[0]
-        else:
-            return DMS_LANG_MUL # language_list[0]
+        else:  # noqa: RET505
+            return DMS_LANG_MUL  # language_list[0]
     return ""
 
 
@@ -817,37 +842,29 @@ def get_res_format(downloads_list: list) -> str:
 
 def get_res_license(download_item: dict) -> dict:
     """Create item for rightsList structure.
-    
+
     TODO: Add schema etc (right now we only send free text)
 
     Returns:
         rightsList item
     """
-    rights = download_item["licence"] # eg "CC BY 4.0"
-    item = {
-            "rights": rights
-        }
-    return item
+    rights = download_item["licence"]  # eg "CC BY 4.0"
+
+    return {"rights": rights}
 
 
 def get_res_rights(downloads_list: list) -> dict:
     """Create dict of resource rights information.
-    
+
     Returns:
         rightsList item (or empty dict)
     """
-    result = []
     result_set = set()
     for item in downloads_list:
         rights = item.get("licence", "")
         if rights:
             result_set.add(rights)
-    for rights in result_set:
-        result.append({
-            "rights": rights
-        })
-
-    return result
+    return [{"rights": rights} for rights in result_set]
 
 
 def get_res_creators(res: str) -> list:
@@ -877,9 +894,9 @@ def get_res_creators(res: str) -> list:
 def get_res_keywords(res: dict) -> list:
     """Build keywords structure."""
     keywords = get_key_list_value(res, "keywords")
-    if keywords:
+    if keywords:  # noqa: SIM108
         dms_keywords = [
-            {"subject": keyword, 
+            {"subject": keyword,
              "subjectScheme": "keyword"}
             for keyword in keywords]
     else:
@@ -913,22 +930,19 @@ def get_res_dates(res: dict) -> tuple[str, str]:
 
 def get_clean_string(string: str) -> str:
     """Remove HTML etc from string."""
-
-    #value = re.sub('<[^>]+>', '', value) # remove HTML tags
-    #value = re.sub(r'\n\s*\n', '\n\n', value) # remove multiple newlines
-    #return re.sub(r"<.*?>", "", string)
+    # value = re.sub('<[^>]+>', '', value) # remove HTML tags
+    # value = re.sub(r'\n\s*\n', '\n\n', value) # remove multiple newlines
+    # return re.sub(r"<.*?>", "", string)
 
     # handle beginning-of-code quotes, eg ```xml
-    md = re.sub(r'(^\s*```)[^\s`]+\n', r'\1' , string, flags=re.MULTILINE)
+    md = re.sub(r"(^\s*```)[^\s`]+\n", r"\1", string, flags=re.MULTILINE)
     # transform from markdown to HTML
     html = markdown.markdown(md)
     # let BS export clean text
     soup = BeautifulSoup(html, "html.parser")
     text = soup.get_text()
     # remove multiple newlines
-    text = re.sub(r'\n\s*\n', '\n\n', text)
-
-    return text
+    return re.sub(r"\n\s*\n", "\n\n", text)
 
 
 def get_key_value(dictionary: dict, key: str, key2: Optional[str] = None) -> any:
@@ -962,7 +976,10 @@ def get_doi_from_rid(res: dict, rid: str) -> str:  # noqa: D417
     return ""
 
 
-
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(param_debug=args.debug, param_test=args.test, param_noupdate=args.noupdate, param_analyses=args.analyses, param_file = args.param_file)
+    main(param_debug=args.debug,
+         param_test=args.test,
+         param_noupdate=args.noupdate,
+         param_analyses=args.analyses,
+         param_file=args.param_file)
