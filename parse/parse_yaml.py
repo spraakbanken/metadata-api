@@ -14,12 +14,12 @@ from pathlib import Path
 import jsonschema
 import requests
 import yaml
-from gen_pids import is_dataset
 from translate_lang import get_lang_names
 
 STATIC_DIR = Path("../metadata_api/static")
 YAML_DIR = Path("../metadata/yaml")
 SCHEMA_DIR = Path("../metadata/schema")
+LOCALIZATIONS_DIR = Path("../metadata/localizations")
 OUT_RESOURCE_TEXTS = STATIC_DIR / "resource-texts.json"
 
 # Instatiate command line arg parser
@@ -46,6 +46,7 @@ def main(
     all_resources = {}
     resource_texts = defaultdict(dict)
     collection_mappings = {}
+    localizations = get_localizations()
 
     if validate:
         resource_schema = get_schema(SCHEMA_DIR / "metadata.json")
@@ -63,6 +64,7 @@ def main(
             resource_texts,
             collection_mappings,
             resource_schema,
+            localizations,
             debug=debug,
             offline=offline,
             validate=validate,
@@ -114,6 +116,7 @@ def get_yaml(
     resource_texts: defaultdict,
     collections: dict,
     resource_schema: dict,
+    localizations: dict,
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
@@ -125,6 +128,7 @@ def get_yaml(
         resource_texts: Dictionary to store resource texts.
         collections: Dictionary to store collections.
         resource_schema: JSON schema for validation.
+        localizations: Dictionary of localizations.
         debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
@@ -142,8 +146,9 @@ def get_yaml(
             res = yaml.safe_load(f)
             fileid = filepath.stem
 
-            # validate YAML if it is a corpus etc (not analyses yet, https://github.com/spraakbanken/metadata/issues/7)
-            if validate and is_dataset(res) and resource_schema is not None:
+            res_type = res.get("type")
+            # Validate YAML (unless it is an analysis or utility https://github.com/spraakbanken/metadata/issues/7)
+            if validate and res_type not in {"analysis", "utility"} and resource_schema is not None:
                 try:
                     jsonschema.validate(instance=res, schema=resource_schema)
                 except jsonschema.exceptions.ValidationError as e:
@@ -179,9 +184,14 @@ def get_yaml(
                 res["languages"] = langs
                 res.pop("language_codes", "")
 
+                # Add localizations to data
+                for loc_name, loc in localizations.items():
+                    if loc_name in res:
+                        key_eng = res.get(loc_name, "")
+                        res[loc_name] = {"eng": key_eng, "swe": loc.get(key_eng, "")}
+
                 if not offline:
                     # Add file info for downloadables
-                    res_type = res.get("type")
                     for d in res.get("downloads", []):
                         url = d.get("url")
                         if url and "size" not in d and "last-modified" not in d:
@@ -205,8 +215,8 @@ def get_yaml(
                         collections[collection_id].append(fileid)
                         collections[collection_id] = sorted(set(collections[collection_id]))
 
-    except Exception:
-        print(f"Error: failed to process '{filepath}'")
+    except Exception as e:
+        print(f"Error: failed to process '{filepath}': {e}")
 
     return resources
 
@@ -291,6 +301,22 @@ def set_description_bool(resources: dict, resource_texts: defaultdict) -> None:
             resource["has_description"] = True
         if resource_texts.get(resource["id"]):
             resource["has_description"] = True
+
+
+def get_localizations() -> dict:
+    """Read localizations from YAML files.
+
+    Returns:
+        Localizations as a dictionary.
+    """
+    localizations = {}
+    for filepath in LOCALIZATIONS_DIR.glob("**/*.yaml"):
+        loc_name = filepath.stem
+        with filepath.open(encoding="utf-8") as f:
+            loc = yaml.safe_load(f)
+            if isinstance(loc, dict):
+                localizations[loc_name] = loc
+    return localizations
 
 
 def write_json(filename: Path, data: dict) -> None:
