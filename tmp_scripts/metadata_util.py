@@ -46,7 +46,7 @@ def get_key_value(dictionary: dict, key: str, key2: Optional[str] = None) -> str
     return ""
 
 
-def export_resources_to_tsv():
+def export_resources_to_tsv() -> None:
     """Export selected info of all resources."""
     DMS_TARGET_URL_PREFIX = "https://spraakbanken.gu.se/resurser/"
 
@@ -69,7 +69,7 @@ def export_resources_to_tsv():
 # Updated
 
 
-def str_presenter(dumper, data):
+def str_presenter(dumper: yaml.Dumper, data: str) -> yaml.ScalarNode:
     """Configure yaml package for dumping multiline strings (for preserving format).
 
     # https://github.com/yaml/pyyaml/issues/240
@@ -90,11 +90,12 @@ class IndentDumper(yaml.Dumper):
 
     https://reorx.com/blog/python-yaml-tips/#enhance-list-indentation-dump
     """
-    def increase_indent(self, flow=False):
+    def increase_indent(self, flow: bool = False) -> int:
+        """Increase the indentation level."""
         return super().increase_indent(flow, False)
 
 
-def get_download_date_(url, name):
+def get_download_date_(url: str, name: str) -> Optional[datetime.date]:
     """Check headers of file from url and return the last modified date."""
     res = requests.head(url)
     date = res.headers.get("Last-Modified")
@@ -109,7 +110,7 @@ def get_download_date_(url, name):
 YAML_DIR = Path("../metadata/yaml")
 
 
-def update_field_updated():
+def update_field_updated() -> None:
     """Update field updated based on source file date.
 
     Preferably run locally on checked out files.
