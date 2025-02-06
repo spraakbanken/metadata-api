@@ -15,42 +15,44 @@ import yaml
 from bs4 import BeautifulSoup  # install
 from requests.auth import HTTPBasicAuth
 
+YAML_DIR = Path("../metadata/yaml")
+DOI_KEY = "doi"
+DMS_URL = "https://api.datacite.org/dois"
+DMS_HEADERS = {"content-type": "application/json"}
+DMS_PREFIX = "10.23695"
+DMS_REPOID = "SND.SPRKB"
+DMS_CREATOR_NAME = "Språkbanken Text"
+DMS_CREATOR_ROR = "https://ror.org/03xfh2n14"
+DMS_TARGET_RESOURCE_PREFIX = "https://spraakbanken.gu.se/resurser/"
+DMS_TARGET_ANALYSIS_PREFIX = "https://spraakbanken.gu.se/analyser/"
+DMS_RESOURCE_TYPE_DATASET = "Dataset"
+DMS_RESOURCE_TYPE_ANALYSIS = "Workflow"
+DMS_RESOURCE_TYPE_COLLECTION = "Collection"
+DMS_DEFAULT_YEAR = "2024"  # Set for resources without a date
+DMS_SLUG = "slug"  # Språkbanken Texts resource ID ("slug") type
+DMS_HANDLE = "handle"
+DMS_LANG_ENG = "en"
+DMS_LANG_SWE = "sv"
+DMS_LANG_MUL = "mul"
+DMS_TITLE_EXAMPLE_SWE = "Exempel (in English)"
+DMS_TITLE_EXAMPLE_ENG = "Example"
+
+DMS_RELATION_TYPE_ISPARTOF = "IsPartOf"
+DMS_RELATION_TYPE_HASPART = "HasPart"
+DMS_RELATION_TYPE_ISOBSOLETEDBY = "IsObsoletedBy"
+DMS_RELATION_TYPE_OBSOLETES = "Obsoletes"
+
+RESPONSE_OK = 200
+RESPONSE_CREATED = 201
+
 try:
-    YAML_DIR = Path("../metadata/yaml")
-    DOI_KEY = "doi"
-    DMS_URL = "https://api.datacite.org/dois"
     DMS_AUTH_USER, DMS_AUTH_ACCOUNT, DMS_AUTH_PASSWORD = netrc.netrc().authenticators("datacite.org")
-    DMS_HEADERS = {"content-type": "application/json"}
-    DMS_PREFIX = "10.23695"
-    DMS_REPOID = "SND.SPRKB"
-    DMS_CREATOR_NAME = "Språkbanken Text"
-    DMS_CREATOR_ROR = "https://ror.org/03xfh2n14"
-    DMS_TARGET_RESOURCE_PREFIX = "https://spraakbanken.gu.se/resurser/"
-    DMS_TARGET_ANALYSIS_PREFIX = "https://spraakbanken.gu.se/analyser/"
-    DMS_RESOURCE_TYPE_DATASET = "Dataset"
-    DMS_RESOURCE_TYPE_ANALYSIS = "Workflow"
-    DMS_RESOURCE_TYPE_COLLECTION = "Collection"
-    DMS_DEFAULT_YEAR = "2024"  # Set for resources without a date
-    DMS_SLUG = "slug"  # Språkbanken Texts resource ID ("slug") type
-    DMS_HANDLE = "handle"
-    DMS_LANG_ENG = "en"
-    DMS_LANG_SWE = "sv"
-    DMS_LANG_MUL = "mul"
-    DMS_TITLE_EXAMPLE_SWE = "Exempel (in English)"
-    DMS_TITLE_EXAMPLE_ENG = "Example"
-
-    DMS_RELATION_TYPE_ISPARTOF = "IsPartOf"
-    DMS_RELATION_TYPE_HASPART = "HasPart"
-    DMS_RELATION_TYPE_ISOBSOLETEDBY = "IsObsoletedBy"
-    DMS_RELATION_TYPE_OBSOLETES = "Obsoletes"
-
-    RESPONSE_OK = 200
-    RESPONSE_CREATED = 201
-
-
 except Exception:
-    print("gen_pids: Failed init. Exiting.", file=sys.stderr)
+    print("gen_pids: Failed to retrieve DataCite authenticators from netrc. Exiting.", file=sys.stderr)
     print(traceback.format_exc(), file=sys.stderr)
+    # TODO: when rewriting the API (https://github.com/spraakbanken/metadata-api/issues/26) this file might no longer be
+    # a script but instead a module which is imported. Then we don't want to exit the whole program here, but rather
+    # raise an exception that can be caught by the caller.
     sys.exit()
 
 
@@ -529,14 +531,14 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
     dms_json["data"]["attributes"]["descriptions"] = []
     value_swe = get_key_value(res, "description", "swe")
     value_eng = get_key_value(res, "description", "eng")
-    # swedish
-    if not value_swe:
-        if not value_eng:  # noqa: SIM108
-            value = get_key_value(res, "short_description", "swe")
-        else:
-            value = value_eng
-    else:
+    # Swedish
+    if value_swe:
         value = value_swe
+    elif value_eng:
+        value = value_eng
+    else:
+        value = get_key_value(res, "short_description", "swe")
+
     if value:
         dms_description = get_clean_string(value)
         if not res_is_dataset:
@@ -781,9 +783,9 @@ def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str]:
     return dms_created, dms_updated
 
 
-"""
-Helper functions
-"""
+###############################################################################
+# Helper functions
+###############################################################################
 
 
 def is_dataset(resource: dict) -> bool:
@@ -961,12 +963,12 @@ def get_key_list_value(dictionary: dict, key: str) -> list:
     return dictionary.get(key, [])
 
 
-def get_doi_from_rid(res: dict, rid: str) -> str:  # noqa: D417
+def get_doi_from_rid(res: dict, rid: str) -> str:
     """Return DOI belonging to a resource ID.
 
     Arguments:
-        res {dict} -- Resources
-        rid {str} -- resource ID
+        res (dict): Resources
+        rid (str): resource ID
 
     Returns:
         str -- DOI or "" if rid not found.
