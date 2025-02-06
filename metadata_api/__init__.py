@@ -1,7 +1,6 @@
 """Instanciation of flask app."""
 
 from pathlib import Path
-import sys
 
 from flask import Flask
 from flask_cors import CORS
@@ -38,6 +37,10 @@ def create_app() -> Flask:
     app.config["NO_CACHE"] = no_cache
     if not no_cache:
         app.config["cache_client"] = memcache.Client([(app.config["MEMCACHED_HOST"], app.config["MEMCACHED_PORT"])])
+
+    # Create resource routes for resource types defined in the config ("RESOURCES")
+    with app.app_context():
+        views.create_routes()
 
     app.register_blueprint(views.general)
 

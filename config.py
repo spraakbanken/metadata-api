@@ -3,12 +3,16 @@
 # Flask settings
 DEBUG = False
 
-# Paths relative to 'static' directory
-CORPORA_FILE = "corpus.json"
-LEXICONS_FILE = "lexicon.json"
-MODELS_FILE = "model.json"
-ANALYSES_FILE = "analysis.json"
-UTILITIES_FILE = "utility.json"
+# Resource types and their corresponding data files (realtive to 'static' directory)
+RESOURCES = {
+    "corpora": "corpus.json",
+    "lexicons": "lexicon.json",
+    "models": "model.json",
+    "analyses": "analysis.json",
+    "utilities": "utility.json",
+}
+
+# Other paths relative to 'static' directory
 RESOURCE_TEXTS_FILE = "resource-texts.json"
 SCHEMA_FILE = "../../metadata/schema/metadata.json"
 

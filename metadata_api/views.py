@@ -24,71 +24,42 @@ def metadata() -> Response:
     Returns:
         A JSON object containing corpus and lexicon metadata.
     """
-    corpora, lexicons, models, analyses, utilities = utils.load_resources()
+    resources_dict = utils.load_resources()
 
-    resource = request.args.get("resource")
-    if resource:
-        return utils.get_single_resource(resource, corpora, lexicons, models, analyses, utilities)
+    # Single resource was requested
+    resource_id = request.args.get("resource")
+    if resource_id:
+        return utils.get_single_resource(resource_id, resources_dict)
 
-    data = {
-        "corpora": utils.dict_to_list(corpora),
-        "lexicons": utils.dict_to_list(lexicons),
-        "models": utils.dict_to_list(models),
-        "analyses": utils.dict_to_list(analyses),
-        "utilities": utils.dict_to_list(utilities),
-    }
-
-    return jsonify(data)
+    # All data was requested
+    return jsonify({key: utils.dict_to_list(value) for key, value in resources_dict.items()})
 
 
-@general.route("/corpora")
-def corpora() -> Response:
-    """Return corpus metadata as a JSON object.
+def create_resource_route(resource_type: str) -> None:
+    """Create a route for the specified resource type.
 
-    Returns:
-        A JSON object containing corpus metadata.
+    Args:
+        resource_type: The type of resource to create a route for.
     """
-    return utils.get_resource_type("corpus", "CORPORA_FILE")
+    def resource() -> Response:
+        """Return metadata for the specified resource type as a JSON object.
+
+        Returns:
+            A JSON object containing metadata for the specified resource type.
+        """
+        return utils.get_resource_type(resource_type)
+
+    general.add_url_rule(f"/{resource_type}", endpoint=f"{resource_type}", view_func=resource)
 
 
-@general.route("/lexicons")
-def lexicons() -> Response:
-    """Return lexicon metadata as a JSON object.
+def create_routes() -> None:
+    """Create routes for each resource type.
 
-    Returns:
-        A JSON object containing lexicon metadata.
+    This function is called by __init__.py when the app is created.
     """
-    return utils.get_resource_type("lexicon", "LEXICONS_FILE")
-
-
-@general.route("/models")
-def models() -> Response:
-    """Return models metadata as a JSON object.
-
-    Returns:
-        A JSON object containing models metadata.
-    """
-    return utils.get_resource_type("model", "MODELS_FILE")
-
-
-@general.route("/analyses")
-def analyses() -> Response:
-    """Return analyses metadata as a JSON object.
-
-    Returns:
-        A JSON object containing analyses metadata.
-    """
-    return utils.get_resource_type("analysis", "ANALYSES_FILE")
-
-
-@general.route("/utilities")
-def utilities() -> Response:
-    """Return utilities metadata as a JSON object.
-
-    Returns:
-        A JSON object containing utilities metadata.
-    """
-    return utils.get_resource_type("utilities", "UTILITIES_FILE")
+    with current_app.app_context():
+        for resource_type in current_app.config.get("RESOURCES"):
+            create_resource_route(resource_type)
 
 
 @general.route("/collections")
@@ -98,17 +69,17 @@ def collections() -> Response:
     Returns:
         A JSON object containing collections metadata.
     """
-    corpora, lexicons, models, analyses, utilities = utils.load_resources()
+    resources_dict = utils.load_resources()
 
-    data = {name: data for (name, data) in corpora.items() if data.get("collection")}
-    lexicons = {name: data for (name, data) in lexicons.items() if data.get("collection")}
-    data.update(lexicons)
-    models = {name: data for (name, data) in models.items() if data.get("collection")}
-    data.update(models)
-    analyses = {name: data for (name, data) in models.items() if data.get("collection")}
-    data.update(analyses)
-    utilities = {name: data for (name, data) in models.items() if data.get("collection")}
-    data.update(utilities)
+    data = {}
+    for resource_type in resources_dict:
+        data.update(
+            {
+                resource_id: resource
+                for resource_id, resource in resources_dict[resource_type].items()
+                if resource.get("collection")
+            }
+        )
 
     return jsonify({"hits": len(data), "resources": utils.dict_to_list(data)})
 
@@ -120,7 +91,7 @@ def list_ids() -> list[str]:
     Returns:
         A sorted list of all existing resource IDs.
     """
-    resource_ids = [k for res_type in utils.load_resources() for k in list(res_type.keys())]
+    resource_ids = [k for resource_type in utils.load_resources().values() for k in resource_type]
     return sorted(resource_ids)
 
 
@@ -134,7 +105,7 @@ def check_id() -> Response:
     input_id = request.args.get("id")
     if not input_id:
         return jsonify({"id": None, "error": "No ID provided"})
-    resource_ids = {k for res_type in utils.load_resources() for k in list(res_type.keys())}
+    resource_ids = [k for resource_type in utils.load_resources().values() for k in resource_type]
     if input_id in resource_ids:
         return jsonify({"id": input_id, "available": False})
     return jsonify({"id": input_id, "available": True})
@@ -168,12 +139,12 @@ def bibtex() -> Response:
         A JSON object containing the bibtex citation.
     """
     try:
-        res_id = request.args.get("resource")
-        if res_id:
-            corpora, lexicons, models, analyses, utilities = utils.load_resources()
-            bibtex = utils.get_bibtex(res_id, corpora, lexicons, models, analyses, utilities)
+        resource_id = request.args.get("resource")
+        if resource_id:
+            resources_dict = utils.load_resources()
+            bibtex = utils.get_bibtex(resource_id, resources_dict)
         else:
-            bibtex = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&resource=<id>"
+            bibtex = "Error: Incorrect arguments provided. Format: /bibtex?resource=<id>"
     except Exception as e:
         bibtex = f"Error when creating bibtex: {e!s}"
 
