@@ -9,11 +9,11 @@ Changes:
 
 """
 
-# ruff: noqa: T201 (`print` found)
 # ruff: noqa: N806 (Variable in function should be lowercase)
 
 import argparse
 import datetime
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -90,7 +90,7 @@ class IndentDumper(yaml.Dumper):
 
     https://reorx.com/blog/python-yaml-tips/#enhance-list-indentation-dump
     """
-    def increase_indent(self, flow=False):  # noqa: D102
+    def increase_indent(self, flow=False):
         return super().increase_indent(flow, False)
 
 
@@ -102,7 +102,7 @@ def get_download_date_(url, name):
     if date:
         date = datetime.date.strptime(date, "%a, %d %b %Y %H:%M:%S %Z")  # .strftime("%Y-%m-%d")
     if res.status_code == 404:  # noqa: PLR2004
-        print(f"Error: Could not find downloadable for '{name}': {url}")
+        print(f"Error: Could not find downloadable for '{name}': {url}", file=sys.stderr)
     return date
 
 

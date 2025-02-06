@@ -1,7 +1,5 @@
 """Read YAML metadata files, compile and prepare information for the API."""
 
-# ruff: noqa: T201 (`print` found)
-
 from __future__ import annotations
 
 import argparse
@@ -105,7 +103,7 @@ def get_schema(filepath: Path) -> dict:
         with filepath.open() as schema_file:
             schema = json.load(schema_file)
     except Exception:
-        print(f"Error: failed to get schema '{filepath}'")
+        print(f"Error: failed to get schema '{filepath}'", file=sys.stderr)
         schema = None
 
     return schema
@@ -180,7 +178,8 @@ def get_yaml(
                             english_name, swedish_name = get_lang_names(langcode)
                             langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
                         except LookupError:
-                            print(f"Error: Could not find language code {langcode} (resource: {fileid})")
+                            print(f"Error: Could not find language code {langcode} (resource: {fileid})",
+                                  file=sys.stderr)
                 res["languages"] = langs
                 res.pop("language_codes", "")
 
@@ -216,7 +215,7 @@ def get_yaml(
                         collections[collection_id] = sorted(set(collections[collection_id]))
 
     except Exception as e:
-        print(f"Error: failed to process '{filepath}': {e}")
+        print(f"Error: failed to process '{filepath}': {e}", file=sys.stderr)
 
     return resources
 
@@ -233,8 +232,9 @@ def update_collections(collection_mappings: dict, collection_json: dict, all_res
         col = collection_json.get(collection)
         if not col:
             print(
-                f"ERROR: Collection '{collection}' is not defined but was referenced by the following resource: "
-                f"{', '.join(res_list)}. Removing collection from these resources."
+                f"Error: Collection '{collection}' is not defined but was referenced by the following resource: "
+                f"{', '.join(res_list)}. Removing collection from these resources.",
+                file=sys.stderr
             )
             for res_id in res_list:
                 res = all_resources.get(res_id, {})
@@ -279,9 +279,9 @@ def get_download_metadata(url: str, name: str, res_type: str) -> tuple[int, str]
         if date:
             date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
         if res.status_code == 404:  # noqa: PLR2004
-            print(f"Error: Could not find downloadable for {res_type} '{name}': {url}")
+            print(f"Error: Could not find downloadable for {res_type} '{name}': {url}", file=sys.stderr)
     except Exception:
-        print(f"Error: Could not get downloadable '{name}': {url}")
+        print(f"Error: Could not get downloadable '{name}': {url}", file=sys.stderr)
         # Set to some kind of neutral values
         size = 0
         date = datetime.today().strftime("%Y-%m-%d")

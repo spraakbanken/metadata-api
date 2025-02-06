@@ -103,7 +103,7 @@ def read_static_json(jsonfile: str) -> dict[str, Any]:
     Returns:
         Dictionary containing the JSON data.
     """
-    print("Reading json", jsonfile)  # noqa: T201
+    print("Reading json", jsonfile)
     file_path = Path(current_app.config.get("STATIC")) / jsonfile
     with file_path.open("r") as f:
         return json.load(f)

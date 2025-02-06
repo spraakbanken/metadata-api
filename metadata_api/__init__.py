@@ -1,6 +1,7 @@
 """Instanciation of flask app."""
 
 from pathlib import Path
+import sys
 
 from flask import Flask
 from flask_cors import CORS
@@ -10,7 +11,7 @@ from . import views
 try:
     import memcache
 except ImportError:
-    print("Could not load memcache. Caching will be disabled.")  # noqa: T201
+    print("Could not load memcache. Caching will be disabled.")
     no_memcache = True
 else:
     no_memcache = False
