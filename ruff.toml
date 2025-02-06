@@ -52,5 +52,5 @@ preview = true
 "__init__.py" = ["F401"]
 "__main__.py" = ["PLC0415"]
 
-[pydocstyle]
+[lint.pydocstyle]
 convention = "google"
