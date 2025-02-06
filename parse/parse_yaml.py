@@ -145,8 +145,8 @@ def get_yaml(
             fileid = filepath.stem
 
             res_type = res.get("type")
-            # Validate YAML (unless it is an analysis or utility https://github.com/spraakbanken/metadata/issues/7)
-            if validate and res_type not in {"analysis", "utility"} and resource_schema is not None:
+            # Validate YAML
+            if validate and resource_schema is not None:
                 try:
                     jsonschema.validate(instance=res, schema=resource_schema)
                 except jsonschema.exceptions.ValidationError as e:

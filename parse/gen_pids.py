@@ -523,9 +523,14 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
     # Skip
 
     # 16. On. Rights
-    value = get_key_value(res, "downloads")
-    if value:
-        dms_json["data"]["attributes"]["rightsList"] = get_res_rights(value)
+    if res_is_dataset:
+        value = get_key_value(res, "downloads")
+        if value:
+            dms_json["data"]["attributes"]["rightsList"] = get_res_rights(value)
+    else:
+        value = get_key_value(res, "licenses")
+        if value:
+            dms_json["data"]["attributes"]["rightsList"] = get_res_rights_a(value)
 
     # 17. Rn. Descriptions
     dms_json["data"]["attributes"]["descriptions"] = []
@@ -850,7 +855,7 @@ def get_res_license(download_item: dict) -> dict:
     Returns:
         rightsList item
     """
-    rights = download_item["licence"]  # eg "CC BY 4.0"
+    rights = download_item["license"]  # eg "CC BY 4.0"
 
     return {"rights": rights}
 
@@ -863,9 +868,31 @@ def get_res_rights(downloads_list: list) -> dict:
     """
     result_set = set()
     for item in downloads_list:
-        rights = item.get("licence", "")
+        rights = item.get("license", "")
         if rights:
             result_set.add(rights)
+    return [{"rights": rights} for rights in result_set]
+
+
+def get_res_rights_a(licenses: dict) -> dict:
+    """Create dict of analysis rights information.
+
+    Analysis licenses har three attributes: code, tool, model.
+
+    Returns:
+        rightsList item (or empty dict)
+    """
+    result_set = set()
+    rights = get_key_value(licenses, "code")
+    if rights:
+        result_set.add(rights)
+    rights = get_key_value(licenses, "tool")
+    if rights:
+        result_set.add(rights)
+    rights = get_key_value(licenses, "model")
+    if rights:
+        result_set.add(rights)
+
     return [{"rights": rights} for rights in result_set]
 
 
