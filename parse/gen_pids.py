@@ -28,7 +28,7 @@ DMS_TARGET_ANALYSIS_PREFIX = "https://spraakbanken.gu.se/analyser/"
 DMS_RESOURCE_TYPE_DATASET = "Dataset"
 DMS_RESOURCE_TYPE_ANALYSIS = "Workflow"
 DMS_RESOURCE_TYPE_COLLECTION = "Collection"
-DMS_DEFAULT_YEAR = "2024"  # Set for resources without a date
+# DMS_DEFAULT_YEAR = "2024"  # Set for resources without a date
 DMS_SLUG = "slug"  # Språkbanken Texts resource ID ("slug") type
 DMS_HANDLE = "handle"
 DMS_LANG_ENG = "en"
@@ -305,11 +305,17 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, par
 
     # Construct json from metadata.
     data_json = dms_create_json(res_id, res, res_is_dataset, yaml_created, yaml_updated)
+
+    # 5. M1. Publication date
+    # Datacite Publication Year is year of Created, else current year (https://github.com/spraakbanken/metadata-api/issues/21)
+    if not data_json["data"]["attributes"]["publicationYear"]:
+        data_json["data"]["attributes"]["publicationYear"] = datetime.date.today().strftime("%Y")
+
     data_json["data"]["attributes"]["event"] = "publish"
     data_json["data"]["attributes"]["prefix"] = DMS_PREFIX
 
     if param_debug:
-        print("gen_pids/get_dms_doi: call with JSON")
+        print("gen_pids/dms_new: call with JSON")
         # print(json.dumps(data_json, indent=4, ensure_ascii=False))
 
     if not param_test:
@@ -319,8 +325,8 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, par
         )
 
         if param_debug:
-            print("gen_pids/get_dms_doi: response", response.status_code)
-            # print(json.dumps(response.json(), indent=4, ensure_ascii=False))
+            print("gen_pids/dms_new: response", response.status_code)
+            # print(response.json())
 
         doi = ""
 
@@ -333,11 +339,11 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, par
                         doi = data[0]["id"]
                         if len(data) > 1:
                             # This should never happen, as res_id should be unique among Språkbanken Text
-                            print("gen_pids/get_dms_doi: Error, multiple answers for", res_id, file=sys.stderr)
+                            print("gen_pids/dms_new: Error, multiple answers for", res_id, file=sys.stderr)
                 else:
                     doi = data["id"]
         else:
-            print("gen_pids/get_dms_doi: Error, could not create DOI for ", res_id, response.content, file=sys.stderr)
+            print("gen_pids/dms_new: Error, could not create DOI for ", res_id, response.content, file=sys.stderr)
         return doi
     else:  # noqa: RET505
         return ""
@@ -353,7 +359,7 @@ def dms_update(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, 
 
     doi = get_key_value(res, DOI_KEY)
     yaml_created, yaml_updated = get_res_dates(res)
-    dms_created, dms_updated = dms_doi_get_updated(doi, param_debug)
+    dms_created, dms_updated, dms_publication_year = dms_doi_get_updated(doi, param_debug)
 
     # only update DataCite record if it is older than YAML record
     if dms_updated < yaml_updated or not yaml_updated:
@@ -365,7 +371,12 @@ def dms_update(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, 
         updated = True
 
         data_json = dms_create_json(res_id, res, res_is_dataset, dms_created, dms_updated)
-        # 1. M1. DOI
+
+        # 5. M1. Publication date
+        if dms_publication_year:
+            data_json["data"]["attributes"]["publicationYear"] = dms_publication_year
+        else:
+            data_json["data"]["attributes"]["publicationYear"] = datetime.date.today().strftime("%Y")
 
         if param_debug:
             print("gen_pids/dms_update: updating", res_id, doi)
@@ -447,11 +458,10 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
 
     # 5. M1. Publication date
     # Datacite Publication Year is year of Created, else current year (https://github.com/spraakbanken/metadata-api/issues/21)
-    if dms_created:  # noqa: SIM108
-        publication_year = dms_created[:4]
+    if dms_created:
+        dms_json["data"]["attributes"]["publicationYear"] = dms_created[:4]
     else:
-        publication_year = datetime.date.today().strftime("%Y")
-    dms_json["data"]["attributes"]["publicationYear"] = publication_year
+        dms_json["data"]["attributes"]["publicationYear"] = ""
 
     # 6. Rn. Subject
     dms_json["data"]["attributes"]["subjects"] = [
@@ -741,8 +751,8 @@ def dms_doi_get(res_id: str, param_debug: bool) -> str:
     return doi
 
 
-def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str]:
-    """Get date "Created" and "Updated" of a DMS record.
+def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str, str]:
+    """Get date "Created", "Updated" and "publicationYear" of a DMS record.
 
     (The "updated" field from the YAML metadata, not the Datacite "updated".)
 
@@ -757,6 +767,7 @@ def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str]:
     Returns:
         str -- date for created value (eg "dates" : [{"date": "2024-06-18", "dateType": "Created"}])
         str -- date for updated value (eg "dates" : [{"date": "2024-06-18", "dateType": "Updated"}])
+        str -- publicationYear (YYYY)
 
     """
     search_url = DMS_URL + "/" + doi
@@ -764,6 +775,7 @@ def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str]:
 
     dms_updated = ""
     dms_created = ""
+    dms_publication_year = ""
 
     response = requests.get(
         url=search_url,
@@ -777,6 +789,8 @@ def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str]:
             data = d["data"]
             if "attributes" in data:
                 attributes = data["attributes"]
+                if "publicationYear" in attributes:
+                    dms_publication_year = attributes["publicationYear"]
                 if "dates" in attributes:
                     dates = attributes["dates"]
                     for x in dates:
@@ -785,7 +799,7 @@ def dms_doi_get_updated(doi: str, param_debug: bool) -> tuple[str, str]:
                         elif x["dateType"] == "Created":
                             dms_created = x["date"]
 
-    return dms_created, dms_updated
+    return dms_created, dms_updated, dms_publication_year
 
 
 ###############################################################################
@@ -971,7 +985,8 @@ def get_clean_string(string: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     text = soup.get_text()
     # remove multiple newlines
-    return re.sub(r"\n\s*\n", "\n\n", text)
+    value = re.sub(r"\n\s*\n", "\n\n", text)
+    return value  # noqa: RET504, RUF100
 
 
 def get_key_value(dictionary: dict, key: str, key2: Optional[str] = None) -> any:
