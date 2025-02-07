@@ -10,7 +10,7 @@ from typing import Any
 from flask import Response, current_app, jsonify
 
 
-def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Any:
+def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Response:
     """Get resource from resource dictionaries and add long resource description if available.
 
     Args:
@@ -35,30 +35,24 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Any
     return jsonify(resource)
 
 
-def load_resources(
-    flush_cache: bool = False,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+def load_resources() -> dict[str, dict[str, Any]]:
     """Load all resource types from JSON from cache or files.
-
-    Args:
-        flush_cache: Whether to flush the cache. If set to true, the cache will be reloaded from files.
 
     Returns:
         Dictionary containing resource dictionaries.
     """
     resources = {}
     for res_type, res_file in current_app.config.get("RESOURCES").items():
-        resources[res_type] = load_json(res_file, flush_cache=flush_cache)
+        resources[res_type] = load_json(res_file)
     return resources
 
 
-def load_json(jsonfile: str, prefix: str = "", flush_cache: bool = False) -> dict[str, Any]:
+def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
     """Load data from cache.
 
     Args:
         jsonfile: The JSON file to load.
         prefix: The prefix to add to keys.
-        flush_cache: Whether to flush the cache. If set to true, the cache will be reloaded from files.
 
     Returns:
         Dictionary containing the loaded data.
@@ -67,6 +61,11 @@ def load_json(jsonfile: str, prefix: str = "", flush_cache: bool = False) -> dic
         return read_static_json(jsonfile)
 
     mc = current_app.config.get("cache_client")
+    if not mc:
+        print("No memcache client available.")
+        return read_static_json(jsonfile)
+
+    # Repopulate cache if it's empty
     data = mc.get(add_prefix(jsonfile, prefix))
     if not data:
         all_data = read_static_json(jsonfile)
