@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import datetime
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from flask import Response, current_app, jsonify
+
+logger = logging.getLogger(__name__)
 
 
 def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Response:
@@ -62,7 +65,7 @@ def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
 
     mc = current_app.config.get("cache_client")
     if not mc:
-        print("No memcache client available.")
+        logger.warning("No memcache client available.")
         return read_static_json(jsonfile)
 
     # Repopulate cache if it's empty
@@ -89,7 +92,7 @@ def read_static_json(jsonfile: str) -> dict[str, Any]:
     Returns:
         Dictionary containing the JSON data.
     """
-    print("Reading json", jsonfile)
+    logger.info("Reading json %s", jsonfile)
     file_path = Path(current_app.config.get("STATIC")) / jsonfile
     with file_path.open("r") as f:
         return json.load(f)

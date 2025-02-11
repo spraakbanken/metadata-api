@@ -6,7 +6,7 @@ import argparse
 import datetime
 import gettext
 import json
-import sys
+import logging
 from collections import defaultdict
 from pathlib import Path
 
@@ -23,6 +23,9 @@ parser = argparse.ArgumentParser(description="Read YAML metadata files, compile 
 parser.add_argument("--debug", action="store_true", help="Print debug info")
 parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
 parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
+
+logger = logging.getLogger(__name__)
+
 
 # TODO: Remove when this file is no longer used as a script
 class Config:
@@ -138,7 +141,7 @@ def get_schema(filepath: Path) -> dict:
         with filepath.open() as schema_file:
             schema = json.load(schema_file)
     except Exception:
-        print(f"Error: failed to get schema '{filepath}'", file=sys.stderr)
+        logger.exception("Failed to get schema '%s'", filepath)
         schema = None
 
     return schema
@@ -174,7 +177,7 @@ def get_yaml(
 
     try:
         if debug:
-            print(f"  Processing {filepath}")
+            logger.debug("Processing '%s'", filepath)
         with filepath.open(encoding="utf-8") as f:
             res = yaml.safe_load(f)
             fileid = filepath.stem
@@ -185,10 +188,10 @@ def get_yaml(
                 try:
                     jsonschema.validate(instance=res, schema=resource_schema)
                 except jsonschema.exceptions.ValidationError as e:
-                    print(f"Error: validation error for {fileid}: {e.message}", file=sys.stderr)
+                    logger.error("Validation error for '%s': %s", fileid, e.message)
                     add_resource = False
                 except Exception:
-                    print(f"Something went wrong when validating for {fileid}", file=sys.stderr)
+                    logger.exception("Something went wrong when validating for '%s'", fileid)
                     add_resource = False
 
             if add_resource:
@@ -213,8 +216,7 @@ def get_yaml(
                             english_name, swedish_name = get_lang_names(langcode)
                             langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
                         except LookupError:
-                            print(f"Error: Could not find language code {langcode} (resource: {fileid})",
-                                  file=sys.stderr)
+                            logger.error("Could not find language code '%s' (resource: '%s')", langcode, fileid)
                 res["languages"] = langs
                 res.pop("language_codes", "")
 
@@ -249,8 +251,8 @@ def get_yaml(
                         collections[collection_id].append(fileid)
                         collections[collection_id] = sorted(set(collections[collection_id]))
 
-    except Exception as e:
-        print(f"Error: failed to process '{filepath}': {e}", file=sys.stderr)
+    except Exception:
+        logger.exception("Failed to process '%s'", filepath)
 
     return resources
 
@@ -266,10 +268,11 @@ def update_collections(collection_mappings: dict, collection_json: dict, all_res
     for collection, res_list in collection_mappings.items():
         col = collection_json.get(collection)
         if not col:
-            print(
-                f"Error: Collection '{collection}' is not defined but was referenced by the following resource: "
-                f"{', '.join(res_list)}. Removing collection from these resources.",
-                file=sys.stderr
+            logger.warning(
+                "Collection '%s' is not defined but was referenced by the following resource: %s. "
+                "Removing collection from these resources.",
+                collection,
+                ", ".join(res_list),
             )
             for res_id in res_list:
                 res = all_resources.get(res_id, {})
@@ -314,9 +317,9 @@ def get_download_metadata(url: str, name: str, res_type: str) -> tuple[int, str]
         if date:
             date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
         if res.status_code == 404:  # noqa: PLR2004
-            print(f"Error: Could not find downloadable for {res_type} '{name}': {url}", file=sys.stderr)
+            logger.error("Could not find downloadable for '%s' '%s': %s", res_type, name, url)
     except Exception:
-        print(f"Error: Could not get downloadable '{name}': {url}", file=sys.stderr)
+        logger.exception("Could not get downloadable '%s': %s", name, url)
         # Set to some kind of neutral values
         size = 0
         date = datetime.today().strftime("%Y-%m-%d")
@@ -390,6 +393,10 @@ def write_json(filename: Path, data: dict) -> None:
 
 
 if __name__ == "__main__":
+    # Configure logging
+    LOG_FORMAT = "%(levelname)s - %(message)s"
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+
     args = parser.parse_args()
 
     config_obj = Config(
