@@ -1,8 +1,12 @@
 """Routes for the metadata API."""
 
+from pathlib import Path
+
 from flask import Blueprint, Response, current_app, jsonify, request
 
 from . import utils
+from .parse_yaml import Config as FlaskConfig
+from .parse_yaml import main as parse_all_yaml
 
 general = Blueprint("general", __name__)
 
@@ -115,10 +119,39 @@ def check_id() -> Response:
 def renew_cache() -> Response:
     """Flush cache and re-read json files.
 
+    API arguments:
+        resource: Parsing and updating a single resource.
+        debug: Print debug info while parsing YAML files.
+        offline: Skip getting file info for downloadables when parsing YAML files.
+
     Returns:
         A JSON object indicating whether the cache was successfully renewed.
     """
+    debug = request.args.get("debug") or False
+    offline = request.args.get("offline") or False
+
     try:
+        # TODO: Add support for resource argument for parsing and updating a single resource
+        # resource = request.args.get("resource")
+        # if resource:
+        #     parse_all_yaml(file_path=resource)
+
+        # Rebuild all JSON files
+        # TODO: Remove FlaskConfig when parse_yaml is no longer used as a script
+        parse_all_yaml(
+            config=FlaskConfig(
+                yaml_dir=Path(current_app.config.get("YAML_DIR")),
+                schema_file=Path(current_app.config.get("SCHEMA_FILE")),
+                resource_texts_file=Path(current_app.config.get("STATIC")) /
+                    current_app.config.get("RESOURCE_TEXTS_FILE"),
+                static_dir=Path(current_app.config.get("STATIC")),
+                localizations_dir=Path(current_app.config.get("LOCALIZATIONS_DIR")),
+            ),
+            validate=True,
+            debug=debug,
+            offline=offline
+        )
+
         if not current_app.config.get("NO_CACHE"):
             mc = current_app.config.get("cache_client")
             mc.flush_all()
@@ -126,8 +159,9 @@ def renew_cache() -> Response:
         utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
         success = True
         error = None
-    except Exception:
+    except Exception as e:
         success = False
+        error = str(e)
     return jsonify({"cache_renewed": success, "error": error})
 
 

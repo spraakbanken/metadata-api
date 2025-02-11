@@ -4,21 +4,19 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import gettext
 import json
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 import jsonschema
+import pycountry
 import requests
 import yaml
-from translate_lang import get_lang_names
 
-STATIC_DIR = Path("../metadata_api/static")
-YAML_DIR = Path("../metadata/yaml")
-SCHEMA_DIR = Path("../metadata/schema")
-LOCALIZATIONS_DIR = Path("../metadata/localizations")
-OUT_RESOURCE_TEXTS = STATIC_DIR / "resource-texts.json"
+# Swedish translations for language names
+SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"])
 
 # Instatiate command line arg parser
 parser = argparse.ArgumentParser(description="Read YAML metadata files, compile and prepare information for the API")
@@ -26,17 +24,45 @@ parser.add_argument("--debug", action="store_true", help="Print debug info")
 parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
 parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
 
+# TODO: Remove when this file is no longer used as a script
+class Config:
+    """Configuration class to hold settings."""
+    def __init__(
+        self, yaml_dir: Path, schema_file: Path, resource_texts_file: Path, static_dir: Path, localizations_dir: Path
+    ) -> None:
+        """Initialize the configuration with the given paths.
+
+        Args:
+            yaml_dir: Path to the directory containing YAML files.
+            schema_file: Path to the JSON schema file.
+            resource_texts_file: Path to the resource texts file.
+            static_dir: Path to the static directory.
+            localizations_dir: Path to the localizations directory.
+        """
+        self.YAML_DIR = yaml_dir
+        self.SCHEMA_FILE = schema_file
+        self.RESOURCE_TEXTS_FILE = resource_texts_file
+        self.STATIC = static_dir
+        self.LOCALIZATIONS_DIR = localizations_dir
+
 
 def main(
-    resource_types: list[str] | None = None, debug: bool = False, offline: bool = False, validate: bool = False
+    resource_types: list[str] | None = None,
+    file_path: str | None = None,
+    debug: bool = False,
+    offline: bool = False,
+    validate: bool = False,
+    config: Config | None = None,
 ) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Args:
         resource_types: List of resource types to process.
+        file_path: Specific file path to process.
         debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
+        config: Configuration object.
     """
     if resource_types is None:
         resource_types = ["lexicon", "corpus", "model", "analysis", "utility"]
@@ -44,10 +70,12 @@ def main(
     all_resources = {}
     resource_texts = defaultdict(dict)
     collection_mappings = {}
-    localizations = get_localizations()
+    if config is None:
+        raise ValueError("Configuration object is required")
+    localizations = get_localizations(config)
 
     if validate:
-        resource_schema = get_schema(SCHEMA_DIR / "metadata.json")
+        resource_schema = get_schema(Path(config.SCHEMA_FILE))
         # YAML safe_load() - handle dates as strings
         yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
             yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
@@ -55,7 +83,14 @@ def main(
     else:
         resource_schema = None
 
-    for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
+    # TODO: Add support for processing a single file and updating the files accordingly
+    if file_path:
+        pass
+
+    yaml_dir = Path(config.YAML_DIR)
+    file_paths = sorted(yaml_dir.glob("**/*.yaml"))
+
+    for filepath in file_paths:
         # Get resources from yaml
         yaml_resources = get_yaml(
             filepath,
@@ -80,14 +115,14 @@ def main(
     update_collections(collection_mappings, collection_json, all_resources)
 
     # Dump resource texts as json
-    write_json(OUT_RESOURCE_TEXTS, resource_texts)
+    write_json(Path(config.RESOURCE_TEXTS_FILE), resource_texts)
 
     # Set has_description for every resource and save as json
     for resource_type in resource_types:
         res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
         set_description_bool(res_json, resource_texts)
-        write_json(STATIC_DIR / f"{resource_type}.json", res_json)
-    write_json(STATIC_DIR / "collection.json", collection_json)
+        write_json(config.STATIC / f"{resource_type}.json", res_json)
+    write_json(config.STATIC / "collection.json", collection_json)
 
 
 def get_schema(filepath: Path) -> dict:
@@ -303,20 +338,40 @@ def set_description_bool(resources: dict, resource_texts: defaultdict) -> None:
             resource["has_description"] = True
 
 
-def get_localizations() -> dict:
+def get_localizations(config: Config) -> dict:
     """Read localizations from YAML files.
+
+    Args:
+        config: Configuration object.
 
     Returns:
         Localizations as a dictionary.
     """
     localizations = {}
-    for filepath in LOCALIZATIONS_DIR.glob("**/*.yaml"):
+    for filepath in Path(config.LOCALIZATIONS_DIR).glob("**/*.yaml"):
         loc_name = filepath.stem
         with filepath.open(encoding="utf-8") as f:
             loc = yaml.safe_load(f)
             if isinstance(loc, dict):
                 localizations[loc_name] = loc
     return localizations
+
+
+def get_lang_names(langcode: str) -> tuple[str, str]:
+    """Get English and Swedish name for language represented by langcode.
+
+    Args:
+        langcode: The ISO 639-3 language code.
+
+    Returns:
+        A tuple containing the English and Swedish names of the language.
+    """
+    l = pycountry.languages.get(alpha_3=langcode)
+    if l is None:
+        raise LookupError
+    english_name = l.name
+    swedish_name = SWEDISH.gettext(english_name).lower()
+    return english_name, swedish_name
 
 
 def write_json(filename: Path, data: dict) -> None:
@@ -336,4 +391,12 @@ def write_json(filename: Path, data: dict) -> None:
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(debug=args.debug, offline=args.offline, validate=args.validate)
+
+    config_obj = Config(
+        yaml_dir=Path("../metadata/yaml"),
+        schema_file=Path("../metadata/schema/metadata.json"),
+        resource_texts_file=Path("static/resource-texts.json"),
+        static_dir=Path("static"),
+        localizations_dir=Path("../metadata/localizations"),
+    )
+    main(debug=args.debug, offline=args.offline, validate=args.validate, config=config_obj)
