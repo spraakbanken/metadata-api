@@ -12,10 +12,10 @@ metadata_api/static/utility.json
 metadata_api/static/resource-texts.json
 logs
 .svn/
-list-resources
 
 # Editors
 .vscode
+*.code-workspace
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

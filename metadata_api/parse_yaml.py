@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import datetime
 import gettext
 import json
@@ -17,12 +16,6 @@ import yaml
 
 # Swedish translations for language names
 SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"])
-
-# Instatiate command line arg parser
-parser = argparse.ArgumentParser(description="Read YAML metadata files, compile and prepare information for the API")
-parser.add_argument("--debug", action="store_true", help="Print debug info")
-parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
-parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
 
 logger = logging.getLogger("parse_yaml")
 
@@ -396,17 +389,35 @@ def write_json(filename: Path, data: dict) -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+    import sys
+    from pathlib import Path
+
+    # Add the parent directory to the system path to import config or config_default
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    try:
+        from config import LOCALIZATIONS_DIR, RESOURCE_TEXTS_FILE, SCHEMA_FILE, YAML_DIR
+    except ImportError:
+        from config_default import LOCALIZATIONS_DIR, RESOURCE_TEXTS_FILE, SCHEMA_FILE, YAML_DIR
+    config_obj = Config(
+        yaml_dir=".." / Path(YAML_DIR),
+        schema_file=".." / Path(SCHEMA_FILE),
+        resource_texts_file="static" / Path(RESOURCE_TEXTS_FILE),
+        static_dir=Path("static"),
+        localizations_dir=".." / Path(LOCALIZATIONS_DIR),
+    )
+
     # Configure logging
     LOG_FORMAT = "%(levelname)s - %(message)s"
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
-    args = parser.parse_args()
+    # Parse command line arguments
+    # Instatiate command line arg parser
+    parser = argparse.ArgumentParser(description="Read YAML metadata files, compile and prepare information for the API")
+    parser.add_argument("--debug", action="store_true", help="Print debug info")
+    parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
+    parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
 
-    config_obj = Config(
-        yaml_dir=Path("../metadata/yaml"),
-        schema_file=Path("../metadata/schema/metadata.json"),
-        resource_texts_file=Path("static/resource-texts.json"),
-        static_dir=Path("static"),
-        localizations_dir=Path("../metadata/localizations"),
-    )
+    args = parser.parse_args()
+    print(args)
     main(debug=args.debug, offline=args.offline, validate=args.validate, config=config_obj)

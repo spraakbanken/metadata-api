@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set +x
+export LANG=en_US.UTF-8
 THISDIR=$PWD
 
 # Make logdir and define logfile
@@ -25,7 +26,7 @@ fi
 cd $THISDIR
 git_output2=`git pull 2>&1`
 echo -e ">>> Result of 'git pull': $git_output2" >> $LOGFILE
-if [[ "$git_output2" != *"Redan"* ]]; then
+if [[ "$git_output2" != *"Already"* ]]; then
   echo ">>> Restart sb-metadata" >> $LOGFILE
   supervisorctl -c ~/fksbwww.conf restart metadata
   echo ">>> Done" >> $LOGFILE
@@ -54,12 +55,12 @@ if [[ $? -ne 0 ]]; then
     >&2 echo $git_output5
 fi
 
-# Parse metadata files for Metadata API and flush cache
-echo ">>> Parsing metadata - Metadata API" >> $LOGFILE
-cd $THISDIR/parse
-python parse_yaml.py >> $LOGFILE
-echo ">>> Flush cache" >> $LOGFILE
-curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
+# # Parse metadata files for Metadata API and flush cache
+# echo ">>> Parsing metadata - Metadata API" >> $LOGFILE
+# cd $THISDIR/metadata_api
+# python parse_yaml.py >> $LOGFILE
+# echo ">>> Flush cache" >> $LOGFILE
+# curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`
