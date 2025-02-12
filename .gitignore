@@ -1,3 +1,6 @@
+# Custom config
+config.py
+
 # Static files and metadata
 metadata
 metadata_api/static/collection.json

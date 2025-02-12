@@ -34,7 +34,10 @@ def create_app(log_to_stdout: bool = False) -> Flask:
     CORS(app)
 
     # Read config
-    app.config.from_object("config")
+    app.config.from_object("config_default")
+    config_path = Path(app.root_path).parent / "config.py"
+    if config_path.exists():
+        app.config.from_object("config")
 
     # Create log directory if it does not exist
     log_dir = Path(app.config["LOG_DIR"])
@@ -53,6 +56,10 @@ def create_app(log_to_stdout: bool = False) -> Flask:
                 logging.StreamHandler()
             ]
         )
+
+    # Log warning if no config file is found
+    if not config_path.exists():
+        logger.warning("No 'config.py' found. Using default configuration from 'config_default.py'.")
 
     # Set static path
     app.config["STATIC"] = Path(app.root_path) / "static"
