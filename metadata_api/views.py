@@ -1,11 +1,14 @@
 """Routes for the metadata API."""
 
+import io
+import logging
 from pathlib import Path
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
 from . import utils
 from .parse_yaml import Config as FlaskConfig
+from .parse_yaml import logger as parse_yaml_logger
 from .parse_yaml import main as parse_all_yaml
 
 general = Blueprint("general", __name__)
@@ -130,6 +133,19 @@ def renew_cache() -> Response:
     debug = request.args.get("debug") or False
     offline = request.args.get("offline") or False
 
+    # Create a string buffer to capture logs from parse_yaml
+    log_capture_string = io.StringIO()
+    log_handler = logging.StreamHandler(log_capture_string)
+    log_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    if debug:
+        log_handler.setLevel(logging.DEBUG)
+    else:
+        log_handler.setLevel(logging.INFO)
+    parse_yaml_logger.addHandler(log_handler)
+    errors = []
+    warnings = []
+    info = []
+
     try:
         # TODO: Add support for resource argument for parsing and updating a single resource
         # resource = request.args.get("resource")
@@ -158,11 +174,27 @@ def renew_cache() -> Response:
         utils.load_resources()
         utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
         success = True
-        error = None
+
     except Exception as e:
         success = False
-        error = str(e)
-    return jsonify({"cache_renewed": success, "error": error})
+        errors = [str(e)]
+
+    # Get the parse_yaml logs from the string buffer
+    log_contents = log_capture_string.getvalue()
+    log_capture_string.close()
+    parse_yaml_logger.removeHandler(log_handler)
+    log_messages = log_contents.splitlines()
+
+    # Sort log messages into errors, warnings, and info/other
+    for message in log_messages:
+        if message.startswith(("ERROR", "CRITICAL")):
+            errors.append(message)
+        elif message.startswith("WARNING"):
+            warnings.append(message)
+        else:
+            info.append(message)
+
+    return jsonify({"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info})
 
 
 @general.route("/bibtex")

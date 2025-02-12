@@ -24,7 +24,7 @@ parser.add_argument("--debug", action="store_true", help="Print debug info")
 parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
 parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("parse_yaml")
 
 
 # TODO: Remove when this file is no longer used as a script
@@ -76,6 +76,9 @@ def main(
     if config is None:
         raise ValueError("Configuration object is required")
     localizations = get_localizations(config)
+
+    if debug:
+        logger.setLevel(logging.DEBUG)
 
     if validate:
         resource_schema = get_schema(Path(config.SCHEMA_FILE))
