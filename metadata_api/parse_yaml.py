@@ -8,6 +8,7 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import jsonschema
 import pycountry
@@ -20,11 +21,18 @@ SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"
 logger = logging.getLogger("parse_yaml")
 
 
-# TODO: Remove when this file is no longer used as a script
+# TODO: Remove when this file is no longer used as a script (retrieve config values from current_app instead)
 class Config:
     """Configuration class to hold settings."""
     def __init__(
-        self, yaml_dir: Path, schema_file: Path, resource_texts_file: Path, static_dir: Path, localizations_dir: Path
+        self,
+        yaml_dir: Path,
+        schema_file: Path,
+        resource_texts_file: Path,
+        collections_file: Path,
+        static_dir: Path,
+        localizations_dir: Path,
+        resources: dict[str, str]
     ) -> None:
         """Initialize the configuration with the given paths.
 
@@ -32,49 +40,61 @@ class Config:
             yaml_dir: Path to the directory containing YAML files.
             schema_file: Path to the JSON schema file.
             resource_texts_file: Path to the resource texts file.
+            collections_file: Path to the collections file.
             static_dir: Path to the static directory.
             localizations_dir: Path to the localizations directory.
+            resources: Mapping for resource types and their corresponding data files.
         """
         self.YAML_DIR = yaml_dir
         self.SCHEMA_FILE = schema_file
         self.RESOURCE_TEXTS_FILE = resource_texts_file
+        self.COLLECTIONS_FILE = collections_file
         self.STATIC = static_dir
         self.LOCALIZATIONS_DIR = localizations_dir
+        self.RESOURCES = resources
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a configuration value by key with an optional default.
+
+        Args:
+            key: The key of the configuration value.
+            default: The default value to return if the key is not found.
+
+        Returns:
+            The configuration value or the default if the key is not found.
+        """
+        return getattr(self, key, default)
 
 
 def main(
-    resource_types: list[str] | None = None,
-    file_path: str | None = None,
+    resource_path: str | None = None,
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
-    config: Config | None = None,
+    config_obj: Config | None = None,
 ) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Args:
-        resource_types: List of resource types to process.
-        file_path: Specific file path to process.
+        resource_path: Specific resource to process.
         debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
-        config: Configuration object.
+        config_obj: Configuration object.
     """
-    if resource_types is None:
-        resource_types = ["lexicon", "corpus", "model", "analysis", "utility"]
-    resource_ids = []
+    resource_types = [Path(i).stem for i in config_obj.get("RESOURCES").values()]
     all_resources = {}
     resource_texts = defaultdict(dict)
     collection_mappings = {}
-    if config is None:
+    if config_obj is None:
         raise ValueError("Configuration object is required")
-    localizations = get_localizations(config)
+    localizations = get_localizations(config_obj.get("LOCALIZATIONS_DIR"))
 
     if debug:
         logger.setLevel(logging.DEBUG)
 
     if validate:
-        resource_schema = get_schema(Path(config.SCHEMA_FILE))
+        resource_schema = get_schema(config_obj.get("SCHEMA_FILE"))
         # YAML safe_load() - handle dates as strings
         yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
             yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
@@ -82,16 +102,28 @@ def main(
     else:
         resource_schema = None
 
-    # TODO: Add support for processing a single file and updating the files accordingly
-    if file_path:
-        pass
+    if not resource_path:
+        filepaths = sorted(config_obj.get("YAML_DIR").rglob("*.yaml"))
+    else:
+        # When processing a single YAML file: reset filepaths and load existing resource data
+        filepath = config_obj.get("YAML_DIR") / f"{resource_path}.yaml"
+        if not filepath.exists():
+            logger.error("Resource file '%s' does not exist", filepath)
+            raise FileNotFoundError(filepath)
+        filepaths = [filepath]
 
-    yaml_dir = Path(config.YAML_DIR)
-    file_paths = sorted(yaml_dir.glob("**/*.yaml"))
+        for resource_type in resource_types:
+            with (config_obj.get("STATIC") / f"{resource_type}.json").open(encoding="utf-8") as f:
+                all_resources.update(json.load(f))
+        with config_obj.get("RESOURCE_TEXTS_FILE").open(encoding="utf-8") as f:
+            resource_texts.update(json.load(f))
+        with config_obj.get("COLLECTIONS_FILE").open(encoding="utf-8") as f:
+            collections_data = json.load(f)
+            collection_mappings = {k: v.get("resources", []) for k, v in collections_data.items()}
 
-    for filepath in file_paths:
-        # Get resources from yaml
-        yaml_resources = get_yaml(
+    # Process YAML file(s) and update all_resources, collection_mappings, and resource_texts
+    for filepath in filepaths:
+        resource_id, resource_dict = process_yaml_file(
             filepath,
             resource_texts,
             collection_mappings,
@@ -101,64 +133,51 @@ def main(
             offline=offline,
             validate=validate,
         )
-        # Get resource-text-mapping
-        resource_ids.extend(list(yaml_resources.keys()))
-        # Save result in all_resources
-        all_resources.update(yaml_resources)
+        all_resources[resource_id] = resource_dict
 
     # Sort alphabetically by key
     all_resources = dict(sorted(all_resources.items()))
 
-    # Add sizes and resource-lists to collections
-    collection_json = {k: v for k, v in all_resources.items() if v.get("collection")}
-    update_collections(collection_mappings, collection_json, all_resources)
+    # Get collections data from all_resources and update collections with sizes and resource lists
+    collections_data = {k: v for k, v in all_resources.items() if v.get("collection")}
+    update_collections(collection_mappings, collections_data, all_resources)
+    write_json(config_obj.get("COLLECTIONS_FILE"), collections_data)
 
     # Dump resource texts as json
-    write_json(Path(config.RESOURCE_TEXTS_FILE), resource_texts)
+    write_json(config_obj.get("RESOURCE_TEXTS_FILE"), resource_texts)
 
-    # Set has_description for every resource and save as json
+    # Set has_description for every resource and save as json. If resource_path is set, only update that resource type.
+    if resource_path:
+        resource_types = [Path(resource_path).parts[0]]
     for resource_type in resource_types:
         res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
         set_description_bool(res_json, resource_texts)
-        write_json(config.STATIC / f"{resource_type}.json", res_json)
-    write_json(config.STATIC / "collection.json", collection_json)
+        write_json(config_obj.get("STATIC") / f"{resource_type}.json", res_json)
+
+    if resource_path:
+        logger.info("Updated resource '%s'", resource_path)
+    else:
+        logger.info("Updated all resources")
 
 
-def get_schema(filepath: Path) -> dict:
-    """Load and return the JSON schema from the given file path.
-
-    Args:
-        filepath: Path to the JSON schema file.
-
-    Returns:
-        The loaded JSON schema.
-    """
-    try:
-        with filepath.open() as schema_file:
-            schema = json.load(schema_file)
-    except Exception:
-        logger.exception("Failed to get schema '%s'", filepath)
-        schema = None
-
-    return schema
-
-
-def get_yaml(
+def process_yaml_file(
     filepath: Path,
     resource_texts: defaultdict,
-    collections: dict,
+    collection_mappings: dict,
     resource_schema: dict,
     localizations: dict,
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
-) -> dict:
-    """Gather all YAML resource files of one type, update resource texts and collections dict.
+) -> tuple[str, dict]:
+    """Process a single YAML file and extract/process resource information.
+
+    Update collection_mappings, and resource_texts.
 
     Args:
         filepath: Path to the YAML file.
         resource_texts: Dictionary to store resource texts.
-        collections: Dictionary to store collections.
+        collection_mappings: Mapping from collection IDs to a list of resource IDs {collection_id: [resource_id, ...]}
         resource_schema: JSON schema for validation.
         localizations: Dictionary of localizations.
         debug: Print debug info.
@@ -166,10 +185,10 @@ def get_yaml(
         validate: Validate metadata using schema.
 
     Returns:
-        Dictionary of resources.
+        The ID of the resource and the processed resource data.
     """
-    resources = {}
     add_resource = True
+    processed_resource = {}
 
     try:
         if debug:
@@ -191,13 +210,13 @@ def get_yaml(
                     add_resource = False
 
             if add_resource:
-                new_res = {"id": fileid}
+                processed_resource = {"id": fileid}
                 # Make sure size attrs only contain numbers
                 for k, v in res.get("size", {}).items():
                     if not str(v).isdigit():
                         res["size"][k] = 0
 
-                # Update resouce_texts and remove long_descriptions for now
+                # Update resouce_texts and remove descriptions for now
                 if res.get("description", {}).get("swe", "").strip():
                     resource_texts[fileid]["swe"] = res["description"]["swe"]
                 if res.get("description", {}).get("eng", "").strip():
@@ -231,38 +250,37 @@ def get_yaml(
                             d["size"] = size
                             d["last-modified"] = date
 
-                new_res.update(res)
-                resources[fileid] = new_res
+                processed_resource.update(res)
 
                 # Update collections dict
                 if res.get("collection") is True:
-                    collections[fileid] = collections.get(fileid, [])
+                    collection_mappings[fileid] = collection_mappings.get(fileid, [])
                     if res.get("resources"):
-                        collections[fileid].extend(res["resources"])
-                        collections[fileid] = sorted(set(collections[fileid]))
+                        collection_mappings[fileid].extend(res["resources"])
+                        collection_mappings[fileid] = sorted(set(collection_mappings[fileid]))
 
                 if res.get("in_collections"):
                     for collection_id in res["in_collections"]:
-                        collections[collection_id] = collections.get(collection_id, [])
-                        collections[collection_id].append(fileid)
-                        collections[collection_id] = sorted(set(collections[collection_id]))
+                        collection_mappings[collection_id] = collection_mappings.get(collection_id, [])
+                        collection_mappings[collection_id].append(fileid)
+                        collection_mappings[collection_id] = sorted(set(collection_mappings[collection_id]))
 
     except Exception:
         logger.exception("Failed to process '%s'", filepath)
 
-    return resources
+    return fileid, processed_resource
 
 
-def update_collections(collection_mappings: dict, collection_json: dict, all_resources: dict) -> None:
-    """Add sizes and resource-lists to collections.
+def update_collections(collection_mappings: dict, collections_data: dict, all_resources: dict) -> None:
+    """Add sizes and resource lists to collections.
 
     Args:
         collection_mappings: Mappings of collections to resources.
-        collection_json: JSON data of collections.
-        all_resources: Dictionary of all resources.
+        collections_data: JSON data of collections.
+        all_resources: Dictionary containing the data of all resources.
     """
     for collection, res_list in collection_mappings.items():
-        col = collection_json.get(collection)
+        col = collections_data.get(collection)
         if not col:
             logger.warning(
                 "Collection '%s' is not defined but was referenced by the following resource: %s. "
@@ -293,6 +311,25 @@ def update_collections(collection_mappings: dict, collection_json: dict, all_res
                 if res_item and col_id not in res_item.get("in_collections", []):
                     res_item["in_collections"] = res_item.get("in_collections", [])
                     res_item["in_collections"].append(col_id)
+
+
+def get_schema(filepath: Path) -> dict:
+    """Load and return the JSON schema from the given file path.
+
+    Args:
+        filepath: Path to the JSON schema file.
+
+    Returns:
+        The loaded JSON schema.
+    """
+    try:
+        with filepath.open() as schema_file:
+            schema = json.load(schema_file)
+    except Exception:
+        logger.exception("Failed to get schema '%s'", filepath)
+        schema = None
+
+    return schema
 
 
 def get_download_metadata(url: str, name: str, res_type: str) -> tuple[int, str]:
@@ -337,17 +374,17 @@ def set_description_bool(resources: dict, resource_texts: defaultdict) -> None:
             resource["has_description"] = True
 
 
-def get_localizations(config: Config) -> dict:
+def get_localizations(localizations_dir: Path) -> dict:
     """Read localizations from YAML files.
 
     Args:
-        config: Configuration object.
+        localizations_dir: Path to the directory containing localization files.
 
     Returns:
         Localizations as a dictionary.
     """
     localizations = {}
-    for filepath in Path(config.LOCALIZATIONS_DIR).glob("**/*.yaml"):
+    for filepath in localizations_dir.rglob("*.yaml"):
         loc_name = filepath.stem
         with filepath.open(encoding="utf-8") as f:
             loc = yaml.safe_load(f)
@@ -386,38 +423,52 @@ def write_json(filename: Path, data: dict) -> None:
     with tmp_path.open("w") as f:
         json.dump(data, f, default=str)
     tmp_path.rename(filename)
+    logger.debug("Wrote '%s'", filename)
 
 
 if __name__ == "__main__":
     import argparse
     import sys
-    from pathlib import Path
 
     # Add the parent directory to the system path to import config or config_default
     sys.path.append(str(Path(__file__).resolve().parent.parent))
+    import config_default
+    config_dict = {k: v for k, v in vars(config_default).items() if not k.startswith("__")}
     try:
-        from config import LOCALIZATIONS_DIR, RESOURCE_TEXTS_FILE, SCHEMA_FILE, YAML_DIR
+        import config
+        config_dict.update({k: v for k, v in vars(config).items() if not k.startswith("__")})
     except ImportError:
-        from config_default import LOCALIZATIONS_DIR, RESOURCE_TEXTS_FILE, SCHEMA_FILE, YAML_DIR
+        pass
+
+    # Create config object
     config_obj = Config(
-        yaml_dir=".." / Path(YAML_DIR),
-        schema_file=".." / Path(SCHEMA_FILE),
-        resource_texts_file="static" / Path(RESOURCE_TEXTS_FILE),
+        yaml_dir=".." / Path(config_dict.get("YAML_DIR")),
+        schema_file=".." / Path(config_dict.get("SCHEMA_FILE")),
+        resource_texts_file="static" / Path(config_dict.get("RESOURCE_TEXTS_FILE")),
+        collections_file="static" / Path(config_dict.get("COLLECTIONS_FILE")),
         static_dir=Path("static"),
-        localizations_dir=".." / Path(LOCALIZATIONS_DIR),
+        localizations_dir=".." / Path(config_dict.get("LOCALIZATIONS_DIR")),
+        resources=config_dict.get("RESOURCES")
     )
 
     # Configure logging
     LOG_FORMAT = "%(levelname)s - %(message)s"
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
-    # Parse command line arguments
     # Instatiate command line arg parser
-    parser = argparse.ArgumentParser(description="Read YAML metadata files, compile and prepare information for the API")
+    parser = argparse.ArgumentParser(description="Compile and prepare YAML metadata for the API")
     parser.add_argument("--debug", action="store_true", help="Print debug info")
     parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
     parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
+    parser.add_argument("--resource-path", type=str, help="Path to the resource to update (format: 'type/id')")
 
+    # Parse command line arguments
     args = parser.parse_args()
-    print(args)
-    main(debug=args.debug, offline=args.offline, validate=args.validate, config=config_obj)
+
+    main(
+        resource_path=args.resource_path,
+        debug=args.debug,
+        offline=args.offline,
+        validate=args.validate,
+        config_obj=config_obj,
+    )

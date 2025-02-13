@@ -23,7 +23,7 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Res
     Returns:
         JSON response containing the resource.
     """
-    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
+    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}

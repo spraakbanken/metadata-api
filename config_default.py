@@ -11,10 +11,12 @@ RESOURCES = {
     "analyses": "analysis.json",
     "utilities": "utility.json",
 }
-# Resource texts file (relative to "static" directory)
-RESOURCE_TEXTS_FILE = "resource-texts.json"
 
-# Other paths relative to the location of this config file
+# Resource texts file and collections file (relative to "static" directory)
+RESOURCE_TEXTS_FILE = "resource-texts.json"
+COLLECTIONS_FILE = "collection.json"
+
+# Paths relative to the location of this config file
 SCHEMA_FILE = "metadata/schema/metadata.json"
 YAML_DIR = "metadata/yaml"
 LOCALIZATIONS_DIR = "metadata/localizations"

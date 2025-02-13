@@ -123,7 +123,7 @@ def renew_cache() -> Response:
     """Flush cache and re-read json files.
 
     API arguments:
-        resource: Parsing and updating a single resource.
+        resource-path: Parsing and updating a single resource.
         debug: Print debug info while parsing YAML files.
         offline: Skip getting file info for downloadables when parsing YAML files.
 
@@ -147,32 +147,37 @@ def renew_cache() -> Response:
     info = []
 
     try:
-        # TODO: Add support for resource argument for parsing and updating a single resource
-        # resource = request.args.get("resource")
-        # if resource:
-        #     parse_all_yaml(file_path=resource)
-
-        # Rebuild all JSON files
         # TODO: Remove FlaskConfig when parse_yaml is no longer used as a script
-        parse_all_yaml(
-            config=FlaskConfig(
-                yaml_dir=Path(current_app.config.get("YAML_DIR")),
-                schema_file=Path(current_app.config.get("SCHEMA_FILE")),
-                resource_texts_file=Path(current_app.config.get("STATIC")) /
-                    current_app.config.get("RESOURCE_TEXTS_FILE"),
-                static_dir=Path(current_app.config.get("STATIC")),
-                localizations_dir=Path(current_app.config.get("LOCALIZATIONS_DIR")),
-            ),
-            validate=True,
-            debug=debug,
-            offline=offline
+        config_obj = FlaskConfig(
+            yaml_dir=Path(current_app.config.get("YAML_DIR")),
+            schema_file=Path(current_app.config.get("SCHEMA_FILE")),
+            resource_texts_file=Path(current_app.config.get("STATIC")) / current_app.config.get("RESOURCE_TEXTS_FILE"),
+            collections_file=Path(current_app.config.get("STATIC")) / current_app.config.get("COLLECTIONS_FILE"),
+            static_dir=Path(current_app.config.get("STATIC")),
+            localizations_dir=Path(current_app.config.get("LOCALIZATIONS_DIR")),
+            resources=current_app.config.get("RESOURCES")
         )
+    except Exception as e:
+        return jsonify({"cache_renewed": False, "errors": f"Failed to create config object: {e!s}"})
+
+    try:
+        resource_path = request.args.get("resource-path")
+        print(resource_path)
+        if resource_path:
+            # Update data for a single resource
+            parse_all_yaml(
+                resource_path=resource_path, config_obj=config_obj, validate=True, debug=debug, offline=offline
+            )
+
+        else:
+            # Update all data and rebuild all JSON files
+            parse_all_yaml(config_obj=config_obj, validate=True, debug=debug, offline=offline)
 
         if not current_app.config.get("NO_CACHE"):
             mc = current_app.config.get("cache_client")
             mc.flush_all()
         utils.load_resources()
-        utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
+        utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
         success = True
 
     except Exception as e:
