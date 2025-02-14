@@ -16,18 +16,18 @@ This repo contains several components:
 
 Available API calls:
 
-- `https://ws.spraakbanken.gu.se/ws/metadata`: List all resources
-- `https://ws.spraakbanken.gu.se/ws/metadata/corpora`: List all corpora
-- `https://ws.spraakbanken.gu.se/ws/metadata/lexicons`: List all lexicons
-- `https://ws.spraakbanken.gu.se/ws/metadata/models`: List all models
-- `https://ws.spraakbanken.gu.se/ws/metadata/analyses`: List all analyses
-- `https://ws.spraakbanken.gu.se/ws/metadata/collections`: List all collections
-- `https://ws.spraakbanken.gu.se/ws/metadata?resource=saldo`: List one specific resource. Add long description from SVN (if available)
-- `https://ws.spraakbanken.gu.se/ws/metadata/list_ids`: List all existing resource IDs
-- `https://ws.spraakbanken.gu.se/ws/metadata/check-id-availability?id=my-resource`: Check if a given resource ID is free
-- `https://ws.spraakbanken.gu.se/ws/metadata/bibtex?resource=<id>`: Return bibtex citation for specified resource
-- `https://ws.spraakbanken.gu.se/ws/metadata/doc`: Serve API documentation as YAML
-- `https://ws.spraakbanken.gu.se/ws/metadata/renew-cache`: Flush cache and fill with fresh values
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/`: List all resources
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/corpora`: List all corpora
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/lexicons`: List all lexicons
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/models`: List all models
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/analyses`: List all analyses
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/collections`: List all collections
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/?resource=saldo`: List one specific resource. Add long description from SVN (if available)
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/list_ids`: List all existing resource IDs
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/check-id-availability?id=my-resource`: Check if a given resource ID is free
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/bibtex?resource=<id>`: Return bibtex citation for specified resource
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/doc`: Serve API documentation as YAML
+- `https://ws.spraakbanken.gu.se/ws/metadata/v2/renew-cache`: Flush cache and fill with fresh values
 
 ## Installation (SBX-specific)
 
