@@ -9,6 +9,25 @@ LOGDIR=$THISDIR/logs
 mkdir -p $LOGDIR
 LOGFILE=$LOGDIR/`date +%Y-%m`.log
 
+############################################
+# UPDATE APPLICATION
+############################################
+# Fetch application updates from GitHub and restart if necessary
+cd $THISDIR
+git_output2=`git pull 2>&1`
+echo -e ">>> Result of 'git pull': $git_output2" >> $LOGFILE
+if [[ "$git_output2" != *"Already"* ]]; then
+  echo ">>> Update venv" >> $LOGFILE
+  source venv/bin/activate
+  pip install -r requirements.txt
+  echo ">>> Restart sb-metadata" >> $LOGFILE
+  supervisorctl -c ~/fksbwww.conf restart metadata
+  echo ">>> Done" >> $LOGFILE
+fi
+
+############################################
+# UPDATE METADATA
+############################################
 # Fetch updates in metadata files
 echo -e "\n" >> $LOGFILE
 date >> $LOGFILE
@@ -22,23 +41,19 @@ else
     echo "$git_output1" >> $LOGFILE
 fi
 
-# Fetch application updates from GitHub and restart if necessary
-cd $THISDIR
-git_output2=`git pull 2>&1`
-echo -e ">>> Result of 'git pull': $git_output2" >> $LOGFILE
-if [[ "$git_output2" != *"Already"* ]]; then
-  echo ">>> Restart sb-metadata" >> $LOGFILE
-  supervisorctl -c ~/fksbwww.conf restart metadata
-  echo ">>> Done" >> $LOGFILE
-fi
+# Flush cache (results in re-parsing all metadata files)
+# TODO: Do this with a webhook instead and only update cache for changed files
+echo ">>> Flush cache" >> $LOGFILE
+curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
 
-# Prepare for parsing with Python scripts
+############################################
+# DATACITE
+############################################
+# Parse metadata files and generate PIDs
 cd $THISDIR
 source venv/bin/activate
-
-# Parse metadata files and generate PIDs
 echo ">>> Parsing metadata - generate PIDs" >> $LOGFILE
-cd $THISDIR/parse
+cd $THISDIR/gen_pids
 python gen_pids.py $1 >> $LOGFILE
 cd $THISDIR/metadata/yaml
 git_output3=$(git add --all . 2>&1)
@@ -55,13 +70,9 @@ if [[ $? -ne 0 ]]; then
     >&2 echo $git_output5
 fi
 
-# # Parse metadata files for Metadata API and flush cache
-# echo ">>> Parsing metadata - Metadata API" >> $LOGFILE
-# cd $THISDIR/metadata_api
-# python parse_yaml.py >> $LOGFILE
-# echo ">>> Flush cache" >> $LOGFILE
-# curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
-
+############################################
+# LOG ROTATION
+############################################
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`
 this_month=`date +%m`
