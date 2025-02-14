@@ -72,7 +72,9 @@ def create_app(log_to_stdout: bool = False) -> Flask:
     if not no_memcache:
         no_cache = app.config.get("NO_CACHE", False)
     app.config["NO_CACHE"] = no_cache
-    if not no_cache:
+    if no_cache:
+        logger.info("Not using cache")
+    else:
         try:
             app.config["cache_client"] = Client(
                 (app.config["MEMCACHED_HOST"], app.config["MEMCACHED_PORT"]), serde=serde.pickle_serde
@@ -80,6 +82,7 @@ def create_app(log_to_stdout: bool = False) -> Flask:
             mc = app.config.get("cache_client")
             mc.set("test_key", "test_value")
             mc.get("test_key")
+            logger.info("Connected to memcached")
         except Exception:
             logger.exception("Error initializing memcache client")
 

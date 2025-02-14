@@ -123,7 +123,7 @@ def renew_cache() -> Response:
     """Flush cache and re-read json files.
 
     API arguments:
-        resource-path: Parsing and updating a single resource.
+        resource-path: Path to specific resource to parse and update (<resource_type/resource_id>).
         debug: Print debug info while parsing YAML files.
         offline: Skip getting file info for downloadables when parsing YAML files.
 

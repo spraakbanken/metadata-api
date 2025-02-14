@@ -41,7 +41,8 @@ In more technical detail:
 
 * "unlisted" is respected
 * update records at DataCite (check "updated" date)
-* login saved in /home/fksbwww/.netrc.
+* login to DataCite saved in `/home/fksbwww/.netrc` on `k2` (credentials were received from SND and can be found in
+  Språkbanken Text's safe)
 * tag ”identifiers” in JSON is called ”alternateIdentifiers” in XML-formatet (<https://support.datacite.org/docs/what-is-the-identifiers-attribute-in-the-rest-api>)
 
 ### Datacite Metadata Schema (DMS)

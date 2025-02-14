@@ -1,4 +1,4 @@
-# metadata-api
+# Språkbanken Text Metadata
 
 This repository contains the following components:
 
