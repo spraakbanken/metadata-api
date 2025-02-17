@@ -4,9 +4,10 @@ import io
 import logging
 from pathlib import Path
 
+import yaml
 from flask import Blueprint, Response, current_app, jsonify, request
 
-from . import utils
+from . import __version__, utils
 from .parse_yaml import Config as FlaskConfig
 from .parse_yaml import logger as parse_yaml_logger
 from .parse_yaml import main as parse_all_yaml
@@ -16,12 +17,15 @@ general = Blueprint("general", __name__)
 
 @general.route("/doc")
 def documentation() -> Response:
-    """Serve API documentation yaml file.
+    """Serve API documentation as json data.
 
     Returns:
-        The API documentation file.
+        The API documentation as a json response.
     """
-    return current_app.send_static_file("apidoc.yaml")
+    spec_file = Path(current_app.static_folder) / "apidoc.yaml"
+    api_spec = Path(spec_file).read_text(encoding="UTF-8")
+    api_spec = api_spec.replace("{{version}}", __version__)
+    return jsonify(yaml.safe_load(api_spec))
 
 
 @general.route("/")

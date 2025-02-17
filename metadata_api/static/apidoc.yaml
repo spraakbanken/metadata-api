@@ -3,7 +3,7 @@ openapi: "3.0.3"
 info:
   title: Språkbanken Text Metadata
   description: API for serving metadata for corpora and lexicons
-  version: "3.0"
+  version: "{{version}}"
   contact:
     name: Språkbanken
     url: https://spraakbanken.gu.se/

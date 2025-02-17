@@ -1,5 +1,7 @@
 """Instanciation of flask app."""
 
+__version__ = "3.0"
+
 import logging
 from datetime import datetime
 from pathlib import Path
