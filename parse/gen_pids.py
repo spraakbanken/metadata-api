@@ -55,7 +55,6 @@ except Exception:
     # raise an exception that can be caught by the caller.
     sys.exit()
 
-
 # Instantiate command line arg parser
 parser = argparse.ArgumentParser(
     description="Read YAML metadata files, create DOIs for those that are missing it, "
@@ -538,10 +537,12 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
         if value:
             dms_json["data"]["attributes"]["rightsList"] = get_res_rights(value)
     else:
-        value = get_key_value(res, "licenses")
+        value = get_key_value(res, "license")
         if value:
-            dms_json["data"]["attributes"]["rightsList"] = get_res_rights_a(value)
-
+            dms_json["data"]["attributes"]["rightsList"] = get_res_rights_a(
+                                                                value,
+                                                                res.get("tools", []),
+                                                                res.get("models", []))
     # 17. Rn. Descriptions
     dms_json["data"]["attributes"]["descriptions"] = []
     value_swe = get_key_value(res, "description", "swe")
@@ -728,6 +729,9 @@ def dms_doi_get(res_id: str, param_debug: bool) -> str:
 
     doi = ""
 
+    if res_id == "aspac":
+        print(res_id)
+
     response = requests.get(
         url=search_url,
     )
@@ -887,28 +891,29 @@ def get_res_rights(downloads_list: list) -> dict:
             result_set.add(rights)
     return [{"rights": rights} for rights in result_set]
 
-
-def get_res_rights_a(licenses: dict) -> dict:
+def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> dict:
     """Create dict of analysis rights information.
 
-    Analysis licenses har three attributes: code, tool, model.
+    Analysis licenses has three ways of specifiying license:
+    - 'license': string (for code)
+    - 'tools' - 'license': string (for tool)
+    - 'models' - 'license': string (for model)
 
     Returns:
         rightsList item (or empty dict)
     """
     result_set = set()
-    rights = get_key_value(licenses, "code")
-    if rights:
-        result_set.add(rights)
-    rights = get_key_value(licenses, "tool")
-    if rights:
-        result_set.add(rights)
-    rights = get_key_value(licenses, "model")
-    if rights:
-        result_set.add(rights)
-
+    if license_code:
+        result_set.add(license_code)
+    for item in tools_list:
+        rights = item.get("license", "")
+        if rights:
+            result_set.add(rights)
+    for item in models_list:
+        rights = item.get("license", "")
+        if rights:
+            result_set.add(rights)
     return [{"rights": rights} for rights in result_set]
-
 
 def get_res_creators(res: str) -> list:
     """Build creators structure."""
