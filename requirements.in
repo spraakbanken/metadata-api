@@ -1,6 +1,7 @@
 beautifulsoup4
 Flask
 Flask-Cors
+GitPython
 gunicorn
 jsonschema
 lxml

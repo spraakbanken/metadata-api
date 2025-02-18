@@ -7,12 +7,14 @@ from pathlib import Path
 
 import yaml
 from flask import Blueprint, Response, current_app, jsonify, request
+from git import Repo
 
 from . import __version__, utils
 from .parse_yaml import logger as parse_yaml_logger
 from .parse_yaml import main as parse_yaml
 
 general = Blueprint("general", __name__)
+logger = logging.getLogger(__name__)
 
 
 @general.route("/doc")
@@ -122,7 +124,7 @@ def check_id() -> Response:
     return jsonify({"id": input_id, "available": True})
 
 
-@general.route("/renew-cache")
+@general.route("/renew-cache", methods=["GET", "POST"])
 def renew_cache() -> Response:
     """Flush cache and re-read json files.
 
@@ -134,8 +136,52 @@ def renew_cache() -> Response:
     Returns:
         A JSON object indicating whether the cache was successfully renewed.
     """
+    resource_paths = request.args.get("resource-paths") or None
     debug = request.args.get("debug") or False
     offline = request.args.get("offline") or False
+
+    # TODO: Handle deleted files!
+
+    # Parse POST request payload from GitHub webhook
+    if request.method == "POST":
+
+        try:
+            repo = Repo(current_app.config.get("METADATA_DIR"))
+            repo.remotes.origin.pull()
+        except Exception as e:
+            msg = f"Error when pulling changes from GitHub: {e}"
+            logger.error(msg)
+            return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []})
+
+        try:
+            payload = request.get_json()
+            if payload:
+                changed_files = []
+                # deleted_files = []
+                git_commits = payload.get("commits", [])
+                if not git_commits:
+                    msg = "No commits detected in payload."
+                    logger.error(msg)
+                    logger.error(payload)
+                    return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []})
+                for commit in git_commits:
+                    changed_files.extend(commit.get("added", []))
+                    changed_files.extend(commit.get("modified", []))
+                    # deleted_files.extend(commit.get("removed", []))
+
+                # Format paths (strip first component) to create input for parse_yaml
+                # If too many files were changed, GitHub will not provide a complete list. Update all data in this case.
+                file_limit = current_app.config.get("GITHUB_FILE_LIMIT")
+                resource_paths = (
+                    None if len(changed_files) > file_limit else [str(Path(*p.parts[2:])) for p in changed_files]
+                )
+
+        except Exception as e:
+            return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []})
+
+    # Parse resource_paths from GET request
+    elif request.method == "GET" and resource_paths:
+        resource_paths = resource_paths.split(",")
 
     # Create a string buffer to capture logs from parse_yaml
     log_capture_string = io.StringIO()
@@ -151,9 +197,6 @@ def renew_cache() -> Response:
     info = []
 
     try:
-        resource_paths = request.args.get("resource-paths") or None
-        if resource_paths:
-            resource_paths = resource_paths.split(",")
         # Update all data and rebuild all JSON files, alternatively update only data for a specific resource
         parse_yaml(
             resource_paths=resource_paths, config_obj=current_app.config, validate=True, debug=debug, offline=offline
@@ -171,10 +214,9 @@ def renew_cache() -> Response:
         errors = [str(e)]
 
     # Get the parse_yaml logs from the string buffer
-    log_contents = log_capture_string.getvalue()
     log_capture_string.close()
     parse_yaml_logger.removeHandler(log_handler)
-    log_messages = log_contents.splitlines()
+    log_messages = log_capture_string.getvalue().splitlines()
 
     # Sort log messages into errors, warnings, and info/other
     for message in log_messages:
