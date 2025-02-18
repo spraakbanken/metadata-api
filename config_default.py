@@ -16,10 +16,12 @@ RESOURCES = {
 RESOURCE_TEXTS_FILE = "resource-texts.json"
 COLLECTIONS_FILE = "collection.json"
 
-# Paths relative to the location of this config file
-SCHEMA_FILE = "metadata/schema/metadata.json"
-YAML_DIR = "metadata/yaml"
-LOCALIZATIONS_DIR = "metadata/localizations"
+# Absolute path to metadata directory (https://github.com/spraakbanken/metadata)
+METADATA_DIR = "/home/fksbwww/metadata-api/dev/metadata"
+# Paths relative to metadata directory
+SCHEMA_FILE = "schema/metadata.json"
+YAML_DIR = "yaml"
+LOCALIZATIONS_DIR = "localizations"
 
 # Logging settings
 LOG_LEVEL = "INFO"

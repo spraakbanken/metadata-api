@@ -8,12 +8,12 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 import jsonschema
 import pycountry
 import requests
 import yaml
+from flask import Config
 
 # Swedish translations for language names
 SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"])
@@ -21,57 +21,12 @@ SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"
 logger = logging.getLogger("parse_yaml")
 
 
-# TODO: Remove when this file is no longer used as a script (retrieve config values from current_app instead)
-class Config:
-    """Configuration class to hold settings."""
-    def __init__(
-        self,
-        yaml_dir: Path,
-        schema_file: Path,
-        resource_texts_file: Path,
-        collections_file: Path,
-        static_dir: Path,
-        localizations_dir: Path,
-        resources: dict[str, str]
-    ) -> None:
-        """Initialize the configuration with the given paths.
-
-        Args:
-            yaml_dir: Path to the directory containing YAML files.
-            schema_file: Path to the JSON schema file.
-            resource_texts_file: Path to the resource texts file.
-            collections_file: Path to the collections file.
-            static_dir: Path to the static directory.
-            localizations_dir: Path to the localizations directory.
-            resources: Mapping for resource types and their corresponding data files.
-        """
-        self.YAML_DIR = yaml_dir
-        self.SCHEMA_FILE = schema_file
-        self.RESOURCE_TEXTS_FILE = resource_texts_file
-        self.COLLECTIONS_FILE = collections_file
-        self.STATIC = static_dir
-        self.LOCALIZATIONS_DIR = localizations_dir
-        self.RESOURCES = resources
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get a configuration value by key with an optional default.
-
-        Args:
-            key: The key of the configuration value.
-            default: The default value to return if the key is not found.
-
-        Returns:
-            The configuration value or the default if the key is not found.
-        """
-        return getattr(self, key, default)
-
-
 def main(
     resource_path: str | None = None,
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
-    config_obj: Config | None = None,
+    config_obj: Config | dict | None = None,  # Remove this arg when parse_yaml is no longer used as a script
 ) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
@@ -85,16 +40,19 @@ def main(
     resource_types = [Path(i).stem for i in config_obj.get("RESOURCES").values()]
     all_resources = {}
     resource_texts = defaultdict(dict)
+    resource_text_file = config_obj.get("STATIC") / config_obj.get("RESOURCE_TEXTS_FILE")
+    collections_file = config_obj.get("STATIC") / config_obj.get("COLLECTIONS_FILE")
     collection_mappings = {}
+    metadata_dir = Path(config_obj.get("METADATA_DIR"))
     if config_obj is None:
         raise ValueError("Configuration object is required")
-    localizations = get_localizations(config_obj.get("LOCALIZATIONS_DIR"))
+    localizations = get_localizations(metadata_dir / config_obj.get("LOCALIZATIONS_DIR"))
 
     if debug:
         logger.setLevel(logging.DEBUG)
 
     if validate:
-        resource_schema = get_schema(config_obj.get("SCHEMA_FILE"))
+        resource_schema = get_schema(metadata_dir / config_obj.get("SCHEMA_FILE"))
         # YAML safe_load() - handle dates as strings
         yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
             yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
@@ -103,10 +61,10 @@ def main(
         resource_schema = None
 
     if not resource_path:
-        filepaths = sorted(config_obj.get("YAML_DIR").rglob("*.yaml"))
+        filepaths = sorted((metadata_dir / config_obj.get("YAML_DIR")).rglob("*.yaml"))
     else:
         # When processing a single YAML file: reset filepaths and load existing resource data
-        filepath = config_obj.get("YAML_DIR") / f"{resource_path}.yaml"
+        filepath = metadata_dir / config_obj.get("YAML_DIR") / f"{resource_path}.yaml"
         if not filepath.exists():
             logger.error("Resource file '%s' does not exist", filepath)
             raise FileNotFoundError(filepath)
@@ -115,9 +73,9 @@ def main(
         for resource_type in resource_types:
             with (config_obj.get("STATIC") / f"{resource_type}.json").open(encoding="utf-8") as f:
                 all_resources.update(json.load(f))
-        with config_obj.get("RESOURCE_TEXTS_FILE").open(encoding="utf-8") as f:
+        with resource_text_file.open(encoding="utf-8") as f:
             resource_texts.update(json.load(f))
-        with config_obj.get("COLLECTIONS_FILE").open(encoding="utf-8") as f:
+        with collections_file.open(encoding="utf-8") as f:
             collections_data = json.load(f)
             collection_mappings = {k: v.get("resources", []) for k, v in collections_data.items()}
 
@@ -141,10 +99,10 @@ def main(
     # Get collections data from all_resources and update collections with sizes and resource lists
     collections_data = {k: v for k, v in all_resources.items() if v.get("collection")}
     update_collections(collection_mappings, collections_data, all_resources)
-    write_json(config_obj.get("COLLECTIONS_FILE"), collections_data)
+    write_json(collections_file, collections_data)
 
     # Dump resource texts as json
-    write_json(config_obj.get("RESOURCE_TEXTS_FILE"), resource_texts)
+    write_json(resource_text_file, resource_texts)
 
     # Set has_description for every resource and save as json. If resource_path is set, only update that resource type.
     if resource_path:
@@ -322,6 +280,7 @@ def get_schema(filepath: Path) -> dict:
     Returns:
         The loaded JSON schema.
     """
+    print(filepath)
     try:
         with filepath.open() as schema_file:
             schema = json.load(schema_file)
@@ -439,17 +398,7 @@ if __name__ == "__main__":
         config_dict.update({k: v for k, v in vars(config).items() if not k.startswith("__")})
     except ImportError:
         pass
-
-    # Create config object
-    config_obj = Config(
-        yaml_dir=".." / Path(config_dict.get("YAML_DIR")),
-        schema_file=".." / Path(config_dict.get("SCHEMA_FILE")),
-        resource_texts_file="static" / Path(config_dict.get("RESOURCE_TEXTS_FILE")),
-        collections_file="static" / Path(config_dict.get("COLLECTIONS_FILE")),
-        static_dir=Path("static"),
-        localizations_dir=".." / Path(config_dict.get("LOCALIZATIONS_DIR")),
-        resources=config_dict.get("RESOURCES")
-    )
+    config_dict["STATIC"] = Path(__file__).resolve().parent / "static"
 
     # Configure logging
     LOG_FORMAT = "%(levelname)s - %(message)s"
@@ -470,5 +419,5 @@ if __name__ == "__main__":
         debug=args.debug,
         offline=args.offline,
         validate=args.validate,
-        config_obj=config_obj,
+        config_obj=config_dict,
     )

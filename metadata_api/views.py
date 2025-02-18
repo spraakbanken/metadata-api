@@ -1,6 +1,7 @@
 """Routes for the metadata API."""
 
 import io
+import json
 import logging
 from pathlib import Path
 
@@ -8,9 +9,8 @@ import yaml
 from flask import Blueprint, Response, current_app, jsonify, request
 
 from . import __version__, utils
-from .parse_yaml import Config as FlaskConfig
 from .parse_yaml import logger as parse_yaml_logger
-from .parse_yaml import main as parse_all_yaml
+from .parse_yaml import main as parse_yaml
 
 general = Blueprint("general", __name__)
 
@@ -151,31 +151,11 @@ def renew_cache() -> Response:
     info = []
 
     try:
-        # TODO: Remove FlaskConfig when parse_yaml is no longer used as a script
-        config_obj = FlaskConfig(
-            yaml_dir=Path(current_app.config.get("YAML_DIR")),
-            schema_file=Path(current_app.config.get("SCHEMA_FILE")),
-            resource_texts_file=Path(current_app.config.get("STATIC")) / current_app.config.get("RESOURCE_TEXTS_FILE"),
-            collections_file=Path(current_app.config.get("STATIC")) / current_app.config.get("COLLECTIONS_FILE"),
-            static_dir=Path(current_app.config.get("STATIC")),
-            localizations_dir=Path(current_app.config.get("LOCALIZATIONS_DIR")),
-            resources=current_app.config.get("RESOURCES")
+        resource_path = request.args.get("resource-path") or None
+        # Update all data and rebuild all JSON files, alternatively update only data for a specific resource
+        parse_yaml(
+            resource_path=resource_path, config_obj=current_app.config, validate=True, debug=debug, offline=offline
         )
-    except Exception as e:
-        return jsonify({"cache_renewed": False, "errors": f"Failed to create config object: {e!s}"})
-
-    try:
-        resource_path = request.args.get("resource-path")
-        print(resource_path)
-        if resource_path:
-            # Update data for a single resource
-            parse_all_yaml(
-                resource_path=resource_path, config_obj=config_obj, validate=True, debug=debug, offline=offline
-            )
-
-        else:
-            # Update all data and rebuild all JSON files
-            parse_all_yaml(config_obj=config_obj, validate=True, debug=debug, offline=offline)
 
         if not current_app.config.get("NO_CACHE"):
             mc = current_app.config.get("cache_client")
@@ -233,5 +213,6 @@ def schema() -> Response:
     Returns:
         A JSON object containing the JSON schema.
     """
-    schema = utils.load_json(current_app.config.get("SCHEMA_FILE"))
+    schema_file = Path(current_app.config.get("METADATA_DIR")) / current_app.config.get("SCHEMA_FILE")
+    schema = json.loads(schema_file.read_text(encoding="UTF-8"))
     return jsonify(schema)
