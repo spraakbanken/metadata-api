@@ -127,7 +127,7 @@ def renew_cache() -> Response:
     """Flush cache and re-read json files.
 
     API arguments:
-        resource-path: Path to specific resource to parse and update (<resource_type/resource_id>).
+        resource-paths: Path to specific resource to parse and update (<resource_type/resource_id>).
         debug: Print debug info while parsing YAML files.
         offline: Skip getting file info for downloadables when parsing YAML files.
 
@@ -151,10 +151,12 @@ def renew_cache() -> Response:
     info = []
 
     try:
-        resource_path = request.args.get("resource-path") or None
+        resource_paths = request.args.get("resource-paths") or None
+        if resource_paths:
+            resource_paths = resource_paths.split(",")
         # Update all data and rebuild all JSON files, alternatively update only data for a specific resource
         parse_yaml(
-            resource_path=resource_path, config_obj=current_app.config, validate=True, debug=debug, offline=offline
+            resource_paths=resource_paths, config_obj=current_app.config, validate=True, debug=debug, offline=offline
         )
 
         if not current_app.config.get("NO_CACHE"):

@@ -22,7 +22,7 @@ logger = logging.getLogger("parse_yaml")
 
 
 def main(
-    resource_path: str | None = None,
+    resource_paths: list[str] | None = None,
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
@@ -31,7 +31,7 @@ def main(
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Args:
-        resource_path: Specific resource to process.
+        resource_paths: List of specific resource to process (["resource_type/resource_id"]).
         debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
@@ -60,15 +60,11 @@ def main(
     else:
         resource_schema = None
 
-    if not resource_path:
+    if not resource_paths:
         filepaths = sorted((metadata_dir / config_obj.get("YAML_DIR")).rglob("*.yaml"))
     else:
-        # When processing a single YAML file: reset filepaths and load existing resource data
-        filepath = metadata_dir / config_obj.get("YAML_DIR") / f"{resource_path}.yaml"
-        if not filepath.exists():
-            logger.error("Resource file '%s' does not exist", filepath)
-            raise FileNotFoundError(filepath)
-        filepaths = [filepath]
+        # When processing a single YAML file: set filepaths and load existing resource data
+        filepaths = [metadata_dir / config_obj.get("YAML_DIR") / f"{i}.yaml" for i in resource_paths]
 
         for resource_type in resource_types:
             with (config_obj.get("STATIC") / f"{resource_type}.json").open(encoding="utf-8") as f:
@@ -81,6 +77,11 @@ def main(
 
     # Process YAML file(s) and update all_resources, collection_mappings, and resource_texts
     for filepath in filepaths:
+
+        if not filepath.exists():
+            logger.error("Resource file '%s' does not exist", filepath)
+            raise FileNotFoundError(filepath)
+
         resource_id, resource_dict = process_yaml_file(
             filepath,
             resource_texts,
@@ -104,16 +105,18 @@ def main(
     # Dump resource texts as json
     write_json(resource_text_file, resource_texts)
 
-    # Set has_description for every resource and save as json. If resource_path is set, only update that resource type.
-    if resource_path:
-        resource_types = [Path(resource_path).parts[0]]
+    # Set has_description for every resource and save as json. If resource_paths is set, only update that resource type.
+    if resource_paths:
+        resource_types = [Path(i).parts[0] for i in resource_paths]
     for resource_type in resource_types:
         res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
         set_description_bool(res_json, resource_texts)
         write_json(config_obj.get("STATIC") / f"{resource_type}.json", res_json)
 
-    if resource_path:
-        logger.info("Updated resource '%s'", resource_path)
+    if len(resource_paths) == 1:
+        logger.info("Updated resource '%s'", resource_paths[0])
+    elif len(resource_paths) > 1:
+        logger.info("Updated resources: %s", ", ".join(resource_paths))
     else:
         logger.info("Updated all resources")
 
@@ -280,7 +283,6 @@ def get_schema(filepath: Path) -> dict:
     Returns:
         The loaded JSON schema.
     """
-    print(filepath)
     try:
         with filepath.open() as schema_file:
             schema = json.load(schema_file)
@@ -409,13 +411,15 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Print debug info")
     parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
     parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
-    parser.add_argument("--resource-path", type=str, help="Path to the resource to update (format: 'type/id')")
+    parser.add_argument(
+        "--resource-path", type=str, help="Comma-separated paths to the resources to update (format: 'type/id')"
+    )
 
     # Parse command line arguments
     args = parser.parse_args()
 
     main(
-        resource_path=args.resource_path,
+        resource_paths=args.resource_path.split(",") if args.resource_path else None,
         debug=args.debug,
         offline=args.offline,
         validate=args.validate,
