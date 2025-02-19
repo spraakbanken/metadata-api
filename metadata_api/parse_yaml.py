@@ -31,7 +31,8 @@ def main(
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Args:
-        resource_paths: List of specific resource to process (["resource_type/resource_id"]).
+        resource_paths: List of specific resource to reprocess (["resource_type/resource_id"]).
+            This list may contain deleted resources which will then be removed from the API.
         debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
@@ -77,11 +78,6 @@ def main(
 
     # Process YAML file(s) and update all_resources, collection_mappings, and resource_texts
     for filepath in filepaths:
-
-        if not filepath.exists():
-            logger.error("Resource file '%s' does not exist", filepath)
-            raise FileNotFoundError(filepath)
-
         resource_id, resource_dict = process_yaml_file(
             filepath,
             resource_texts,
@@ -92,7 +88,11 @@ def main(
             offline=offline,
             validate=validate,
         )
-        all_resources[resource_id] = resource_dict
+        if not resource_dict:
+            # Resource dict is emtpty: file was deleted and should be removed from the data
+            all_resources.pop(resource_id, None)
+        else:
+            all_resources[resource_id] = resource_dict
 
     # Sort alphabetically by key
     all_resources = dict(sorted(all_resources.items()))
@@ -107,7 +107,7 @@ def main(
 
     # Set has_description for every resource and save as json. If resource_paths is set, only update that resource type.
     if resource_paths:
-        resource_types = [Path(i).parts[0] for i in resource_paths]
+        resource_types = {Path(i).parts[0] for i in resource_paths}
     for resource_type in resource_types:
         res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
         set_description_bool(res_json, resource_texts)
@@ -148,15 +148,26 @@ def process_yaml_file(
     Returns:
         The ID of the resource and the processed resource data.
     """
-    add_resource = True
-    processed_resource = {}
+    fileid = filepath.stem
+
+    # If file does not exist, remove resource from resource_texts and collection_mappings and return empty dict
+    if not filepath.exists():
+        resource_texts.pop(fileid, None)
+
+        # Remove from collection_mappings in case this file is a collection
+        # If this resource is part of a collection it will be removed automatically by update_collections() later.
+        collection_mappings.pop(fileid, None)
+
+        logger.info("Removed resource '%s'", filepath)
+        return fileid, {}
 
     try:
+        add_resource = True
+        processed_resource = {}
         if debug:
             logger.debug("Processing '%s'", filepath)
         with filepath.open(encoding="utf-8") as f:
             res = yaml.safe_load(f)
-            fileid = filepath.stem
 
             res_type = res.get("type")
             # Validate YAML

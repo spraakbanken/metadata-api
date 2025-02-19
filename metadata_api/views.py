@@ -157,7 +157,6 @@ def renew_cache() -> Response:
             payload = request.get_json()
             if payload:
                 changed_files = []
-                # deleted_files = []
                 git_commits = payload.get("commits", [])
                 if not git_commits:
                     msg = "No commits detected in payload."
@@ -167,7 +166,7 @@ def renew_cache() -> Response:
                 for commit in git_commits:
                     changed_files.extend(commit.get("added", []))
                     changed_files.extend(commit.get("modified", []))
-                    # deleted_files.extend(commit.get("removed", []))
+                    changed_files.extend(commit.get("removed", []))
 
                 # Format paths (strip first component) to create input for parse_yaml
                 # If too many files were changed, GitHub will not provide a complete list. Update all data in this case.
@@ -214,9 +213,9 @@ def renew_cache() -> Response:
         errors = [str(e)]
 
     # Get the parse_yaml logs from the string buffer
+    log_messages = log_capture_string.getvalue().splitlines()
     log_capture_string.close()
     parse_yaml_logger.removeHandler(log_handler)
-    log_messages = log_capture_string.getvalue().splitlines()
 
     # Sort log messages into errors, warnings, and info/other
     for message in log_messages:
