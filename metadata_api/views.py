@@ -1,20 +1,33 @@
 """Routes for the metadata API."""
 
-from flask import Blueprint, Response, current_app, jsonify, request
+import io
+import json
+import logging
+from pathlib import Path
 
-from . import utils
+import yaml
+from flask import Blueprint, Response, current_app, jsonify, request
+from git import Repo
+
+from . import __version__, utils
+from .parse_yaml import logger as parse_yaml_logger
+from .parse_yaml import main as parse_yaml
 
 general = Blueprint("general", __name__)
+logger = logging.getLogger(__name__)
 
 
 @general.route("/doc")
 def documentation() -> Response:
-    """Serve API documentation yaml file.
+    """Serve API documentation as json data.
 
     Returns:
-        The API documentation file.
+        The API documentation as a json response.
     """
-    return current_app.send_static_file("apidoc.yaml")
+    spec_file = Path(current_app.static_folder) / "apidoc.yaml"
+    api_spec = Path(spec_file).read_text(encoding="UTF-8")
+    api_spec = api_spec.replace("{{version}}", __version__)
+    return jsonify(yaml.safe_load(api_spec))
 
 
 @general.route("/")
@@ -24,71 +37,42 @@ def metadata() -> Response:
     Returns:
         A JSON object containing corpus and lexicon metadata.
     """
-    corpora, lexicons, models, analyses, utilities = utils.load_resources()
+    resources_dict = utils.load_resources()
 
-    resource = request.args.get("resource")
-    if resource:
-        return utils.get_single_resource(resource, corpora, lexicons, models, analyses, utilities)
+    # Single resource was requested
+    resource_id = request.args.get("resource")
+    if resource_id:
+        return utils.get_single_resource(resource_id, resources_dict)
 
-    data = {
-        "corpora": utils.dict_to_list(corpora),
-        "lexicons": utils.dict_to_list(lexicons),
-        "models": utils.dict_to_list(models),
-        "analyses": utils.dict_to_list(analyses),
-        "utilities": utils.dict_to_list(utilities),
-    }
-
-    return jsonify(data)
+    # All data was requested
+    return jsonify({key: utils.dict_to_list(value) for key, value in resources_dict.items()})
 
 
-@general.route("/corpora")
-def corpora() -> Response:
-    """Return corpus metadata as a JSON object.
+def create_resource_route(resource_type: str) -> None:
+    """Create a route for the specified resource type.
 
-    Returns:
-        A JSON object containing corpus metadata.
+    Args:
+        resource_type: The type of resource to create a route for.
     """
-    return utils.get_resource_type("corpus", "CORPORA_FILE")
+    def resource() -> Response:
+        """Return metadata for the specified resource type as a JSON object.
+
+        Returns:
+            A JSON object containing metadata for the specified resource type.
+        """
+        return utils.get_resource_type(resource_type)
+
+    general.add_url_rule(f"/{resource_type}", endpoint=f"{resource_type}", view_func=resource)
 
 
-@general.route("/lexicons")
-def lexicons() -> Response:
-    """Return lexicon metadata as a JSON object.
+def create_routes() -> None:
+    """Create routes for each resource type.
 
-    Returns:
-        A JSON object containing lexicon metadata.
+    This function is called by __init__.py when the app is created.
     """
-    return utils.get_resource_type("lexicon", "LEXICONS_FILE")
-
-
-@general.route("/models")
-def models() -> Response:
-    """Return models metadata as a JSON object.
-
-    Returns:
-        A JSON object containing models metadata.
-    """
-    return utils.get_resource_type("model", "MODELS_FILE")
-
-
-@general.route("/analyses")
-def analyses() -> Response:
-    """Return analyses metadata as a JSON object.
-
-    Returns:
-        A JSON object containing analyses metadata.
-    """
-    return utils.get_resource_type("analysis", "ANALYSES_FILE")
-
-
-@general.route("/utilities")
-def utilities() -> Response:
-    """Return utilities metadata as a JSON object.
-
-    Returns:
-        A JSON object containing utilities metadata.
-    """
-    return utils.get_resource_type("utilities", "UTILITIES_FILE")
+    with current_app.app_context():
+        for resource_type in current_app.config.get("RESOURCES"):
+            create_resource_route(resource_type)
 
 
 @general.route("/collections")
@@ -98,17 +82,17 @@ def collections() -> Response:
     Returns:
         A JSON object containing collections metadata.
     """
-    corpora, lexicons, models, analyses, utilities = utils.load_resources()
+    resources_dict = utils.load_resources()
 
-    data = {name: data for (name, data) in corpora.items() if data.get("collection")}
-    lexicons = {name: data for (name, data) in lexicons.items() if data.get("collection")}
-    data.update(lexicons)
-    models = {name: data for (name, data) in models.items() if data.get("collection")}
-    data.update(models)
-    analyses = {name: data for (name, data) in models.items() if data.get("collection")}
-    data.update(analyses)
-    utilities = {name: data for (name, data) in models.items() if data.get("collection")}
-    data.update(utilities)
+    data = {}
+    for resource_type in resources_dict:
+        data.update(
+            {
+                resource_id: resource
+                for resource_id, resource in resources_dict[resource_type].items()
+                if resource.get("collection")
+            }
+        )
 
     return jsonify({"hits": len(data), "resources": utils.dict_to_list(data)})
 
@@ -120,7 +104,7 @@ def list_ids() -> list[str]:
     Returns:
         A sorted list of all existing resource IDs.
     """
-    resource_ids = [k for res_type in utils.load_resources() for k in list(res_type.keys())]
+    resource_ids = [k for resource_type in utils.load_resources().values() for k in resource_type]
     return sorted(resource_ids)
 
 
@@ -134,30 +118,115 @@ def check_id() -> Response:
     input_id = request.args.get("id")
     if not input_id:
         return jsonify({"id": None, "error": "No ID provided"})
-    resource_ids = {k for res_type in utils.load_resources() for k in list(res_type.keys())}
+    resource_ids = [k for resource_type in utils.load_resources().values() for k in resource_type]
     if input_id in resource_ids:
         return jsonify({"id": input_id, "available": False})
     return jsonify({"id": input_id, "available": True})
 
 
-@general.route("/renew-cache")
+@general.route("/renew-cache", methods=["GET", "POST"])
 def renew_cache() -> Response:
     """Flush cache and re-read json files.
+
+    API arguments:
+        resource-paths: Path to specific resource to parse and update (<resource_type/resource_id>).
+        debug: Print debug info while parsing YAML files.
+        offline: Skip getting file info for downloadables when parsing YAML files.
 
     Returns:
         A JSON object indicating whether the cache was successfully renewed.
     """
+    resource_paths = request.args.get("resource-paths") or None
+    debug = request.args.get("debug") or False
+    offline = request.args.get("offline") or False
+
+    # TODO: Handle deleted files!
+
+    # Parse POST request payload from GitHub webhook
+    if request.method == "POST":
+
+        try:
+            repo = Repo(current_app.config.get("METADATA_DIR"))
+            repo.remotes.origin.pull()
+        except Exception as e:
+            msg = f"Error when pulling changes from GitHub: {e}"
+            logger.error(msg)
+            return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []})
+
+        try:
+            payload = request.get_json()
+            if payload:
+                changed_files = []
+                git_commits = payload.get("commits", [])
+                if not git_commits:
+                    msg = "No commits detected in payload."
+                    logger.error(msg)
+                    logger.error(payload)
+                    return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []})
+                for commit in git_commits:
+                    changed_files.extend(commit.get("added", []))
+                    changed_files.extend(commit.get("modified", []))
+                    changed_files.extend(commit.get("removed", []))
+
+                # Format paths (strip first component) to create input for parse_yaml
+                # If too many files were changed, GitHub will not provide a complete list. Update all data in this case.
+                file_limit = current_app.config.get("GITHUB_FILE_LIMIT")
+                resource_paths = (
+                    None if len(changed_files) > file_limit else [str(Path(*p.parts[2:])) for p in changed_files]
+                )
+
+        except Exception as e:
+            return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []})
+
+    # Parse resource_paths from GET request
+    elif request.method == "GET" and resource_paths:
+        resource_paths = resource_paths.split(",")
+
+    # Create a string buffer to capture logs from parse_yaml
+    log_capture_string = io.StringIO()
+    log_handler = logging.StreamHandler(log_capture_string)
+    log_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    if debug:
+        log_handler.setLevel(logging.DEBUG)
+    else:
+        log_handler.setLevel(logging.INFO)
+    parse_yaml_logger.addHandler(log_handler)
+    errors = []
+    warnings = []
+    info = []
+
     try:
+        # Update all data and rebuild all JSON files, alternatively update only data for a specific resource
+        parse_yaml(
+            resource_paths=resource_paths, config_obj=current_app.config, validate=True, debug=debug, offline=offline
+        )
+
         if not current_app.config.get("NO_CACHE"):
             mc = current_app.config.get("cache_client")
             mc.flush_all()
         utils.load_resources()
-        utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
+        utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
         success = True
-        error = None
-    except Exception:
+
+    except Exception as e:
         success = False
-    return jsonify({"cache_renewed": success, "error": error})
+        errors = [str(e)]
+
+    # Get the parse_yaml logs from the string buffer
+    log_messages = log_capture_string.getvalue().splitlines()
+    log_capture_string.close()
+    parse_yaml_logger.removeHandler(log_handler)
+
+    # Sort log messages into errors, warnings, and info/other
+    for message in log_messages:
+        if message.startswith(("ERROR", "CRITICAL")):
+            errors.append(message)
+        elif message.startswith("WARNING"):
+            warnings.append(message)
+        else:
+            info.append(message)
+
+    return jsonify({"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info})
 
 
 @general.route("/bibtex")
@@ -168,12 +237,12 @@ def bibtex() -> Response:
         A JSON object containing the bibtex citation.
     """
     try:
-        res_id = request.args.get("resource")
-        if res_id:
-            corpora, lexicons, models, analyses, utilities = utils.load_resources()
-            bibtex = utils.get_bibtex(res_id, corpora, lexicons, models, analyses, utilities)
+        resource_id = request.args.get("resource")
+        if resource_id:
+            resources_dict = utils.load_resources()
+            bibtex = utils.get_bibtex(resource_id, resources_dict)
         else:
-            bibtex = "Error: Incorrect arguments provided. Format: /bibtex?type=<>&resource=<id>"
+            bibtex = "Error: Incorrect arguments provided. Format: /bibtex?resource=<id>"
     except Exception as e:
         bibtex = f"Error when creating bibtex: {e!s}"
 
@@ -187,5 +256,6 @@ def schema() -> Response:
     Returns:
         A JSON object containing the JSON schema.
     """
-    schema = utils.load_json(current_app.config.get("SCHEMA_FILE"))
+    schema_file = Path(current_app.config.get("METADATA_DIR")) / current_app.config.get("SCHEMA_FILE")
+    schema = json.loads(schema_file.read_text(encoding="UTF-8"))
     return jsonify(schema)

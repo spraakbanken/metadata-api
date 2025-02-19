@@ -1,9 +1,9 @@
 openapi: "3.0.3"
 
 info:
-  title: Språkbanken Metadata
+  title: Språkbanken Text Metadata
   description: API for serving metadata for corpora and lexicons
-  version: "2.0"
+  version: "{{version}}"
   contact:
     name: Språkbanken
     url: https://spraakbanken.gu.se/
@@ -20,14 +20,14 @@ tags:
   - name: General
     description: |
       This API provides a quick way to retrieve a list of resources (corpora, lexicons, models, analyses, and utilities)
-      available at Språkbanken. It is used to display resources on Språkbanken's website.
+      available at Språkbanken Text. It is used to display resources on [Språkbanken Text's
+      website](https://spraakbanken.gu.se/en/resources).
 
       Most endpoints return lists of resources. Each resource is represented as a JSON object that adheres to the JSON
       schema available at https://ws.spraakbanken.gu.se/ws/metadata/schema.
 
       Some resources have detailed descriptions that are only displayed when using the `resource` parameter. For more
-      information about descriptions, please refer to the [GitHub
-      repository](https://github.com/spraakbanken/sb-metadata).
+      information, please refer to the [GitHub repository](https://github.com/spraakbanken/sb-metadata).
 
 paths:
   /:
@@ -140,6 +140,56 @@ paths:
                     description: Array of model objects
                     items:
                       type: object
+  /analyses:
+    get:
+      summary: List analysis resources
+      description: Show metadata for all analyses.
+      tags:
+        - General
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resource_type:
+                    type: string
+                    description: Name of the resource type
+                  hits:
+                    type: int
+                    description: Amount of resources in 'resources' array
+                  resources:
+                    type: array
+                    description: Array of analyses objects
+                    items:
+                      type: object
+  /utilities:
+    get:
+      summary: List utility resources
+      description: Show metadata for all utilities.
+      tags:
+        - General
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resource_type:
+                    type: string
+                    description: Name of the resource type
+                  hits:
+                    type: int
+                    description: Amount of resources in 'resources' array
+                  resources:
+                    type: array
+                    description: Array of utilities objects
+                    items:
+                      type: object
   /collections:
     get:
       summary: List collection resources
@@ -223,6 +273,23 @@ paths:
       description: Flush the cache and re-read all json files.
       tags:
         - General
+      parameters:
+        - name: resource-path
+          in: query
+          description: Path to specific resource to parse and update (<resource_type/resource_id>).
+          schema:
+            type: string
+            example: corpus/attasidor
+        - name: debug
+          in: query
+          description: Print debug info while parsing YAML files
+          schema:
+            type: boolean
+        - name: offline
+          in: query
+          description: If set to true, skip getting file info for downloadables when parsing YAML files
+          schema:
+            type: boolean
       responses:
         '200':
           description: OK
@@ -234,9 +301,17 @@ paths:
                   cache_renewed:
                     type: boolean
                     description: States whether the cache renewal was successful
-                  error:
+                  errors:
                     type: string
-                    description: The Python error message
+                    description: Any error messages that occurred during the cache renewal
+                    default: null
+                  warnings:
+                    type: string
+                    description: Any warnings that occurred during the cache renewal
+                    default: null
+                  info:
+                    type: string
+                    description: Debug messages or other information
                     default: null
   /bibtex:
     get:

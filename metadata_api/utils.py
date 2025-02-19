@@ -4,47 +4,33 @@ from __future__ import annotations
 
 import datetime
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from flask import Response, current_app, jsonify
 
+logger = logging.getLogger(__name__)
 
-def get_single_resource(
-    resource_id: str,
-    corpora: dict[str, Any],
-    lexicons: dict[str, Any],
-    models: dict[str, Any],
-    analyses: dict[str, Any],
-    utilities: dict[str, Any],
-) -> Any:
-    """Get resource from resource dictionaries and add resource text (if available).
+
+def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Response:
+    """Get resource from resource dictionaries and add long resource description if available.
 
     Args:
         resource_id: The ID of the resource.
-        corpora: Dictionary of corpora resources.
-        lexicons: Dictionary of lexicon resources.
-        models: Dictionary of model resources.
-        analyses: Dictionary of analysis resources.
-        utilities: Dictionary of utility resources.
+        resources_dict: Dictionary of resources.
 
     Returns:
         JSON response containing the resource.
     """
-    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
+    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}
-    if corpora.get(resource_id):
-        resource = corpora[resource_id]
-    elif lexicons.get(resource_id):
-        resource = lexicons[resource_id]
-    elif models.get(resource_id):
-        resource = models[resource_id]
-    elif analyses.get(resource_id):
-        resource = analyses[resource_id]
-    elif utilities.get(resource_id):
-        resource = utilities[resource_id]
+    for resource_dict in resources_dict.values():
+        if resource_id in resource_dict:
+            resource = resource_dict[resource_id]
+            break
 
     if resource and long_description:
         resource["description"] = long_description
@@ -52,18 +38,16 @@ def get_single_resource(
     return jsonify(resource)
 
 
-def load_resources() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """Load corpora, lexicons and models.
+def load_resources() -> dict[str, dict[str, Any]]:
+    """Load all resource types from JSON from cache or files.
 
     Returns:
-        Tuple containing dictionaries of corpora, lexicons, models, analyses, and utilities.
+        Dictionary containing resource dictionaries.
     """
-    corpora = load_json(current_app.config.get("CORPORA_FILE"))
-    lexicons = load_json(current_app.config.get("LEXICONS_FILE"))
-    models = load_json(current_app.config.get("MODELS_FILE"))
-    analyses = load_json(current_app.config.get("ANALYSES_FILE"))
-    utilities = load_json(current_app.config.get("UTILITIES_FILE"))
-    return corpora, lexicons, models, analyses, utilities
+    resources = {}
+    for res_type, res_file in current_app.config.get("RESOURCES").items():
+        resources[res_type] = load_json(res_file)
+    return resources
 
 
 def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
@@ -80,6 +64,11 @@ def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
         return read_static_json(jsonfile)
 
     mc = current_app.config.get("cache_client")
+    if not mc:
+        logger.warning("No memcache client available.")
+        return read_static_json(jsonfile)
+
+    # Repopulate cache if it's empty
     data = mc.get(add_prefix(jsonfile, prefix))
     if not data:
         all_data = read_static_json(jsonfile)
@@ -103,7 +92,7 @@ def read_static_json(jsonfile: str) -> dict[str, Any]:
     Returns:
         Dictionary containing the JSON data.
     """
-    print("Reading json", jsonfile)
+    logger.info("Reading json %s", jsonfile)
     file_path = Path(current_app.config.get("STATIC")) / jsonfile
     with file_path.open("r") as f:
         return json.load(f)
@@ -137,66 +126,35 @@ def dict_to_list(input_obj: dict[str, Any]) -> list:
     return list(input_obj.values())
 
 
-def get_resource_type(rtype: str, resource_file: str) -> Response:
-    """Get list of resources of one resource type.
+def get_resource_type(resource_type: str) -> Response:
+    """Get list of resources of one type.
 
     Args:
-        rtype: The type of resource.
-        resource_file: The resource file to load.
+        resource_type: The type of resources to list.
 
     Returns:
-        JSON response containing the resource type and list of resources.
+        JSON response containing the list of resources of the specified type.
     """
-    resource_type = load_json(current_app.config.get(resource_file))
-    data = dict_to_list(resource_type)
+    filtered_resources = load_json(current_app.config.get("RESOURCES").get(resource_type, {}))
+    data = dict_to_list(filtered_resources)
 
-    return jsonify({"resource_type": rtype, "hits": len(data), "resources": data})
+    return jsonify({"resource_type": resource_type, "hits": len(data), "resources": data})
 
 
-def get_bibtex(
-    resource_id: str,
-    corpora: dict[str, Any],
-    lexicons: dict[str, Any],
-    models: dict[str, Any],
-    analyses: dict[str, Any],
-    utilities: dict[str, Any],
-) -> str:
+def get_bibtex(resource_id: str, resources_dict: dict[str, Any]) -> str:
     """Get BibTeX entry for a resource.
 
     Args:
         resource_id: The ID of the resource.
-        corpora: Dictionary of corpora resources.
-        lexicons: Dictionary of lexicon resources.
-        models: Dictionary of model resources.
-        analyses: Dictionary of analysis resources.
-        utilities: Dictionary of utility resources.
+        resources_dict: Dictionary of resources.
 
     Returns:
         BibTeX entry as a string.
     """
     bibtex = ""
-
-    if corpora.get(resource_id):
-        resource = corpora[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif lexicons.get(resource_id):
-        resource = lexicons[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif models.get(resource_id):
-        resource = models[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif analyses.get(resource_id):
-        resource = analyses[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif utilities.get(resource_id):
-        resource = utilities[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-
+    for resource_type in resources_dict.values():
+        if resource_id in resource_type:
+            bibtex = create_bibtex(resource_type[resource_id])
     return bibtex
 
 
@@ -255,33 +213,16 @@ def create_bibtex(resource: dict[str, Any]) -> str:
 
         # build bibtex string
         return (
-            "@misc{"
-            + f_id
-            + ",\n"
-            + "  doi =  {"
-            + f_doi
-            + "},\n"
-            + "  url = {"
-            + f_url
-            + f_id
-            + "},\n"
-            + "  author = {"
-            + f_author
-            + "},\n"
-            + "  keywords = {"
-            + f_keywords
-            + "},\n"
-            + "  language = {"
-            + f_language
-            + "},\n"
-            + "  title = {"
-            + f_title
-            + "},\n"
-            + "  publisher = {Språkbanken Text},\n"
-            + "  year = {"
-            + f_year
-            + "}\n"
-            + "}"
+            f"@misc{{{f_id},\n"
+            f"  doi = {{{f_doi}}},\n"
+            f"  url = {{{f_url}{f_id}}},\n"
+            f"  author = {{{f_author}}},\n"
+            f"  keywords = {{{f_keywords}}},\n"
+            f"  language = {{{f_language}}},\n"
+            f"  title = {{{f_title}}},\n"
+            f"  publisher = {{Språkbanken Text}},\n"
+            f"  year = {{{f_year}}}\n"
+            "}"
         )
 
     except Exception as e:
