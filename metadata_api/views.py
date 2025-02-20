@@ -130,17 +130,17 @@ def renew_cache() -> Response:
     debug = request.args.get("debug") or False
     offline = request.args.get("offline") or False
 
+    # Pull changes from GitHub before parsing YAML files
+    try:
+        repo = Repo(current_app.config.get("METADATA_DIR"))
+        repo.remotes.origin.pull()
+    except Exception as e:
+        msg = f"Error when pulling changes from GitHub: {e}"
+        logger.error(msg)
+        return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 500
+
     # Parse POST request payload from GitHub webhook
     if request.method == "POST":
-
-        try:
-            repo = Repo(current_app.config.get("METADATA_DIR"))
-            repo.remotes.origin.pull()
-        except Exception as e:
-            msg = f"Error when pulling changes from GitHub: {e}"
-            logger.error(msg)
-            return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 500
-
         try:
             payload = request.get_json()
             logger.debug("GitHub payload: %s", payload)
