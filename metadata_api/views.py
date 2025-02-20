@@ -219,8 +219,6 @@ def renew_cache() -> Response:
         else:
             info.append(message)
 
-    logger.error("Errors while parsing yaml: %s", errors)
-    logger.debug("Errors: %s\nWarnings: %s\nInfo: %s", errors, warnings, info)
     logger.info("Cache renewal completed.")
     return jsonify({"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info})
 

@@ -49,6 +49,8 @@ def main(
         raise ValueError("Configuration object is required")
     localizations = get_localizations(metadata_dir / config_obj.get("LOCALIZATIONS_DIR"))
 
+    failed_files = []
+
     if debug:
         logger.setLevel(logging.DEBUG)
 
@@ -78,7 +80,7 @@ def main(
 
     # Process YAML file(s) and update all_resources, collection_mappings, and resource_texts
     for filepath in filepaths:
-        resource_id, resource_dict = process_yaml_file(
+        resource_id, resource_dict, success = process_yaml_file(
             filepath,
             resource_texts,
             collection_mappings,
@@ -93,6 +95,8 @@ def main(
             all_resources.pop(resource_id, None)
         else:
             all_resources[resource_id] = resource_dict
+        if success is False:
+            failed_files.append(filepath)
 
     # Sort alphabetically by key
     all_resources = dict(sorted(all_resources.items()))
@@ -112,12 +116,16 @@ def main(
         set_description_bool(res_json, resource_texts)
         write_json(config_obj.get("STATIC") / f"{resource_type}.json", res_json)
 
-    if len(resource_paths) == 1:
-        logger.info("Updated resource '%s'", resource_paths[0])
+    msg = []
+    if failed_files:
+        msg.append("Failed to process: %s", ", ".join(failed_files))
+    if len(resource_paths) == 1 and not failed_files:
+        msg.append("Updated resource '%s'", resource_paths[0])
     elif len(resource_paths) > 1:
-        logger.info("Updated resources: %s", ", ".join(resource_paths))
+        msg.append("Updated resources: %s", ", ".join(resource_paths))
     else:
         logger.info("Updated all resources")
+    logger.info(msg.join("."))
 
 
 def process_yaml_file(
@@ -129,7 +137,7 @@ def process_yaml_file(
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
-) -> tuple[str, dict]:
+) -> tuple[str, dict, bool]:
     """Process a single YAML file and extract/process resource information.
 
     Update collection_mappings, and resource_texts.
@@ -145,9 +153,10 @@ def process_yaml_file(
         validate: Validate metadata using schema.
 
     Returns:
-        The ID of the resource and the processed resource data.
+        The ID of the resource, the processed resource data and a bool stating whether the process was successful.
     """
     fileid = filepath.stem
+    success = True
 
     # If file does not exist, remove resource from resource_texts and collection_mappings and return empty dict
     if not filepath.exists():
@@ -158,10 +167,9 @@ def process_yaml_file(
         collection_mappings.pop(fileid, None)
 
         logger.info("Removed resource '%s'", filepath)
-        return fileid, {}
+        return fileid, {}, success
 
     try:
-        add_resource = True
         processed_resource = {}
         if debug:
             logger.debug("Processing '%s'", filepath)
@@ -175,71 +183,70 @@ def process_yaml_file(
                     jsonschema.validate(instance=res, schema=resource_schema)
                 except jsonschema.exceptions.ValidationError as e:
                     logger.error("Validation error for '%s': %s", fileid, e.message)
-                    add_resource = False
-                except Exception:
+                    return fileid, {}, False
+                except Exception as e:
                     logger.exception("Something went wrong when validating for '%s'", fileid)
-                    add_resource = False
+                    return fileid, {}, False
 
-            if add_resource:
-                processed_resource = {"id": fileid}
-                # Make sure size attrs only contain numbers
-                for k, v in res.get("size", {}).items():
-                    if not str(v).isdigit():
-                        res["size"][k] = 0
+            processed_resource = {"id": fileid}
+            # Make sure size attrs only contain numbers
+            for k, v in res.get("size", {}).items():
+                if not str(v).isdigit():
+                    res["size"][k] = 0
 
-                # Update resouce_texts and remove descriptions for now
-                if res.get("description", {}).get("swe", "").strip():
-                    resource_texts[fileid]["swe"] = res["description"]["swe"]
-                if res.get("description", {}).get("eng", "").strip():
-                    resource_texts[fileid]["eng"] = res["description"]["eng"]
-                res.pop("description", None)
+            # Update resouce_texts and remove descriptions for now
+            if res.get("description", {}).get("swe", "").strip():
+                resource_texts[fileid]["swe"] = res["description"]["swe"]
+            if res.get("description", {}).get("eng", "").strip():
+                resource_texts[fileid]["eng"] = res["description"]["eng"]
+            res.pop("description", None)
 
-                # Get full language info
-                langs = res.get("languages", [])
-                for langcode in res.get("language_codes", []):
-                    if langcode not in [l.get("code") for l in langs]:
-                        try:
-                            english_name, swedish_name = get_lang_names(langcode)
-                            langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
-                        except LookupError:
-                            logger.error("Could not find language code '%s' (resource: '%s')", langcode, fileid)
-                res["languages"] = langs
-                res.pop("language_codes", "")
+            # Get full language info
+            langs = res.get("languages", [])
+            for langcode in res.get("language_codes", []):
+                if langcode not in [l.get("code") for l in langs]:
+                    try:
+                        english_name, swedish_name = get_lang_names(langcode)
+                        langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
+                    except LookupError:
+                        logger.error("Could not find language code '%s' (resource: '%s')", langcode, fileid)
+            res["languages"] = langs
+            res.pop("language_codes", "")
 
-                # Add localizations to data
-                for loc_name, loc in localizations.items():
-                    if loc_name in res:
-                        key_eng = res.get(loc_name, "")
-                        res[loc_name] = {"eng": key_eng, "swe": loc.get(key_eng, "")}
+            # Add localizations to data
+            for loc_name, loc in localizations.items():
+                if loc_name in res:
+                    key_eng = res.get(loc_name, "")
+                    res[loc_name] = {"eng": key_eng, "swe": loc.get(key_eng, "")}
 
-                if not offline:
-                    # Add file info for downloadables
-                    for d in res.get("downloads", []):
-                        url = d.get("url")
-                        if url and "size" not in d and "last-modified" not in d:
-                            size, date = get_download_metadata(url, fileid, res_type)
-                            d["size"] = size
-                            d["last-modified"] = date
+            if not offline:
+                # Add file info for downloadables
+                for d in res.get("downloads", []):
+                    url = d.get("url")
+                    if url and "size" not in d and "last-modified" not in d:
+                        size, date = get_download_metadata(url, fileid, res_type)
+                        d["size"] = size
+                        d["last-modified"] = date
 
-                processed_resource.update(res)
+            processed_resource.update(res)
 
-                # Update collections dict
-                if res.get("collection") is True:
-                    collection_mappings[fileid] = collection_mappings.get(fileid, [])
-                    if res.get("resources"):
-                        collection_mappings[fileid].extend(res["resources"])
-                        collection_mappings[fileid] = sorted(set(collection_mappings[fileid]))
+            # Update collections dict
+            if res.get("collection") is True:
+                collection_mappings[fileid] = collection_mappings.get(fileid, [])
+                if res.get("resources"):
+                    collection_mappings[fileid].extend(res["resources"])
+                    collection_mappings[fileid] = sorted(set(collection_mappings[fileid]))
 
-                if res.get("in_collections"):
-                    for collection_id in res["in_collections"]:
-                        collection_mappings[collection_id] = collection_mappings.get(collection_id, [])
-                        collection_mappings[collection_id].append(fileid)
-                        collection_mappings[collection_id] = sorted(set(collection_mappings[collection_id]))
+            if res.get("in_collections"):
+                for collection_id in res["in_collections"]:
+                    collection_mappings[collection_id] = collection_mappings.get(collection_id, [])
+                    collection_mappings[collection_id].append(fileid)
+                    collection_mappings[collection_id] = sorted(set(collection_mappings[collection_id]))
 
     except Exception:
         logger.exception("Failed to process '%s'", filepath)
 
-    return fileid, processed_resource
+    return fileid, processed_resource, success
 
 
 def update_collections(collection_mappings: dict, collections_data: dict, all_resources: dict) -> None:
