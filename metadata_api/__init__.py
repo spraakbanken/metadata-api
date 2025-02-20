@@ -3,10 +3,11 @@
 __version__ = "3.0"
 
 import logging
+import traceback
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 from . import views
@@ -59,6 +60,8 @@ def create_app(log_to_stdout: bool = False) -> Flask:
             ]
         )
 
+    logger.info("Starting metadata API")
+
     # Log warning if no config file is found
     if not config_path.exists():
         logger.warning("No 'config.py' found. Using default configuration from 'config_default.py'.")
@@ -93,5 +96,24 @@ def create_app(log_to_stdout: bool = False) -> Flask:
         views.create_routes()
 
     app.register_blueprint(views.general)
+
+    @app.before_request
+    def log_request_info() -> None:
+        """Print some info about the incoming request."""
+        if request.method != "OPTIONS":
+            app.logger.info("Request: %s %s", request.method, request.url)
+
+    @app.errorhandler(400)
+    def handle_400_error(error: Exception) -> Response:
+        """Handle bad request errors."""
+        logger.warning("Bad Request: %s", error)
+        return jsonify({"Error": "Bad Request"}), 400
+
+    @app.errorhandler(500)
+    def handle_500_error(error: Exception) -> Response:
+        """Handle internal server errors."""
+        tb = traceback.format_exc()
+        logger.error("Server Error: %s\nTraceback: %s", error, tb)
+        return jsonify({"Error": "Internal Server Error", "traceback": tb}), 500
 
     return app

@@ -139,10 +139,11 @@ def renew_cache() -> Response:
         except Exception as e:
             msg = f"Error when pulling changes from GitHub: {e}"
             logger.error(msg)
-            return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []})
+            return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 500
 
         try:
             payload = request.get_json()
+            logger.debug("GitHub payload: %s", payload)
             if payload:
                 changed_files = []
                 git_commits = payload.get("commits", [])
@@ -150,7 +151,7 @@ def renew_cache() -> Response:
                     msg = "No commits detected in payload."
                     logger.error(msg)
                     logger.error(payload)
-                    return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []})
+                    return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 400
                 for commit in git_commits:
                     changed_files.extend(commit.get("added", []))
                     changed_files.extend(commit.get("modified", []))
@@ -168,7 +169,7 @@ def renew_cache() -> Response:
 
         except Exception as e:
             logger.error("Error when parsing GitHub payload: %s", e)
-            return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []})
+            return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []}), 500
 
     # Parse resource_paths from GET request
     elif request.method == "GET" and resource_paths:
