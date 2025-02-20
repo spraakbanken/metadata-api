@@ -22,10 +22,10 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - Integrated `parse_yaml.py` into the API. YAML files are now parsed when calling the `/renew-cache` route.
-- It is now possible to perform a cache refresh with a single updated resource.
+- It is now possible to perform a cache refresh with specific updated/deleted resources.
 - The format for the resource data has been updated.
 
-## [2.0] - 2024-??
+## [2.0] - 2024-02-14
 
 This version has been developed over a long period and is therefore incomplete. It only contains the latest changes.
 Please refer to the git commit log for more information.

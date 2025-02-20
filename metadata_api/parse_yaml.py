@@ -105,11 +105,10 @@ def main(
     # Dump resource texts as json
     write_json(resource_text_file, resource_texts)
 
-    # Set has_description for every resource and save as json. If resource_paths is set, only update that resource type.
-    if resource_paths:
-        resource_types = {Path(i).parts[0] for i in resource_paths}
+    # Update resource json files
     for resource_type in resource_types:
         res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
+        # Set has_description for every resource and save as json.
         set_description_bool(res_json, resource_texts)
         write_json(config_obj.get("STATIC") / f"{resource_type}.json", res_json)
 

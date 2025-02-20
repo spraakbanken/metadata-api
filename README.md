@@ -28,7 +28,7 @@ Available API calls (please note that the URL contains the API version, e.g. `v2
 - <https://ws.spraakbanken.gu.se/ws/metadata/v2/list-ids>: List all existing resource IDs
 - <https://ws.spraakbanken.gu.se/ws/metadata/v2/check-id-availability?id=[my-resource]>: Check if a given resource ID is free
 - <https://ws.spraakbanken.gu.se/ws/metadata/v2/bibtex?resource=[some-id]>: Return bibtex citation for specified resource
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/doc>: Serve API documentation as YAML
+- <https://ws.spraakbanken.gu.se/ws/metadata/v2/doc>: Serve API documentation as JSON
 - <https://ws.spraakbanken.gu.se/ws/metadata/v2/renew-cache>: Flush cache and fill with fresh values
 
 ## Installation (SBX-specific)

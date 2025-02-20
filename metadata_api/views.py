@@ -82,19 +82,9 @@ def collections() -> Response:
     Returns:
         A JSON object containing collections metadata.
     """
-    resources_dict = utils.load_resources()
-
-    data = {}
-    for resource_type in resources_dict:
-        data.update(
-            {
-                resource_id: resource
-                for resource_id, resource in resources_dict[resource_type].items()
-                if resource.get("collection")
-            }
-        )
-
-    return jsonify({"hits": len(data), "resources": utils.dict_to_list(data)})
+    collections = utils.load_json(current_app.config.get("COLLECTIONS_FILE"))
+    data = utils.dict_to_list(collections)
+    return jsonify({"hits": len(data), "resources": data})
 
 
 @general.route("/list-ids")
@@ -140,8 +130,6 @@ def renew_cache() -> Response:
     debug = request.args.get("debug") or False
     offline = request.args.get("offline") or False
 
-    # TODO: Handle deleted files!
-
     # Parse POST request payload from GitHub webhook
     if request.method == "POST":
 
@@ -168,14 +156,18 @@ def renew_cache() -> Response:
                     changed_files.extend(commit.get("modified", []))
                     changed_files.extend(commit.get("removed", []))
 
-                # Format paths (strip first component) to create input for parse_yaml
                 # If too many files were changed, GitHub will not provide a complete list. Update all data in this case.
                 file_limit = current_app.config.get("GITHUB_FILE_LIMIT")
-                resource_paths = (
-                    None if len(changed_files) > file_limit else [str(Path(*p.parts[2:])) for p in changed_files]
-                )
+                if len(changed_files) > file_limit:
+                    resource_paths = None
+                # Format paths (strip first component and file ending) to create input for parse_yaml
+                else:
+                    resource_paths = []
+                    for p in changed_files:
+                        resource_paths.append(str(Path(*Path(p).parts[1:-1]) / Path(p).stem))
 
         except Exception as e:
+            logger.error("Error when parsing GitHub payload: %s", e)
             return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []})
 
     # Parse resource_paths from GET request
@@ -226,6 +218,9 @@ def renew_cache() -> Response:
         else:
             info.append(message)
 
+    logger.error("Errors while parsing yaml: %s", errors)
+    logger.debug("Errors: %s\nWarnings: %s\nInfo: %s", errors, warnings, info)
+    logger.info("Cache renewal completed.")
     return jsonify({"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info})
 
 
