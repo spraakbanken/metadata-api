@@ -119,13 +119,13 @@ def main(
     msg = []
     if failed_files:
         msg.append("Failed to process: %s", ", ".join(failed_files))
-    if len(resource_paths) == 1 and not failed_files:
+    if resource_paths and len(resource_paths) == 1 and not failed_files:
         msg.append("Updated resource '%s'", resource_paths[0])
-    elif len(resource_paths) > 1:
+    elif resource_paths and len(resource_paths) > 1:
         msg.append("Updated resources: %s", ", ".join(resource_paths))
     else:
-        logger.info("Updated all resources")
-    logger.info(msg.join("."))
+        msg.append("Updated all resources")
+    logger.info(". ".join(msg))
 
 
 def process_yaml_file(
@@ -184,7 +184,7 @@ def process_yaml_file(
                 except jsonschema.exceptions.ValidationError as e:
                     logger.error("Validation error for '%s': %s", fileid, e.message)
                     return fileid, {}, False
-                except Exception as e:
+                except Exception:
                     logger.exception("Something went wrong when validating for '%s'", fileid)
                     return fileid, {}, False
 
