@@ -346,7 +346,7 @@ def get_download_metadata(url: str, name: str, res_type: str) -> tuple[int, str]
         logger.exception("Could not get downloadable '%s': %s", name, url)
         # Set to some kind of neutral values
         size = 0
-        date = datetime.today().strftime("%Y-%m-%d")
+        date = datetime.datetime.today().strftime("%Y-%m-%d")
     return size, date
 
 
