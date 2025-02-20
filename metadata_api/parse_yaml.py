@@ -276,6 +276,19 @@ def update_collections(collection_mappings: dict, collections_data: dict, all_re
 
         # Remove resource IDs for non-existing resources
         new_res_list = [i for i in res_list if i in all_resources]
+        removed_resources = list(set(res_list).difference(set(new_res_list)))
+        if removed_resources and len(removed_resources) == 1:
+            logger.warning(
+                "The resource '%s' does not exist and was removed from the '%s' collection.",
+                removed_resources[0],
+                collection,
+            )
+        elif removed_resources:
+            logger.warning(
+                "The following resources do not exist and were removed from the '%s' collection: %s.",
+                collection,
+                ", ".join(removed_resources),
+            )
 
         col_id = col.get("id")
         if col:
