@@ -116,10 +116,10 @@ def check_id() -> Response:
 
 @general.route("/renew-cache", methods=["GET", "POST"])
 def renew_cache() -> Response:
-    """Flush cache and re-read json files.
+    """Update metadata files from git, re-process json files and update cache.
 
     API arguments:
-        resource-paths: Path to specific resource to parse and update (<resource_type/resource_id>).
+        resource-paths: Path to specific resources to parse and update (<resource_type/resource_id>).
         debug: Print debug info while parsing YAML files.
         offline: Skip getting file info for downloadables when parsing YAML files.
 

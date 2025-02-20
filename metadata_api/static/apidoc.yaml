@@ -274,9 +274,9 @@ paths:
       tags:
         - General
       parameters:
-        - name: resource-path
+        - name: resource-paths
           in: query
-          description: Path to specific resource to parse and update (<resource_type/resource_id>).
+          description: Paths to specific resources to parse and update (<resource_type/resource_id>,...).
           schema:
             type: string
             example: corpus/attasidor
