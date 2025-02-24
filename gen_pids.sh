@@ -10,43 +10,6 @@ mkdir -p $LOGDIR
 LOGFILE=$LOGDIR/`date +%Y-%m`.log
 
 ############################################
-# UPDATE APPLICATION
-############################################
-# Fetch application updates from GitHub and restart if necessary
-cd $THISDIR
-git_output2=`git pull 2>&1`
-echo -e ">>> Result of 'git pull': $git_output2" >> $LOGFILE
-if [[ "$git_output2" != *"Already"* ]]; then
-  echo ">>> Update venv" >> $LOGFILE
-  source venv/bin/activate
-  pip install -r requirements.txt
-  echo ">>> Restart sb-metadata" >> $LOGFILE
-  supervisorctl -c ~/fksbwww.conf restart metadata
-  echo ">>> Done" >> $LOGFILE
-fi
-
-############################################
-# UPDATE METADATA
-############################################
-# Fetch updates in metadata files
-echo -e "\n" >> $LOGFILE
-date >> $LOGFILE
-echo ">>> Update metadata from GIT" >> $LOGFILE
-cd $THISDIR/metadata
-git_output1=`git pull 2>&1`
-# Send output to stderr if git command had a non-zero exit
-if [[ $? -ne 0 ]] ; then
-    >&2 echo $git_output1
-else
-    echo "$git_output1" >> $LOGFILE
-fi
-
-# Flush cache (results in re-parsing all metadata files)
-# TODO: Do this with a webhook instead and only update cache for changed files
-echo ">>> Flush cache" >> $LOGFILE
-curl -s 'https://ws.spraakbanken.gu.se/ws/metadata/renew-cache' >> $LOGFILE
-
-############################################
 # DATACITE
 ############################################
 # Parse metadata files and generate PIDs
