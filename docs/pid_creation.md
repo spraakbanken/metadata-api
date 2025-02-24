@@ -37,11 +37,7 @@ In more technical detail:
     * members: set DMS-12-RelatedIdentifier to IsPartOf for all collections
     * update DOI metadata (API call)
 
-#### gen_pids.py
-- "unlisted" is respected
-- update records at DataCite (check "updated" date)
-- login saved in /home/fksbwww/.netrc.
-- tag ”identifiers” in JSON is called ”alternateIdentifiers” in XML-format (https://support.datacite.org/docs/what-is-the-identifiers-attribute-in-the-rest-api)
+### gen_pids.py
 
 * "unlisted" is respected
 * update records at DataCite (check "updated" date)

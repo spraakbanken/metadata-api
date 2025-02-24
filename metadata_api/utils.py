@@ -51,7 +51,7 @@ def load_resources() -> dict[str, dict[str, Any]]:
 
 
 def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
-    """Load data from cache.
+    """Load data from cache if available, otherwise load from JSON file.
 
     Args:
         jsonfile: The JSON file to load.

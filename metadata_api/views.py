@@ -189,7 +189,7 @@ def renew_cache() -> Response:
     info = []
 
     try:
-        # Update all data and rebuild all JSON files, alternatively update only data for a specific resource
+        # Update data and rebuild all JSON files (reprocess all data if resource_paths is None)
         parse_yaml(
             resource_paths=resource_paths, config_obj=current_app.config, validate=True, debug=debug, offline=offline
         )

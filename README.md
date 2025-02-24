@@ -14,22 +14,22 @@ This repository contains the following components:
 
 ## Usage
 
-Available API calls (please note that the URL contains the API version, e.g. `v2`, `dev` etc):
+Available API calls (please note that the URL contains the API version, e.g. `v3`, `dev` etc):
 
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/>: List all resources
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/corpora>: List all corpora
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/lexicons>: List all lexicons
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/models>: List all models
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/analyses>: List all analyses
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/utilities>: List all utilities
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/collections>: List all collections
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/?resource=saldo>: List one specific resource. Add long resource description (if available)
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/schema>: Return JSON schema for resources
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/list-ids>: List all existing resource IDs
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/check-id-availability?id=[my-resource]>: Check if a given resource ID is free
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/bibtex?resource=[some-id]>: Return bibtex citation for specified resource
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/doc>: Serve API documentation as JSON
-- <https://ws.spraakbanken.gu.se/ws/metadata/v2/renew-cache>: Update metadata files from git, re-process json files and update cache.
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/>: List all resources
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/corpora>: List all corpora
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/lexicons>: List all lexicons
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/models>: List all models
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/analyses>: List all analyses
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/utilities>: List all utilities
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/collections>: List all collections
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo>: List one specific resource. Add long resource description (if available)
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/schema>: Return JSON schema for resources
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids>: List all existing resource IDs
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=[my-resource]>: Check if a given resource ID is free
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=[some-id]>: Return bibtex citation for specified resource
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/doc>: Serve API documentation as JSON
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache>: Update metadata files from git, re-process json files and update cache.
   optional parameters: `?debug=True` will print debug info, `?offline=True` will omit getting file info for downloadables when parsing YAML files,
   `?resource-paths=<resource_type/resource_id>,...` will process specific resources only.
 
@@ -43,11 +43,8 @@ Available API calls (please note that the URL contains the API version, e.g. `v2
   pip install -r requirements.txt
   ```
 
-- Copy the default config and make changes if needed:
-
-  ```.bash
-  cp config_default.py config.py
-  ```
+- The app can be configured by creating `config.py` in the root directory. The configuration in `config_default.py` is
+  always loaded automatically but its values can be overridden by `config.py`.
 
 - [Create a deploy
   key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#set-up-deploy-keys),
@@ -60,8 +57,6 @@ Available API calls (please note that the URL contains the API version, e.g. `v2
   git clone git@github.com-metadata:spraakbanken/metadata.git
   ```
 
-- Store Datacite login credentials in `/home/fksbwww/.netrc`.
-
 - Add entry in supervisord config, e.g:
 
   ```.bash
@@ -69,18 +64,23 @@ Available API calls (please note that the URL contains the API version, e.g. `v2
   command=%(ENV_HOME)s/metadata-api/dev/venv/bin/gunicorn --chdir %(ENV_HOME)s/metadata-api/dev -b "0.0.0.0:1337" metadata_api:create_app()
   ```
 
-- Set up cron job that periodically runs the update script which
-  - updates the metadata files stored in git
-  - runs the python script for parsing these files
-  - updates the repository from GitHub and restarts the service if needed
-
-  The following cron job is run on `fksbwww@k2`:
+- Install [Memcached](https://memcached.org/) and setup. e.g. through supervisord:
 
   ```.bash
-  # Update sb-metadata from GitHub and restart if needed
-  50 * * * * cd /home/fksbwww/metadata-api/v2 && ./update_metadata.sh --noupdate > /dev/null
-  # Also update Datacite metadata once per week
-  15 23 * * 0 cd /home/fksbwww/metadata-api/v2 && ./update_metadata.sh > /dev/null
+  [program:memcached-metadata]
+  command=%(ENV_HOME)s/memcached-jox/memcached-install/bin/memcached
+         -v
+  ```
+
+- When app is running, call the `/renew-cache` route in order to create the necessary JSON files and populate the cache.
+
+- Store Datacite login credentials in `/home/fksbwww/.netrc` (check [pid_creation.md](docs/pid_creation.md) for more info).
+
+- Set up cron job that periodically runs `gen_pids.sh` to add DOIs to resources. The following cron job is run on `fksbwww@k2`:
+
+  ```.bash
+  # Update Datacite metadata once per week
+  15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
   ```
 
 ## Comments about some metadata fields
