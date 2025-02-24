@@ -197,8 +197,10 @@ def renew_cache() -> Response:
         if not current_app.config.get("NO_CACHE"):
             mc = current_app.config.get("cache_client")
             mc.flush_all()
+        # Reload resources and resource texts to populate cache
         utils.load_resources()
         utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
+        utils.load_json(current_app.config.get("COLLECTIONS_FILE"))
         success = True
 
     except Exception as e:

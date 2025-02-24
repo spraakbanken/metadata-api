@@ -93,9 +93,16 @@ def read_static_json(jsonfile: str) -> dict[str, Any]:
         Dictionary containing the JSON data.
     """
     logger.info("Reading json %s", jsonfile)
-    file_path = Path(current_app.config.get("STATIC")) / jsonfile
-    with file_path.open("r") as f:
-        return json.load(f)
+    try:
+        file_path = Path(current_app.config.get("STATIC")) / jsonfile
+        with file_path.open("r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error("File not found: %s", file_path)
+        return {}
+    except json.JSONDecodeError:
+        logger.error("Error reading JSON file: %s", file_path)
+        return {}
 
 
 def add_prefix(key: str, prefix: str) -> str:
