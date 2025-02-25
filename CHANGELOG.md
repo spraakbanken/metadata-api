@@ -3,11 +3,24 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- Better error handling and logging for 404 errors.
+
+### Changed
+
+### Fixed
+
+### Removed
+
 ## [3.0] - 2025-02-25
 
 ### Added
 
 - It is now possible to use a custom config (`config.py`) for overriding values defined in the default config.
+- Proper logging and better error handling.
 
 ### Changed
 
@@ -16,6 +29,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
   `resource-paths` parameter to `/renew-cache`.
 - The format for the resource data has been updated. A json schema will be available soon.
 - The API documentation is now served as JSON instead of YAML (by `/doc`).
+- It is now possible to add a new resource type by adding it to the `RESOURCES` dictionary in the config file.
 
 ## [2.0] - 2025-02-14
 
@@ -29,5 +43,6 @@ Please refer to the git commit log for more information.
 - Added a route for listing utilities: `/utilities`
 - Added a script for generating PIDs and registering resources at Datacite.
 
+[unreleased]: https://github.com/spraakbanken/metadata-api/compare/v3.0...dev
 [3.0]: https://github.com/spraakbanken/metadata-api/compare/v2.0...v3.0
 [2.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v2.0

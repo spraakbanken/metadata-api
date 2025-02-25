@@ -109,6 +109,12 @@ def create_app(log_to_stdout: bool = False) -> Flask:
         logger.warning("Bad Request: %s", error)
         return jsonify({"Error": "Bad Request"}), 400
 
+    @app.errorhandler(404)
+    def handle_404_error(error: Exception) -> Response:
+        """Handle not found errors."""
+        logger.warning("Not Found: %s", error)
+        return jsonify({"Error": "Not Found"}), 404
+
     @app.errorhandler(500)
     def handle_500_error(error: Exception) -> Response:
         """Handle internal server errors."""
