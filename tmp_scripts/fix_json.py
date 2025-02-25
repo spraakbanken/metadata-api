@@ -1,7 +1,5 @@
 """Script for changing the json metadata format (batch job)."""
 
-# ruff: noqa: T201 (`print` found)
-
 import json
 from pathlib import Path
 

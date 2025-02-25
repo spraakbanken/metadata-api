@@ -1,8 +1,7 @@
 """Get json metadata from SB's metadata API and save it (if it does not exist already)."""
 
-# ruff: noqa: T201 (`print` found)
-
 import json
+import sys
 from pathlib import Path
 
 import requests
@@ -34,7 +33,7 @@ for resources in jsonresponse.values():
                     res = requests.get(rurl).json()
                     # print(res)
                 except Exception:
-                    print(f"Failed to get long description from {rid} ({rurl}). Aborting.")
+                    print(f"Failed to get long description from {rid} ({rurl}). Aborting.", file=sys.stderr)
                     continue
                 description_sv = res.get("long_description_sv")
                 if description_sv:
@@ -47,4 +46,4 @@ for resources in jsonresponse.values():
             dump = json.dumps(resource, indent=4, ensure_ascii=False)
             with metadata_path.open("w") as f:
                 f.write(dump)
-                print(f"written {metadata_path}")
+                print(f"Written {metadata_path}")

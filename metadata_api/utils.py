@@ -1,28 +1,36 @@
 """Util functions used by the metadata API."""
 
+from __future__ import annotations
+
 import datetime
 import json
+import logging
 from pathlib import Path
+from typing import Any
 
-from flask import current_app, jsonify
+from flask import Response, current_app, jsonify
+
+logger = logging.getLogger(__name__)
 
 
-def get_single_resource(resource_id, corpora, lexicons, models, analyses, utilities):
-    """Get resource from resource dictionaries and add resource text (if available)."""
-    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_desc")
+def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Response:
+    """Get resource from resource dictionaries and add long resource description if available.
+
+    Args:
+        resource_id: The ID of the resource.
+        resources_dict: Dictionary of resources.
+
+    Returns:
+        JSON response containing the resource.
+    """
+    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}
-    if corpora.get(resource_id):
-        resource = corpora[resource_id]
-    elif lexicons.get(resource_id):
-        resource = lexicons[resource_id]
-    elif models.get(resource_id):
-        resource = models[resource_id]
-    elif analyses.get(resource_id):
-        resource = analyses[resource_id]
-    elif utilities.get(resource_id):
-        resource = utilities[resource_id]
+    for resource_dict in resources_dict.values():
+        if resource_id in resource_dict:
+            resource = resource_dict[resource_id]
+            break
 
     if resource and long_description:
         resource["description"] = long_description
@@ -30,22 +38,37 @@ def get_single_resource(resource_id, corpora, lexicons, models, analyses, utilit
     return jsonify(resource)
 
 
-def load_resources():
-    """Load corpora, lexicons and models."""
-    corpora = load_json(current_app.config.get("CORPORA_FILE"))
-    lexicons = load_json(current_app.config.get("LEXICONS_FILE"))
-    models = load_json(current_app.config.get("MODELS_FILE"))
-    analyses = load_json(current_app.config.get("ANALYSES_FILE"))
-    utilities = load_json(current_app.config.get("UTILITIES_FILE"))
-    return corpora, lexicons, models, analyses, utilities
+def load_resources() -> dict[str, dict[str, Any]]:
+    """Load all resource types from JSON from cache or files.
+
+    Returns:
+        Dictionary containing resource dictionaries.
+    """
+    resources = {}
+    for res_type, res_file in current_app.config.get("RESOURCES").items():
+        resources[res_type] = load_json(res_file)
+    return resources
 
 
-def load_json(jsonfile, prefix=""):
-    """Load data from cache."""
+def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
+    """Load data from cache if available, otherwise load from JSON file.
+
+    Args:
+        jsonfile: The JSON file to load.
+        prefix: The prefix to add to keys.
+
+    Returns:
+        Dictionary containing the loaded data.
+    """
     if current_app.config.get("NO_CACHE"):
         return read_static_json(jsonfile)
 
     mc = current_app.config.get("cache_client")
+    if not mc:
+        logger.warning("No memcache client available.")
+        return read_static_json(jsonfile)
+
+    # Repopulate cache if it's empty
     data = mc.get(add_prefix(jsonfile, prefix))
     if not data:
         all_data = read_static_json(jsonfile)
@@ -60,70 +83,97 @@ def load_json(jsonfile, prefix=""):
     return all_data
 
 
-def read_static_json(jsonfile):
-    """Load json file from static folder and return as object."""
-    print("Reading json", jsonfile)  # noqa: T201
-    file_path = Path(current_app.config.get("STATIC")) / jsonfile
-    with file_path.open("r") as f:
-        return json.load(f)
+def read_static_json(jsonfile: str) -> dict[str, Any]:
+    """Load json file from static folder and return as object.
+
+    Args:
+        jsonfile: The JSON file to read.
+
+    Returns:
+        Dictionary containing the JSON data.
+    """
+    logger.info("Reading json %s", jsonfile)
+    try:
+        file_path = Path(current_app.config.get("STATIC")) / jsonfile
+        with file_path.open("r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error("File not found: %s", file_path)
+        return {}
+    except json.JSONDecodeError:
+        logger.error("Error reading JSON file: %s", file_path)
+        return {}
 
 
-def add_prefix(key, prefix):
-    """Add prefix to key."""
+def add_prefix(key: str, prefix: str) -> str:
+    """Add prefix to key.
+
+    Args:
+        key: The key to add a prefix to.
+        prefix: The prefix to add.
+
+    Returns:
+        The key with the prefix added.
+    """
     if prefix:
         key = f"{prefix}_{key}"
     return key
 
 
-def dict_to_list(input_obj):
-    """Convert resource dict into list."""
+def dict_to_list(input_obj: dict[str, Any]) -> list:
+    """Convert resource dict into list.
+
+    Args:
+        input_obj: The dictionary to convert.
+
+    Returns:
+        List of dictionary values.
+    """
     # return sorted(input.values(), key=lambda x: locale.strxfrm(x.get("name_sv")))
     return list(input_obj.values())
 
 
-def get_resource_type(rtype, resource_file):
-    """Get list of resources of one resource type."""
-    resource_type = load_json(current_app.config.get(resource_file))
-    data = dict_to_list(resource_type)
+def get_resource_type(resource_type: str) -> Response:
+    """Get list of resources of one type.
 
-    return jsonify({
-        "resource_type": rtype,
-        "hits": len(data),
-        "resources": data
-    })
+    Args:
+        resource_type: The type of resources to list.
+
+    Returns:
+        JSON response containing the list of resources of the specified type.
+    """
+    filtered_resources = load_json(current_app.config.get("RESOURCES").get(resource_type, {}))
+    data = dict_to_list(filtered_resources)
+
+    return jsonify({"resource_type": resource_type, "hits": len(data), "resources": data})
 
 
-def get_bibtex(resource_id, corpora, lexicons, models, analyses, utilities):
-   
+def get_bibtex(resource_id: str, resources_dict: dict[str, Any]) -> str:
+    """Get BibTeX entry for a resource.
+
+    Args:
+        resource_id: The ID of the resource.
+        resources_dict: Dictionary of resources.
+
+    Returns:
+        BibTeX entry as a string.
+    """
     bibtex = ""
-
-    if corpora.get(resource_id):
-        resource = corpora[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif lexicons.get(resource_id):
-        resource = lexicons[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif models.get(resource_id):
-        resource = models[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif analyses.get(resource_id):
-        resource = analyses[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-    elif utilities.get(resource_id):
-        resource = utilities[resource_id]
-        if resource:
-            bibtex = create_bibtex(resource)
-
+    for resource_type in resources_dict.values():
+        if resource_id in resource_type:
+            bibtex = create_bibtex(resource_type[resource_id])
     return bibtex
 
 
-def create_bibtex(resource):
-    """Create bibtex record for resource"""
+def create_bibtex(resource: dict[str, Any]) -> str:
+    """Create bibtex record for resource.
 
+    Args:
+        resource: The resource dictionary.
+
+    Returns:
+        BibTeX entry as a string.
+    """
     try:
         # DOI
         f_doi = resource.get("doi", "")
@@ -131,15 +181,12 @@ def create_bibtex(resource):
         f_id = resource.get("id", "")
         # creators, "Skapad av"
         f_creators = resource.get("creators", [])
-        if len(f_creators) > 0:
-            f_author = ' and '.join(f_creators)
-        else:
-            f_author = "Språkbanken Text"
+        f_author = " and ".join(f_creators) if len(f_creators) > 0 else "Språkbanken Text"
         # keywords
         f_words = resource.get("keywords", [])
         f_words.insert(0, "Language Technology (Computational Linguistics)")
         # f_keywords = "Language Technology (Computational Linguistics)"
-        f_keywords = ', '.join(f_words)
+        f_keywords = ", ".join(f_words)
         # languages
         f_languages = resource.get("languages", [])
         if len(f_languages) > 0:
@@ -150,16 +197,16 @@ def create_bibtex(resource):
             f_language = ""
         # name, title
         f_title = resource["name"].get("eng", "")
-        if f_title == "":
+        if f_title:
             f_title = resource["name"].get("swe", "")
         # year, fallback to current year
         f_year = str(datetime.datetime.now().date().year)
         f_updated = resource.get("updated", "")
-        if f_updated != "":
+        if f_updated:
             f_year = f_updated[:4]
         else:
             f_created = resource.get("created", "")
-            if f_created != "":
+            if f_created:
                 f_year = f_created[:4]
         # target URL
         match resource["type"]:
@@ -172,18 +219,18 @@ def create_bibtex(resource):
                 f_url = "https://spraakbanken.gu.se/resurser/"
 
         # build bibtex string
-        bibtex = ("@misc{" + f_id + ",\n"
-                + "  doi =  {" + f_doi + "},\n"
-                + "  url = {" + f_url + f_id + "},\n"
-                + "  author = {" + f_author + "},\n"
-                + "  keywords = {" + f_keywords + "},\n"
-                + "  language = {" + f_language + "},\n"
-                + "  title = {" + f_title + "},\n"
-                + "  publisher = {Språkbanken Text},\n"
-                + "  year = {" + f_year + "}\n"
-                + "}")
-
-        return bibtex
+        return (
+            f"@misc{{{f_id},\n"
+            f"  doi = {{{f_doi}}},\n"
+            f"  url = {{{f_url}{f_id}}},\n"
+            f"  author = {{{f_author}}},\n"
+            f"  keywords = {{{f_keywords}}},\n"
+            f"  language = {{{f_language}}},\n"
+            f"  title = {{{f_title}}},\n"
+            f"  publisher = {{Språkbanken Text}},\n"
+            f"  year = {{{f_year}}}\n"
+            "}"
+        )
 
     except Exception as e:
         return "Error:" + str(e)
