@@ -118,11 +118,11 @@ def main(
 
     msg = []
     if failed_files:
-        msg.append("Failed to process: %s", ", ".join(failed_files))
+        msg.append(f"Failed to process: {', '.join(failed_files)}")
     if resource_paths and len(resource_paths) == 1 and not failed_files:
-        msg.append("Updated resource '%s'", resource_paths[0])
+        msg.append(f"Updated resource {resource_paths[0]}")
     elif resource_paths and len(resource_paths) > 1:
-        msg.append("Updated resources: %s", ", ".join(resource_paths))
+        msg.append(f"Updated resources: {', '.join(resource_paths)}")
     else:
         msg.append("Updated all resources")
     logger.info(". ".join(msg))
