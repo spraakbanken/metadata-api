@@ -11,7 +11,7 @@ from git import Repo
 
 from . import __version__, utils
 from .parse_yaml import logger as parse_yaml_logger
-from .parse_yaml import main as parse_yaml
+from .parse_yaml import process_resources
 
 general = Blueprint("general", __name__)
 logger = logging.getLogger(__name__)
@@ -190,7 +190,7 @@ def renew_cache() -> Response:
 
     try:
         # Update data and rebuild all JSON files (reprocess all data if resource_paths is None)
-        parse_yaml(
+        process_resources(
             resource_paths=resource_paths, config_obj=current_app.config, validate=True, debug=debug, offline=offline
         )
 

@@ -21,7 +21,7 @@ SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"
 logger = logging.getLogger("parse_yaml")
 
 
-def main(
+def process_resources(
     resource_paths: list[str] | None = None,
     debug: bool = False,
     offline: bool = False,
@@ -448,7 +448,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     args = parser.parse_args()
 
-    main(
+    process_resources(
         resource_paths=args.resource_path.split(",") if args.resource_path else None,
         debug=args.debug,
         offline=args.offline,
