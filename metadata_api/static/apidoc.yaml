@@ -24,10 +24,10 @@ tags:
       website](https://spraakbanken.gu.se/en/resources).
 
       Most endpoints return lists of resources. Each resource is represented as a JSON object that adheres to the JSON
-      schema available at https://ws.spraakbanken.gu.se/ws/metadata/schema.
+      schema available from the `/schema` endpoint.
 
       Some resources have detailed descriptions that are only displayed when using the `resource` parameter. For more
-      information, please refer to the [GitHub repository](https://github.com/spraakbanken/sb-metadata).
+      information, please refer to the [GitHub repository](https://github.com/spraakbanken/metadata).
 
 paths:
   /:

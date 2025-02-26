@@ -10,6 +10,7 @@ from flask import Blueprint, Response, current_app, jsonify, request
 from git import Repo
 
 from . import __version__, utils
+from .adapt_schema import adapt_schema
 from .parse_yaml import logger as parse_yaml_logger
 from .parse_yaml import process_resources
 
@@ -254,4 +255,5 @@ def schema() -> Response:
     """
     schema_file = Path(current_app.config.get("METADATA_DIR")) / current_app.config.get("SCHEMA_FILE")
     schema = json.loads(schema_file.read_text(encoding="UTF-8"))
+    schema = adapt_schema(schema)
     return jsonify(schema)
