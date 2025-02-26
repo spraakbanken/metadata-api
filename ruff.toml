@@ -43,14 +43,9 @@ ignore = [
     "PLR09",   # Pylint: too-many-*
     "PLR1702", # Pylint: too-many-nested-blocks
     "SIM105",  # flake8-simplify: suppressible-exception
-    "T201",    # flake8-print
-
+    "T201",    # flake8-print: print-statement
 ]
 preview = true
-
-[lint.per-file-ignores]
-"__init__.py" = ["F401"]
-"__main__.py" = ["PLC0415"]
 
 [lint.pydocstyle]
 convention = "google"
