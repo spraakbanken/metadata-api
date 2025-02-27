@@ -162,11 +162,13 @@ def renew_cache() -> Response:
                 file_limit = current_app.config.get("GITHUB_FILE_LIMIT")
                 if len(changed_files) > file_limit:
                     resource_paths = None
-                # Format paths (strip first component and file ending) to create input for parse_yaml
+                # Format paths (strip first component and file ending) to create input for process_resources
                 else:
                     resource_paths = []
                     for p in changed_files:
-                        resource_paths.append(str(Path(*Path(p).parts[1:-1]) / Path(p).stem))
+                        # Only process resource metadata YAML files
+                        if Path(p).parts[0] == "yaml" and Path(p).suffix == ".yaml":
+                            resource_paths.append(str(Path(*Path(p).parts[1:-1]) / Path(p).stem))
 
         except Exception as e:
             logger.error("Error when parsing GitHub payload: %s", e)
@@ -176,7 +178,7 @@ def renew_cache() -> Response:
     elif request.method == "GET" and resource_paths:
         resource_paths = resource_paths.split(",")
 
-    # Create a string buffer to capture logs from parse_yaml
+    # Create a string buffer to capture logs from process_resources
     log_capture_string = io.StringIO()
     log_handler = logging.StreamHandler(log_capture_string)
     log_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
