@@ -96,7 +96,7 @@ def process_resources(
         else:
             all_resources[resource_id] = resource_dict
         if success is False:
-            failed_files.append(filepath)
+            failed_files.append(str(Path(filepath.parent.name) / filepath.stem))
 
     # Sort alphabetically by key
     all_resources = dict(sorted(all_resources.items()))

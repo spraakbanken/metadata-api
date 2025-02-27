@@ -8,10 +8,19 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Better error handling and logging for 404 errors.
+- Added documentation about caching.
+- Added a shell script for extracting the version number from `__init__.py` and changing references to the API version
+  in `README.md`.
 
 ### Changed
 
+
 ### Fixed
+
+- The `/schema` route now correctly reflects the schema for the resource data returned by the API.
+- Fixed bug that caused errors in logging.
+- Do not delete the app logs during log rotation in `gen_pids.sh`.
+- Fixed bug in `/renew-cache` that caused attempts to process non-metadata files.
 
 ### Removed
 
