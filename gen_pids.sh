@@ -39,7 +39,7 @@ fi
 # Naive log rotation: delete files that are more than six months old
 this_year=`date +%Y`
 this_month=`date +%m`
-FILES="$LOGDIR/*.log"
+FILES=$(find $LOGDIR -type f -name '[0-9][0-9][0-9][0-9]-[0-9][0-9].log')
 for f in $FILES
 do
   filename="$(basename -- $f)"
