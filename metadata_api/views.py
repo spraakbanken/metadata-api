@@ -182,10 +182,6 @@ def renew_cache() -> Response:
     log_capture_string = io.StringIO()
     log_handler = logging.StreamHandler(log_capture_string)
     log_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-    if debug:
-        log_handler.setLevel(logging.DEBUG)
-    else:
-        log_handler.setLevel(logging.INFO)
     parse_yaml_logger.addHandler(log_handler)
     errors = []
     warnings = []

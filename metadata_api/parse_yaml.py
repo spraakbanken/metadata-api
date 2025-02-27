@@ -86,7 +86,6 @@ def process_resources(
             collection_mappings,
             resource_schema,
             localizations,
-            debug=debug,
             offline=offline,
             validate=validate,
         )
@@ -116,16 +115,17 @@ def process_resources(
         set_description_bool(res_json, resource_texts)
         write_json(config_obj.get("STATIC") / f"{resource_type}.json", res_json)
 
-    msg = []
+    messages = []
     if failed_files:
-        msg.append(f"Failed to process: {', '.join(failed_files)}")
+        messages.append(f"Failed to process: {', '.join(failed_files)}")
     if resource_paths and len(resource_paths) == 1 and not failed_files:
-        msg.append(f"Updated resource {resource_paths[0]}")
+        messages.append(f"Updated resource {resource_paths[0]}")
     elif resource_paths and len(resource_paths) > 1:
-        msg.append(f"Updated resources: {', '.join(resource_paths)}")
+        messages.append(f"Updated resources: {', '.join(resource_paths)}")
     else:
-        msg.append("Updated all resources")
-    logger.info(". ".join(msg))
+        messages.append("Updated all resources")
+    message = ". ".join(messages) + "."
+    logger.info(message)
 
 
 def process_yaml_file(
@@ -134,7 +134,6 @@ def process_yaml_file(
     collection_mappings: dict,
     resource_schema: dict,
     localizations: dict,
-    debug: bool = False,
     offline: bool = False,
     validate: bool = False,
 ) -> tuple[str, dict, bool]:
@@ -148,7 +147,6 @@ def process_yaml_file(
         collection_mappings: Mapping from collection IDs to a list of resource IDs {collection_id: [resource_id, ...]}
         resource_schema: JSON schema for validation.
         localizations: Dictionary of localizations.
-        debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
 
@@ -171,12 +169,10 @@ def process_yaml_file(
 
     try:
         processed_resource = {}
-        if debug:
-            logger.debug("Processing '%s'", filepath)
+        logger.debug("Processing '%s'", filepath)
         with filepath.open(encoding="utf-8") as f:
             res = yaml.safe_load(f)
 
-            res_type = res.get("type")
             # Validate YAML
             if validate and resource_schema is not None:
                 try:
@@ -224,7 +220,7 @@ def process_yaml_file(
                 for d in res.get("downloads", []):
                     url = d.get("url")
                     if url and "size" not in d and "last-modified" not in d:
-                        size, date = get_download_metadata(url, fileid, res_type)
+                        size, date = get_download_metadata(url, fileid)
                         d["size"] = size
                         d["last-modified"] = date
 
@@ -323,17 +319,20 @@ def get_schema(filepath: Path) -> dict:
     return schema
 
 
-def get_download_metadata(url: str, name: str, res_type: str) -> tuple[int, str]:
+def get_download_metadata(url: str, name: str) -> tuple[int, str]:
     """Check headers of file from URL and return the file size and last modified date.
 
     Args:
         url: URL of the downloadable file.
         name: Name of the resource.
-        res_type: Type of the resource.
 
     Returns:
         File size and last modified date.
     """
+    # Set to some kind of neutral values which are used in case of an error
+    size = 0
+    date = ""
+
     try:
         res = requests.head(url)
         size = int(res.headers.get("Content-Length")) if res.headers.get("Content-Length") else None
@@ -341,12 +340,9 @@ def get_download_metadata(url: str, name: str, res_type: str) -> tuple[int, str]
         if date:
             date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
         if res.status_code == 404:  # noqa: PLR2004
-            logger.error("Could not find downloadable for '%s' '%s': %s", res_type, name, url)
+            logger.error("Could not find downloadable for '%s': %s", name, url)
     except Exception:
         logger.exception("Could not get downloadable '%s': %s", name, url)
-        # Set to some kind of neutral values
-        size = 0
-        date = datetime.datetime.today().strftime("%Y-%m-%d")
     return size, date
 
 
