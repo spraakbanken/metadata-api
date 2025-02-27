@@ -71,6 +71,7 @@ def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
     # Repopulate cache if it's empty
     data = mc.get(add_prefix(jsonfile, prefix))
     if not data:
+        logger.debug("Data for '%s' not found in cache. Reloading.", add_prefix(jsonfile, prefix))
         all_data = read_static_json(jsonfile)
         mc.set(add_prefix(jsonfile, prefix), list(all_data.keys()))
         for k, v in all_data.items():

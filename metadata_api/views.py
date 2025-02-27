@@ -210,7 +210,7 @@ def renew_cache() -> Response:
         success = False
         errors = [str(e)]
 
-    # Get the parse_yaml logs from the string buffer
+    # Get the process_resources logs from the string buffer
     log_messages = log_capture_string.getvalue().splitlines()
     log_capture_string.close()
     parse_yaml_logger.removeHandler(log_handler)

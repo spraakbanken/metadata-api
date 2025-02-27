@@ -16,7 +16,7 @@ This repository contains the following components:
 ## Requirements
 
 - [Python 3](https://docs.python.org/3/)
-- [Memcached](https://memcached.org/) (optional)
+- [Memcached](https://memcached.org/) (optional, check [caching.md](docs/caching.md) for more info)
 
 ## Usage
 
