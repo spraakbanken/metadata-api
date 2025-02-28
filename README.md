@@ -2,16 +2,17 @@
 
 This repository contains the following components:
 
-- **/metadata-api** - a REST-API that serves [metadata](https://github.com/spraakbanken/metadata) for Språkbanken Text's
-  corpora, lexicons, models, analyses and utilities (mainly used by our site at spraakbanken.gu.se). For documentation
-  see below.
-- **/gen_pids/gen_pids.py** - a Python script that generates new PIDs (Datacite DOIs) by reading our metadata YAML-files
-  and registering resources at Datacite. For documentation see the code comments and the /docs directory.
-- **/metadata_api/parse_yaml.py** - a script that prepares data for the REST-API (might be deprecated due to integration
-  in the API)
-- **update_metadata.sh** - a shell script that runs periodically on the server and calls and starts the other
-  components. It also handles all the git updating as both `gen_pids.py` and `parse_yaml.py` work with our
-  [metadata](https://github.com/spraakbanken/metadata) repository.
+- [**`metadata_api`**](/metadata_api/) - A REST API that serves [metadata](https://github.com/spraakbanken/metadata) for
+  Språkbanken Text's corpora, lexicons, models, analyses, and utilities (mainly used by our site at spraakbanken.gu.se).
+  For documentation, see below.
+- [**`parse_yaml.py`**](/metadata_api/parse_yaml.py) - A script that prepares data for the REST API. This component is
+  called automatically upon [cache renewal](/docs/caching.md) but can also be run as a script locally (although this
+  functionality might be deprecated in the future).
+- [**`gen_pids.py`**](/gen_pids/gen_pids.py) - A Python script that generates new PIDs (Datacite DOIs) by reading our
+  metadata YAML files and registering resources at Datacite. For documentation, see the code comments and
+  [`pid_creation.md`](/docs/pid_creation.md).
+- [**`gen_pids.sh`**](gen_pids.sh) - A shell script that runs periodically on the server (via cron) and calls
+  [`gen_pids.py`](/gen_pids/gen_pids.py).
 
 ## Requirements
 
@@ -47,14 +48,15 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 
 - Install requirements from `requirements.txt`, e.g. with a (virtual environment):
 
-  ```.bash
+  ```bash
   python3 -m venv venv
   source venv/bin/activate
   pip install -r requirements.txt
   ```
 
-- The app can be configured by creating `config.py` in the root directory. The configuration in `config_default.py` is
-  always loaded automatically but its values can be overridden by `config.py`.
+- The app can be configured by creating `config.py` in the root directory. The configuration in
+  [`config_default.py`](config_default.py) is always loaded automatically but its values can be overridden by
+  `config.py`.
 
 - [Create a deploy
   key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#set-up-deploy-keys),
@@ -63,20 +65,20 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 
 - Clone the metadata repository with ssh and the host set in the ssh configuration:
 
-  ```.bash
+  ```bash
   git clone git@github.com-metadata:spraakbanken/metadata.git
   ```
 
 - Add entry in supervisord config, e.g:
 
-  ```.bash
+  ```bash
   [program:metadata]
   command=%(ENV_HOME)s/metadata-api/dev/venv/bin/gunicorn --chdir %(ENV_HOME)s/metadata-api/dev -b "0.0.0.0:1337" metadata_api:create_app()
   ```
 
 - Install [Memcached](https://memcached.org/) and setup. e.g. through supervisord:
 
-  ```.bash
+  ```bash
   [program:memcached-metadata]
   command=%(ENV_HOME)s/memcached-jox/memcached-install/bin/memcached
          -v
@@ -90,7 +92,7 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 - Set up cron jobs that periodically run `gen_pids.sh` to add DOIs to resources and update Datacite. The following cron
   jobs are run on `fksbwww@k2`:
 
-  ```.bash
+  ```bash
   # Generate pids every night
   5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --noupdate > /dev/null
   # Update Datacite metadata once per week
@@ -107,5 +109,6 @@ python run.py [--port PORT]
 
 ## Upgrading to a new app version
 
-When increasing the version number of the app, update the `__version__` variable in `metadata_api/__init__.py`. If you
-change the major version, run `set_version.sh` to automatically update all version references in this README file.
+When increasing the version number of the app, update the `__version__` variable in
+[`__init__.py`](metadata_api/__init__.py). If you change the major version, run [`set_version.sh`](set_version.sh) to
+automatically update all version references in this README file.
