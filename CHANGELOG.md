@@ -3,7 +3,7 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [3.1] - 2025-02-28
 
 ### Added
 
@@ -14,9 +14,6 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added a shell script for extracting the version number from `__init__.py` and changing references to the API version
   in `README.md`.
 - When running a test server, the port can now be supplied as an argument to `run.py`.
-
-### Changed
-
 
 ### Fixed
 
@@ -55,6 +52,6 @@ Please refer to the git commit log for more information.
 - Added a route for listing utilities: `/utilities`
 - Added a script for generating PIDs and registering resources at Datacite.
 
-[unreleased]: https://github.com/spraakbanken/metadata-api/compare/v3.0...dev
+[3.1]: https://github.com/spraakbanken/metadata-api/compare/v3.0...v3.1
 [3.0]: https://github.com/spraakbanken/metadata-api/compare/v2.0...v3.0
 [2.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v2.0

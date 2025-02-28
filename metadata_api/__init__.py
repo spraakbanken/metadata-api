@@ -1,6 +1,6 @@
 """Instanciation of flask app."""
 
-__version__ = "3.0"
+__version__ = "3.1"
 
 import logging
 import traceback
