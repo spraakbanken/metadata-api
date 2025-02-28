@@ -9,6 +9,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Better error handling and logging for 404 errors.
 - Added documentation about caching.
+- Added possibility to send error messages to a Slack channel. The URL can be configured with the `SLACK_WEBHOOK`
+  variable.
 - Added a shell script for extracting the version number from `__init__.py` and changing references to the API version
   in `README.md`.
 

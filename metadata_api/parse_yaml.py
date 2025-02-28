@@ -172,16 +172,17 @@ def process_yaml_file(
         logger.debug("Processing '%s'", filepath)
         with filepath.open(encoding="utf-8") as f:
             res = yaml.safe_load(f)
+            res_type = res.get("type", "")
 
             # Validate YAML
             if validate and resource_schema is not None:
                 try:
                     jsonschema.validate(instance=res, schema=resource_schema)
                 except jsonschema.exceptions.ValidationError as e:
-                    logger.error("Validation error for '%s': %s", fileid, e.message)
+                    logger.error("Validation error for '%s/%s': %s", res_type, fileid, e.message)
                     return fileid, {}, False
                 except Exception:
-                    logger.exception("Something went wrong when validating for '%s'", fileid)
+                    logger.exception("Something went wrong when validating for '%s/%s'", res_type, fileid)
                     return fileid, {}, False
 
             processed_resource = {"id": fileid}

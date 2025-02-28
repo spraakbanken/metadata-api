@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import requests
 from flask import Response, current_app, jsonify
 
 logger = logging.getLogger(__name__)
@@ -235,3 +236,19 @@ def create_bibtex(resource: dict[str, Any]) -> str:
 
     except Exception as e:
         return "Error:" + str(e)
+
+
+def send_to_slack(message: str) -> None:
+    """Send message to Slack.
+
+    Args:
+        message: The message to send.
+    """
+    if not current_app.config.get("SLACK_WEBHOOK"):
+        logger.warning("No Slack webhook configured.")
+        return
+    try:
+        requests.post(current_app.config.get("SLACK_WEBHOOK"), json={"text": message})
+    except Exception as e:
+        logger.error("Error sending message to Slack, %s", e)
+        logger.exception("Error sending message to Slack")

@@ -138,6 +138,7 @@ def renew_cache() -> Response:
     except Exception as e:
         msg = f"Error when pulling changes from GitHub: {e}"
         logger.error(msg)
+        utils.send_to_slack(msg)
         return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 500
 
     # Parse POST request payload from GitHub webhook
@@ -149,9 +150,9 @@ def renew_cache() -> Response:
                 changed_files = []
                 git_commits = payload.get("commits", [])
                 if not git_commits:
-                    msg = "No commits detected in payload."
+                    msg = f"No commits detected in payload.\nPayload:\n{payload}"
                     logger.error(msg)
-                    logger.error(payload)
+                    utils.send_to_slack(msg)
                     return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 400
                 for commit in git_commits:
                     changed_files.extend(commit.get("added", []))
@@ -171,7 +172,9 @@ def renew_cache() -> Response:
                             resource_paths.append(str(Path(*Path(p).parts[1:-1]) / Path(p).stem))
 
         except Exception as e:
-            logger.error("Error when parsing GitHub payload: %s", e)
+            msg = f"Error when parsing GitHub payload: {e}.\nPayload:\n{payload}"
+            logger.error(msg)
+            utils.send_to_slack(msg)
             return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []}), 500
 
     # Parse resource_paths from GET request
@@ -219,8 +222,11 @@ def renew_cache() -> Response:
             warnings.append(message)
         else:
             info.append(message)
-
     logger.info("Cache renewal completed.")
+
+    if errors or warnings:
+        utils.send_to_slack("Cache renewal completed.\n" + "\n".join(errors + warnings))
+
     return jsonify({"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info})
 
 

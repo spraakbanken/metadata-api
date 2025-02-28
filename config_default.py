@@ -35,3 +35,6 @@ GITHUB_FILE_LIMIT = 3000
 NO_CACHE = False  # Set to True to disable caching with memcached
 MEMCACHED_HOST = "localhost"
 MEMCACHED_PORT = 11211
+
+# Slack incoming webhook URL, used to send error messages to a Slack channel
+SLACK_WEBHOOK = ""
