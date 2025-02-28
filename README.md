@@ -97,6 +97,14 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
   15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
   ```
 
+## Running a test server
+
+For testing purposes the app can be run with the following script (with an activated venv):
+
+```bash
+python run.py [--port PORT]
+```
+
 ## Upgrading to a new app version
 
 When increasing the version number of the app, update the `__version__` variable in `metadata_api/__init__.py`. If you

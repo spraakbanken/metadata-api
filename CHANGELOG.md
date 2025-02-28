@@ -13,6 +13,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
   variable.
 - Added a shell script for extracting the version number from `__init__.py` and changing references to the API version
   in `README.md`.
+- When running a test server, the port can now be supplied as an argument to `run.py`.
 
 ### Changed
 
