@@ -2,7 +2,16 @@ openapi: "3.0.3"
 
 info:
   title: Språkbanken Text Metadata
-  description: API for serving metadata for corpora and lexicons
+  description: |
+    This API provides a quick way to retrieve a list of resources (corpora, lexicons, models, analyses, and utilities)
+    available at Språkbanken Text. It is used to display resources on [Språkbanken Text's
+    website](https://spraakbanken.gu.se/en/resources).
+
+    Most endpoints return lists of resources. Each resource is represented as a JSON object that adheres to the JSON
+    schema available from the `/schema` endpoint.
+
+    Some resources have detailed descriptions that are only displayed when using the `resource` parameter. For more
+    information, please refer to the [GitHub repository](https://github.com/spraakbanken/metadata).
   version: "{{version}}"
   contact:
     name: Språkbanken
@@ -17,17 +26,10 @@ servers:
     description: Production server
 
 tags:
-  - name: General
-    description: |
-      This API provides a quick way to retrieve a list of resources (corpora, lexicons, models, analyses, and utilities)
-      available at Språkbanken Text. It is used to display resources on [Språkbanken Text's
-      website](https://spraakbanken.gu.se/en/resources).
-
-      Most endpoints return lists of resources. Each resource is represented as a JSON object that adheres to the JSON
-      schema available from the `/schema` endpoint.
-
-      Some resources have detailed descriptions that are only displayed when using the `resource` parameter. For more
-      information, please refer to the [GitHub repository](https://github.com/spraakbanken/metadata).
+  - name: Resource listing
+    description: Endpoints for listing resources
+  - name: MISC
+    description: Miscellaneous endpoints
 
 paths:
   /:
@@ -35,7 +37,7 @@ paths:
       summary: List resources
       description: Show metadata for all corpora, lexicons and models.
       tags:
-        - General
+        - Resource listing
       parameters:
         - name: resource
           in: query
@@ -70,7 +72,7 @@ paths:
       summary: List corpus resources
       description: Show metadata for all corpora.
       tags:
-        - General
+        - Resource listing
       responses:
         '200':
           description: OK
@@ -95,7 +97,7 @@ paths:
       summary: List lexicon resources
       description: Show metadata for all lexicons.
       tags:
-        - General
+        - Resource listing
       responses:
         '200':
           description: OK
@@ -120,7 +122,7 @@ paths:
       summary: List model resources
       description: Show metadata for all models.
       tags:
-        - General
+        - Resource listing
       responses:
         '200':
           description: OK
@@ -145,7 +147,7 @@ paths:
       summary: List analysis resources
       description: Show metadata for all analyses.
       tags:
-        - General
+        - Resource listing
       responses:
         '200':
           description: OK
@@ -170,7 +172,7 @@ paths:
       summary: List utility resources
       description: Show metadata for all utilities.
       tags:
-        - General
+        - Resource listing
       responses:
         '200':
           description: OK
@@ -195,7 +197,7 @@ paths:
       summary: List collection resources
       description: Show metadata for all collections.
       tags:
-        - General
+        - Resource listing
       responses:
         '200':
           description: OK
@@ -217,7 +219,7 @@ paths:
       summary: Return JSON schema for resource metadata
       description: Show metadata schema for resources.
       tags:
-        - General
+        - MISC
       responses:
         '200':
           description: OK
@@ -231,7 +233,7 @@ paths:
       summary: List resource IDs
       description: List all existing resource IDs.
       tags:
-        - General
+        - MISC
       responses:
         '200':
           description: OK
@@ -245,7 +247,7 @@ paths:
       summary: Check availability of a resource ID
       description: Check whether a given resource ID is in use or not.
       tags:
-        - General
+        - MISC
       parameters:
         - name: id
           in: query
@@ -267,12 +269,39 @@ paths:
                   available:
                     type: boolean
                     description: States whether the ID is available
+  /bibtex:
+    get:
+      summary: Return bibtex citation as text
+      description: Create a bibtex record for the resouce passed as parameter.
+      tags:
+        - MISC
+      parameters:
+        - name: resource
+          in: query
+          description: ID of the resource to create bibtex for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bibtex:
+                    type: string
+                    description: BibTeX citation string
+                  error:
+                    type: string
+                    description: Error message if argument is incorrect or program error.
+                    default: ""
   /renew-cache:
     get:
       summary: Renew cache
       description: Flush the cache and re-read all json files.
       tags:
-        - General
+        - MISC
       parameters:
         - name: resource-paths
           in: query
@@ -313,18 +342,12 @@ paths:
                     type: string
                     description: Debug messages or other information
                     default: null
-  /bibtex:
+  /doc:
     get:
-      summary: Return bibtex citation as text
-      description: Create a bibtex record for the resouce passed as parameter.
+      summary: Serve API specification
+      description: Serve openAPI specification as json data.
       tags:
-        - General
-      parameters:
-        - name: resource
-          in: query
-          description: ID of the resource to create bibtex for
-          schema:
-            type: string
+        - MISC
       responses:
         '200':
           description: OK
@@ -332,11 +355,4 @@ paths:
             application/json:
               schema:
                 type: object
-                properties:
-                  bibtex:
-                    type: string
-                    description: BibTeX citation string
-                  error:
-                    type: string
-                    description: Error message if argument is incorrect or program error.
-                    default: ""
+                description: OpenAPI specification in JSON format
