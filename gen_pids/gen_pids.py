@@ -441,9 +441,14 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
     # 3. Mn. Title
     dms_json["data"]["attributes"]["titles"] = []
     value = get_key_value(res, "name", "swe")
+    # Since 20250515 no names are given to analyses, use id instead (to make Datacite happy, since it is mandatory)
+    if not value:
+        value = res_id
     if value:
         dms_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_SWE, "title": value})
     value = get_key_value(res, "name", "eng")
+    if not value:
+        value = res_id
     if value:
         dms_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_ENG, "title": value})
 
