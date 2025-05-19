@@ -214,7 +214,7 @@ def process_yaml_file(
             for loc_name, loc in localizations.items():
                 if loc_name in res:
                     key_eng = res.get(loc_name, "")
-                    res[loc_name] = {"eng": key_eng, "swe": loc.get(key_eng, "")}
+                    res[loc_name] = {"eng": key_eng, "swe": loc.get(key_eng, key_eng)}
 
             if not offline:
                 # Add file info for downloadables
