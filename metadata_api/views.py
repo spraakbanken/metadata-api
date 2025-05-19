@@ -147,6 +147,12 @@ def renew_cache() -> Response:
             payload = request.get_json()
             logger.debug("GitHub payload: %s", payload)
             if payload:
+                # Check if the webhook was triggered on the main branch
+                if payload.get("ref", "") != "refs/heads/main":
+                    msg = "GitHub webhook triggered, but not on main branch. Nothing to do."
+                    logger.info(msg)
+                    return jsonify({"cache_renewed": False, "errors": [], "warnings": [msg], "info": []}), 200
+                # Check if payload contains a list of changed files
                 changed_files = []
                 git_commits = payload.get("commits", [])
                 if not git_commits:
