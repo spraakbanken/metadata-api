@@ -113,7 +113,10 @@ Also see [the SND guide](https://zenodo.org/records/8355878).
   * <https://schema.datacite.org/meta/kernel-4.5/>, inspiration snd.gu.se, använd 4.5 (inte 4.4)
 * DataCite firewall limit:
   * 3000 requests in a 5 minute window. requests that come via doi.org Content Negotiation of 1000 requests in a 5
-    minute window.
+    minute window. But, since 2025Q3 there seems to be an "alternate limit" of 300-500 requests every 5 minutes. To handle this, gen_pids.py pauses for 5 minutes every 300 requests. We also add a User-agent to the header.
+    * https://support.datacite.org/reference/introduction#upcoming-changes
+    * https://support.datacite.org/docs/api
+    * https://support.datacite.org/docs/rate-limit
 
 ### Python
 

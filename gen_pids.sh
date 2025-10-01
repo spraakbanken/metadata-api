@@ -17,7 +17,7 @@ cd $THISDIR
 source venv/bin/activate
 echo ">>> Parsing metadata - generate PIDs" >> $LOGFILE
 cd $THISDIR/gen_pids
-python gen_pids.py $1 >> $LOGFILE
+python gen_pids.py $0 >> $LOGFILE
 cd $THISDIR/metadata/yaml
 git_output3=$(git add --all . 2>&1)
 if [[ $? -ne 0 ]]; then

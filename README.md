@@ -94,7 +94,7 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 
   ```bash
   # Generate pids every night
-  5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --noupdate > /dev/null
+5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --analyses --noupdate > /dev/null 
   # Update Datacite metadata once per week
   15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
   ```
