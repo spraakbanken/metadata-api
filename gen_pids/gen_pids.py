@@ -70,6 +70,7 @@ parser.add_argument("--test", "-t", action="store_true",
                     help="Test - don't write back YAML and don't call Datacite to create DOI")
 parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
 parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
+parser.add_argument("--update", "-u", action="store_true", help="Force update of all metadata at Datacite")
 parser.add_argument("-f", action="store", dest="param_file", type=str)
 
 
@@ -77,6 +78,7 @@ def main(param_debug: bool = False,
          param_test: bool = False,
          param_noupdate: bool = False,
          param_analyses: bool = False,
+         param_update: bool = False,
          param_file: str | None = None) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
@@ -85,6 +87,7 @@ def main(param_debug: bool = False,
         param_test: Do not modify YAML (but DMS is still created/updated).
         param_noupdate: Do not update Datacite metadata, only create DOIs for resources without
         param_analyses: Also process analyses/utilities and create DOI:s for them
+        param_update: Force update of all metadata at Datacite. Overridden by param_noupdate.
         param_file: Pass a filename that will be handled -- else all files are read.
                             Filename built from YAML_DIR.
 
@@ -194,7 +197,7 @@ def main(param_debug: bool = False,
                 elif not param_noupdate:
                     # Calls to Datacite: 1-2
                     datacite_calls += 2
-                    dms_update(res_id, res, res_is_dataset, param_debug, param_test)
+                    dms_update(res_id, res, res_is_dataset, param_debug, param_test, param_update)
         except Exception:
             print(f"gen_pids/main: Error when working on {res_id}", file=sys.stderr)
             print(traceback.format_exc(), file=sys.stderr)
@@ -373,7 +376,12 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, par
         return ""
 
 
-def dms_update(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, param_test: bool) -> bool:
+def dms_update(res_id: str,
+               res: dict,
+               res_is_dataset: bool,
+               param_debug: bool,
+               param_test: bool,
+               param_update: bool) -> bool:
     """Update existing DMS metadata.
 
     Returns:
@@ -386,7 +394,7 @@ def dms_update(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, 
     dms_created, dms_updated, dms_publication_year = dms_doi_get_updated(doi, param_debug)
 
     # only update DataCite record if it is older than YAML record
-    if dms_updated < yaml_updated or not yaml_updated:
+    if (dms_updated < yaml_updated or not yaml_updated) or param_update:
         if yaml_created:
             dms_created = yaml_created
         if yaml_updated:
@@ -1061,4 +1069,5 @@ if __name__ == "__main__":
          param_test=args.test,
          param_noupdate=args.noupdate,
          param_analyses=args.analyses,
+         param_update=args.update,
          param_file=args.param_file)
