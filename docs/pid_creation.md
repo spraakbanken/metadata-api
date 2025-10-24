@@ -118,10 +118,10 @@ Also see [the SND guide](https://zenodo.org/records/8355878).
     * https://support.datacite.org/docs/api
     * https://support.datacite.org/docs/rate-limit
 
-### Changing id (slug) from A to B
+### Changing resource id (slug) from A to B
 
 #### Metadata-repository
-- rename A.yaml to B.yaml
+- rename A.yaml to B.yaml (A and B are resource id's)
 
 #### Datacite
 - go to datacite.org and "Sign in to Fabrica"
@@ -132,8 +132,9 @@ Also see [the SND guide](https://zenodo.org/records/8355878).
 	- Alternate identifier
 
 #### Check
+```
 https://api.datacite.org/dois?client-id=SND.SPRKB&query=identifiers.identifier:<A>%20AND%20identifiers.identifierType:slug&detail=true%22
-
+```
 
 ### Python
 
