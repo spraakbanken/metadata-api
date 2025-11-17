@@ -1,18 +1,18 @@
 """Read YAML metadata files, set DOIs for resources that miss one."""
 
-import argparse  # standard
-import datetime  # standard
-import netrc  # standard
-import re  # standard
-import sys  # standard
-import traceback  # standard
-from pathlib import Path  # standard
-from typing import Optional  # standard
+import argparse
+import datetime
+import netrc
+import re
+import sys
+import traceback
+from pathlib import Path
+from typing import Any
 
-import markdown  # install
+import markdown
 import requests
 import yaml
-from bs4 import BeautifulSoup  # install
+from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
 YAML_DIR = Path("../metadata/yaml")
@@ -46,7 +46,10 @@ RESPONSE_OK = 200
 RESPONSE_CREATED = 201
 
 try:
-    DMS_AUTH_USER, DMS_AUTH_ACCOUNT, DMS_AUTH_PASSWORD = netrc.netrc().authenticators("datacite.org")
+    auth = netrc.netrc().authenticators("datacite.org")
+    if auth is None:
+        raise ValueError("No authenticators found for datacite.org in netrc file.")
+    DMS_AUTH_USER, DMS_AUTH_ACCOUNT, DMS_AUTH_PASSWORD = auth
 except Exception:
     print("gen_pids: Failed to retrieve DataCite authenticators from netrc. Exiting.", file=sys.stderr)
     print(traceback.format_exc(), file=sys.stderr)
@@ -114,7 +117,7 @@ def main(param_debug: bool = False,
                     if not get_key_value(res, "unlisted") and (param_analyses or is_dataset(res)):
                         resources[res_id] = res
 
-            except Exception:  # noqa: PERF203
+            except Exception:
                 print(f"gen_pids/main: Error when opening/reading YAML file {filepath.stem}", file=sys.stderr)
                 # print(traceback.format_exc(), file=sys.stderr)
                 # sys.exit()
@@ -229,7 +232,7 @@ def main(param_debug: bool = False,
                             c[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
                         if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
                             c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
-            except Exception:  # noqa: PERF203
+            except Exception:
                 print("gen_pids/main: Error when mapping collections for", res_id, file=sys.stderr)
                 print(traceback.format_exc(), file=sys.stderr)
 
@@ -262,7 +265,7 @@ def main(param_debug: bool = False,
                             if DMS_RELATION_TYPE_ISOBSOLETEDBY not in c[successor_res_id]:
                                 c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = []
                             c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY].append(res_id)
-            except Exception:  # noqa: PERF203
+            except Exception:
                 print("gen_pids/main: Error when mapping successors for", res_id, file=sys.stderr)
                 print(traceback.format_exc(), file=sys.stderr)
 
@@ -289,7 +292,7 @@ def main(param_debug: bool = False,
                         get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
                         param_debug,
                 )
-            except Exception:  # noqa: PERF203
+            except Exception:
                 print("gen_pids/main: Error when updating DMS for", res_id, file=sys.stderr)
                 print(traceback.format_exc(), file=sys.stderr)
 
@@ -853,18 +856,6 @@ def get_res_size(size_list: dict) -> str:
     return ". ".join(f"{key}: {value}" for key, value in size_list.items())
 
 
-def get_res_format(downloads_list: list) -> str:
-    """Create string of download URLs."""
-    result = ""
-    for key, value in downloads_list.items():
-        if key == "format":
-            if result:
-                result += ", " + value
-            else:
-                result = value
-    return result
-
-
 def get_res_license(download_item: dict) -> dict:
     """Create item for rightsList structure.
 
@@ -878,7 +869,7 @@ def get_res_license(download_item: dict) -> dict:
     return {"rights": rights}
 
 
-def get_res_rights(downloads_list: list) -> dict:
+def get_res_rights(downloads_list: list) -> list:
     """Create dict of resource rights information.
 
     Returns:
@@ -891,7 +882,8 @@ def get_res_rights(downloads_list: list) -> dict:
             result_set.add(rights)
     return [{"rights": rights} for rights in result_set]
 
-def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> dict:
+
+def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> list:
     """Create dict of analysis rights information.
 
     Analysis licenses has three ways of specifiying license:
@@ -915,7 +907,8 @@ def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> 
             result_set.add(rights)
     return [{"rights": rights} for rights in result_set]
 
-def get_res_creators(res: str) -> list:
+
+def get_res_creators(res: dict) -> list:
     """Build creators structure."""
     # Creator is Språkbanken Text as default, but could be people
     creators = get_key_list_value(res, "creators")
@@ -994,7 +987,7 @@ def get_clean_string(string: str) -> str:
     return value  # noqa: RET504, RUF100
 
 
-def get_key_value(dictionary: dict, key: str, key2: Optional[str] = None) -> any:
+def get_key_value(dictionary: dict, key: str, key2: str | None = None) -> Any:
     """Return key value from dictionary, else empty string."""
     if key2 is None:
         value = dictionary.get(key, "")

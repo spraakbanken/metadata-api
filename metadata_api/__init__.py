@@ -82,7 +82,7 @@ def create_app(log_to_stdout: bool = False) -> Flask:
             app.config["cache_client"] = Client(
                 (app.config["MEMCACHED_HOST"], app.config["MEMCACHED_PORT"]), serde=serde.pickle_serde
             )
-            mc = app.config.get("cache_client")
+            mc = app.config["cache_client"]
             mc.set("test_key", "test_value")
             mc.get("test_key")
             logger.info("Connected to memcached")
@@ -102,19 +102,19 @@ def create_app(log_to_stdout: bool = False) -> Flask:
             app.logger.info("Request: %s %s", request.method, request.url)
 
     @app.errorhandler(400)
-    def handle_400_error(error: Exception) -> Response:
+    def handle_400_error(error: Exception) -> tuple[Response, int]:
         """Handle bad request errors."""
         logger.warning("Bad Request: %s", error)
         return jsonify({"Error": "Bad Request"}), 400
 
     @app.errorhandler(404)
-    def handle_404_error(error: Exception) -> Response:
+    def handle_404_error(error: Exception) -> tuple[Response, int]:
         """Handle not found errors."""
         logger.warning("Not Found: %s", error)
         return jsonify({"Error": "Not Found"}), 404
 
     @app.errorhandler(500)
-    def handle_500_error(error: Exception) -> Response:
+    def handle_500_error(error: Exception) -> tuple[Response, int]:
         """Handle internal server errors."""
         tb = traceback.format_exc()
         logger.error("Server Error: %s\nTraceback: %s", error, tb)

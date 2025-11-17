@@ -20,16 +20,19 @@ version = utils.get_version_from_pyproject()
 
 
 @general.route("/doc")
-def documentation() -> Response:
+def documentation() -> tuple[Response, int]:
     """Serve API documentation as json data.
 
     Returns:
         The API documentation as a json response.
     """
-    spec_file = Path(current_app.static_folder) / "apidoc.yaml"
+    static_folder = current_app.static_folder
+    if static_folder is None:
+        return jsonify({"error": "Static folder is not configured."}), 500
+    spec_file = Path(static_folder) / "apidoc.yaml"
     api_spec = Path(spec_file).read_text(encoding="UTF-8")
     api_spec = api_spec.replace("{{version}}", version)
-    return jsonify(yaml.safe_load(api_spec))
+    return jsonify(yaml.safe_load(api_spec)), 200
 
 
 @general.route("/")
@@ -73,7 +76,7 @@ def create_routes() -> None:
     This function is called by __init__.py when the app is created.
     """
     with current_app.app_context():
-        for resource_type in current_app.config.get("RESOURCES"):
+        for resource_type in current_app.config["RESOURCES"]:
             create_resource_route(resource_type)
 
 
@@ -84,7 +87,7 @@ def collections() -> Response:
     Returns:
         A JSON object containing collections metadata.
     """
-    collections = utils.load_json(current_app.config.get("COLLECTIONS_FILE"))
+    collections = utils.load_json(current_app.config["COLLECTIONS_FILE"])
     data = utils.dict_to_list(collections)
     return jsonify({"hits": len(data), "resources": data})
 
@@ -117,7 +120,7 @@ def check_id() -> Response:
 
 
 @general.route("/renew-cache", methods=["GET", "POST"])
-def renew_cache() -> Response:
+def renew_cache() -> tuple[Response, int]:
     """Update metadata files from git, re-process json files and update cache.
 
     API arguments:
@@ -128,13 +131,15 @@ def renew_cache() -> Response:
     Returns:
         A JSON object indicating whether the cache was successfully renewed.
     """
+    # Parse resource_paths (may be overridden by GitHub webhook payload)
     resource_paths = request.args.get("resource-paths") or None
-    debug = request.args.get("debug") or False
-    offline = request.args.get("offline") or False
+    resource_paths = resource_paths.split(",") if resource_paths else None
+    debug = bool(request.args.get("debug")) or False
+    offline = bool(request.args.get("offline")) or False
 
     # Pull changes from GitHub before parsing YAML files
     try:
-        repo = Repo(current_app.config.get("METADATA_DIR"))
+        repo = Repo(Path(current_app.config["METADATA_DIR"]))
         repo.remotes.origin.pull()
     except Exception as e:
         msg = f"Error when pulling changes from GitHub: {e}"
@@ -167,7 +172,7 @@ def renew_cache() -> Response:
                     changed_files.extend(commit.get("removed", []))
 
                 # If too many files were changed, GitHub will not provide a complete list. Update all data in this case.
-                file_limit = current_app.config.get("GITHUB_FILE_LIMIT")
+                file_limit = current_app.config["GITHUB_FILE_LIMIT"]
                 if len(changed_files) > file_limit:
                     resource_paths = None
                 # Format paths (strip first component and file ending) to create input for process_resources
@@ -184,10 +189,6 @@ def renew_cache() -> Response:
             utils.send_to_slack(msg)
             return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []}), 500
 
-    # Parse resource_paths from GET request
-    elif request.method == "GET" and resource_paths:
-        resource_paths = resource_paths.split(",")
-
     # Create a string buffer to capture logs from process_resources
     log_capture_string = io.StringIO()
     log_handler = logging.StreamHandler(log_capture_string)
@@ -203,13 +204,13 @@ def renew_cache() -> Response:
             resource_paths=resource_paths, config_obj=current_app.config, validate=True, debug=debug, offline=offline
         )
 
-        if not current_app.config.get("NO_CACHE"):
-            mc = current_app.config.get("cache_client")
+        if not current_app.config["NO_CACHE"]:
+            mc = current_app.config["cache_client"]
             mc.flush_all()
         # Reload resources and resource texts to populate cache
         utils.load_resources()
-        utils.load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
-        utils.load_json(current_app.config.get("COLLECTIONS_FILE"))
+        utils.load_json(current_app.config["RESOURCE_TEXTS_FILE"], prefix="res_descr")
+        utils.load_json(current_app.config["COLLECTIONS_FILE"])
         success = True
 
     except Exception as e:
@@ -234,7 +235,9 @@ def renew_cache() -> Response:
     if errors or warnings:
         utils.send_to_slack("Cache renewal completed.\n" + "\n".join(errors + warnings))
 
-    return jsonify({"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info})
+    return jsonify(
+        {"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info}
+    ), 200 if success else 500
 
 
 @general.route("/bibtex")
@@ -264,7 +267,7 @@ def schema() -> Response:
     Returns:
         A JSON object containing the JSON schema.
     """
-    schema_file = Path(current_app.config.get("METADATA_DIR")) / current_app.config.get("SCHEMA_FILE")
+    schema_file = Path(current_app.config["METADATA_DIR"]) / current_app.config["SCHEMA_FILE"]
     schema = json.loads(schema_file.read_text(encoding="UTF-8"))
     schema = adapt_schema(schema)
     return jsonify(schema)

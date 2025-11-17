@@ -5,10 +5,10 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import tomllib
 from pathlib import Path
 from typing import Any
 
-import tomllib
 import requests
 from flask import Response, current_app, jsonify
 
@@ -25,7 +25,7 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Res
     Returns:
         JSON response containing the resource.
     """
-    resource_texts = load_json(current_app.config.get("RESOURCE_TEXTS_FILE"), prefix="res_descr")
+    resource_texts = load_json(current_app.config["RESOURCE_TEXTS_FILE"], prefix="res_descr")
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}
@@ -47,7 +47,7 @@ def load_resources() -> dict[str, dict[str, Any]]:
         Dictionary containing resource dictionaries.
     """
     resources = {}
-    for res_type, res_file in current_app.config.get("RESOURCES").items():
+    for res_type, res_file in current_app.config["RESOURCES"].items():
         resources[res_type] = load_json(res_file)
     return resources
 
@@ -97,7 +97,7 @@ def read_static_json(jsonfile: str) -> dict[str, Any]:
     """
     logger.info("Reading json %s", jsonfile)
     try:
-        file_path = Path(current_app.config.get("STATIC")) / jsonfile
+        file_path = Path(current_app.config["STATIC"]) / jsonfile
         with file_path.open("r") as f:
             return json.load(f)
     except FileNotFoundError:
@@ -145,7 +145,7 @@ def get_resource_type(resource_type: str) -> Response:
     Returns:
         JSON response containing the list of resources of the specified type.
     """
-    filtered_resources = load_json(current_app.config.get("RESOURCES").get(resource_type, {}))
+    filtered_resources = load_json(current_app.config["RESOURCES"].get(resource_type, {}))
     data = dict_to_list(filtered_resources)
 
     return jsonify({"resource_type": resource_type, "hits": len(data), "resources": data})
@@ -249,7 +249,7 @@ def send_to_slack(message: str) -> None:
         logger.warning("No Slack webhook configured.")
         return
     try:
-        requests.post(current_app.config.get("SLACK_WEBHOOK"), json={"text": message})
+        requests.post(current_app.config["SLACK_WEBHOOK"], json={"text": message})
     except Exception as e:
         logger.error("Error sending message to Slack, %s", e)
         logger.exception("Error sending message to Slack")

@@ -14,6 +14,7 @@ import pycountry
 import requests
 import yaml
 from flask import Config
+from jsonschema.exceptions import ValidationError
 
 # Swedish translations for language names
 SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"])
@@ -26,7 +27,7 @@ def process_resources(
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
-    config_obj: Config | dict | None = None,  # Remove this arg when parse_yaml is no longer used as a script
+    config_obj: Config | dict | None = None,
 ) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
@@ -36,18 +37,25 @@ def process_resources(
         debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
-        config_obj: Configuration object.
+        config_obj: Configuration object or dictionary.
     """
-    resource_types = [Path(i).stem for i in config_obj.get("RESOURCES").values()]
-    all_resources = {}
-    resource_texts = defaultdict(dict)
-    resource_text_file = config_obj.get("STATIC") / config_obj.get("RESOURCE_TEXTS_FILE")
-    collections_file = config_obj.get("STATIC") / config_obj.get("COLLECTIONS_FILE")
-    collection_mappings = {}
-    metadata_dir = Path(config_obj.get("METADATA_DIR"))
     if config_obj is None:
         raise ValueError("Configuration object is required")
-    localizations = get_localizations(metadata_dir / config_obj.get("LOCALIZATIONS_DIR"))
+
+    # Convert config_obj to dict if it is a Config object
+    if isinstance(config_obj, Config):
+        config_obj = {key: config_obj[key] for key in config_obj}
+
+    resource_types = [Path(i).stem for i in config_obj["RESOURCES"].values()]
+    all_resources = {}
+    resource_texts = defaultdict(dict)
+    resource_text_file = Path(config_obj["STATIC"]) / config_obj["RESOURCE_TEXTS_FILE"]
+    collections_file = Path(config_obj["STATIC"]) / config_obj["COLLECTIONS_FILE"]
+    collection_mappings = {}
+    metadata_dir = Path(config_obj["METADATA_DIR"])
+    if config_obj is None:
+        raise ValueError("Configuration object is required")
+    localizations = get_localizations(metadata_dir / config_obj["LOCALIZATIONS_DIR"])
 
     failed_files = []
 
@@ -55,7 +63,7 @@ def process_resources(
         logger.setLevel(logging.DEBUG)
 
     if validate:
-        resource_schema = get_schema(metadata_dir / config_obj.get("SCHEMA_FILE"))
+        resource_schema = get_schema(metadata_dir / config_obj["SCHEMA_FILE"])
         # YAML safe_load() - handle dates as strings
         yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
             yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
@@ -64,13 +72,13 @@ def process_resources(
         resource_schema = None
 
     if not resource_paths:
-        filepaths = sorted((metadata_dir / config_obj.get("YAML_DIR")).rglob("*.yaml"))
+        filepaths = sorted((metadata_dir / config_obj["YAML_DIR"]).rglob("*.yaml"))
     else:
         # When processing a single YAML file: set filepaths and load existing resource data
-        filepaths = [metadata_dir / config_obj.get("YAML_DIR") / f"{i}.yaml" for i in resource_paths]
+        filepaths = [metadata_dir / config_obj["YAML_DIR"] / f"{i}.yaml" for i in resource_paths]
 
         for resource_type in resource_types:
-            with (config_obj.get("STATIC") / f"{resource_type}.json").open(encoding="utf-8") as f:
+            with (Path(config_obj["STATIC"]) / f"{resource_type}.json").open(encoding="utf-8") as f:
                 all_resources.update(json.load(f))
         with resource_text_file.open(encoding="utf-8") as f:
             resource_texts.update(json.load(f))
@@ -113,7 +121,7 @@ def process_resources(
         res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
         # Set has_description for every resource and save as json.
         set_description_bool(res_json, resource_texts)
-        write_json(config_obj.get("STATIC") / f"{resource_type}.json", res_json)
+        write_json(Path(config_obj["STATIC"]) / f"{resource_type}.json", res_json)
 
     messages = []
     if failed_files:
@@ -132,7 +140,7 @@ def process_yaml_file(
     filepath: Path,
     resource_texts: defaultdict,
     collection_mappings: dict,
-    resource_schema: dict,
+    resource_schema: dict | None,
     localizations: dict,
     offline: bool = False,
     validate: bool = False,
@@ -178,7 +186,7 @@ def process_yaml_file(
             if validate and resource_schema is not None:
                 try:
                     jsonschema.validate(instance=res, schema=resource_schema)
-                except jsonschema.exceptions.ValidationError as e:
+                except ValidationError as e:
                     logger.error("Validation error for '%s/%s': %s", res_type, fileid, e.message)
                     return fileid, {}, False
                 except Exception:
@@ -301,7 +309,7 @@ def update_collections(collection_mappings: dict, collections_data: dict, all_re
                     res_item["in_collections"].append(col_id)
 
 
-def get_schema(filepath: Path) -> dict:
+def get_schema(filepath: Path) -> dict | None:
     """Load and return the JSON schema from the given file path.
 
     Args:
@@ -311,7 +319,7 @@ def get_schema(filepath: Path) -> dict:
         The loaded JSON schema.
     """
     try:
-        with filepath.open() as schema_file:
+        with filepath.open(encoding="utf-8") as schema_file:
             schema = json.load(schema_file)
     except Exception:
         logger.exception("Failed to get schema '%s'", filepath)
@@ -320,7 +328,7 @@ def get_schema(filepath: Path) -> dict:
     return schema
 
 
-def get_download_metadata(url: str, name: str) -> tuple[int, str]:
+def get_download_metadata(url: str, name: str) -> tuple[int | None, str | None]:
     """Check headers of file from URL and return the file size and last modified date.
 
     Args:
@@ -336,7 +344,8 @@ def get_download_metadata(url: str, name: str) -> tuple[int, str]:
 
     try:
         res = requests.head(url)
-        size = int(res.headers.get("Content-Length")) if res.headers.get("Content-Length") else None
+        content_length = res.headers.get("Content-Length")
+        size = int(content_length) if content_length is not None else None
         date = res.headers.get("Last-Modified")
         if date:
             date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
