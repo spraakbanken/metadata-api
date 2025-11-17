@@ -18,9 +18,9 @@ This project contains the following main components:
 
 ## Bumping the version number
 
-When increasing the version number of the app, update the `__version__` variable in
-[`__init__.py`](metadata_api/__init__.py). If you change the major version, run [`set_version.sh`](set_version.sh) to
-automatically update all version references in this README file.
+If you want to bump the app version number, update the `version` field in [`pyproject.toml`](pyproject.toml). If you
+change the major version, run [`set_version.sh`](set_version.sh) to automatically update all version references in the
+URLs in the [README file](README.md).
 
 ## Caching
 

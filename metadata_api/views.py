@@ -9,13 +9,14 @@ import yaml
 from flask import Blueprint, Response, current_app, jsonify, request
 from git import Repo
 
-from . import __version__, utils
+from . import utils
 from .adapt_schema import adapt_schema
 from .parse_yaml import logger as parse_yaml_logger
 from .parse_yaml import process_resources
 
 general = Blueprint("general", __name__)
 logger = logging.getLogger(__name__)
+version = utils.get_version_from_pyproject()
 
 
 @general.route("/doc")
@@ -27,7 +28,7 @@ def documentation() -> Response:
     """
     spec_file = Path(current_app.static_folder) / "apidoc.yaml"
     api_spec = Path(spec_file).read_text(encoding="UTF-8")
-    api_spec = api_spec.replace("{{version}}", __version__)
+    api_spec = api_spec.replace("{{version}}", version)
     return jsonify(yaml.safe_load(api_spec))
 
 

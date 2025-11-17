@@ -3,7 +3,7 @@ name = "metadata-api"
 version = "3.1"
 description = ""
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [
     { name = "Språkbanken Text", email = "sb-info@svenska.gu.se" }

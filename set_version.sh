@@ -2,8 +2,8 @@
 
 # Set current version number in README.md
 
-# Find version number
-APP_VERSION=$(grep -o -P '(?<=__version__ = ")(.*)(?=")' metadata_api/__init__.py) # e.g. 3.0
+# Find version number in pyproject.toml
+APP_VERSION=$(grep -o -P '(?<=^version = ")(.*)(?=")' pyproject.toml) # e.g. 3.1
 
 if [[ -z $APP_VERSION ]]; then
   echo "Couldn't extract version number"; exit 1

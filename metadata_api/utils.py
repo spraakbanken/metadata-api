@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import tomllib
 import requests
 from flask import Response, current_app, jsonify
 
@@ -252,3 +253,19 @@ def send_to_slack(message: str) -> None:
     except Exception as e:
         logger.error("Error sending message to Slack, %s", e)
         logger.exception("Error sending message to Slack")
+
+
+def get_version_from_pyproject(path: Path = Path("pyproject.toml")) -> str:
+    """Get the version of the project from the pyproject.toml file.
+
+    Args:
+        path: Path to the pyproject.toml file.
+    """
+    # print absolute path
+    path = path.resolve()
+    if not path.exists() or not path.is_file():
+        logger.error("Could not find pyproject.toml file at %s", path)
+        raise FileNotFoundError(f"Could not find pyproject.toml file at {path}")
+    with path.open("rb") as f:
+        data = tomllib.load(f)
+    return data["project"]["version"]
