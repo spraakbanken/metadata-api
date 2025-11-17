@@ -846,16 +846,11 @@ def get_res_lang_code(language_list: list) -> str:
     return ""
 
 
-def get_res_size(size_list: list) -> str:
-    """Create string of resource size info."""
-    result = ""
-    if type(size_list) is list:
-        for key, value in size_list.items():
-            if result:
-                result += ". " + key + ": " + value
-            else:
-                result = key + ": " + value
-    return result
+def get_res_size(size_list: dict) -> str:
+    """Create string of resource size info, e.g. 'sentences: 10. tokens: 1000'."""
+    if not isinstance(size_list, dict):
+        return ""
+    return ". ".join(f"{key}: {value}" for key, value in size_list.items())
 
 
 def get_res_format(downloads_list: list) -> str:
