@@ -1,6 +1,36 @@
+[project]
+name = "metadata-api"
+version = "3.1"
+description = ""
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Språkbanken Text", email = "sb-info@svenska.gu.se" }
+]
+dependencies = [
+    "beautifulsoup4>=4.14.2",
+    "flask>=3.1.2",
+    "flask-cors>=6.0.1",
+    "gitpython>=3.1.45",
+    "gunicorn>=23.0.0",
+    "jsonschema>=4.25.1",
+    "lxml>=6.0.2",
+    "markdown>=3.10",
+    "pycountry>=24.6.1",
+    "pymemcache>=4.0.0",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.5",
+]
+
+[tool.black]
 line-length = 120
 
-[lint]
+[tool.ruff]
+line-length = 120
+output-format = "grouped"
+
+[tool.ruff.lint]
 select = [
     "A",      # flake8-builtins
     "ANN",    # flake8-annotations
@@ -35,9 +65,8 @@ select = [
     "W",      # pycodestyle: warnings
 ]
 ignore = [
-    "ANN101",  # flake8-annotations: missing-type-self (deprecated)
-    "ANN102",  # flake8-annotations: missing-type-cls (deprecated)
     "ANN401",  # flake8-annotations: any-type
+    "B008",    # flake8-bugbear: function-call-in-default-argument
     "COM812",  # flake8-commas: missing-trailing-comma
     "E741",    # pycodestyle: ambiguous-variable-name
     "PLR09",   # Pylint: too-many-*
@@ -45,7 +74,16 @@ ignore = [
     "SIM105",  # flake8-simplify: suppressible-exception
     "T201",    # flake8-print: print-statement
 ]
+
 preview = true
 
-[lint.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[build-system]
+requires = ["uv_build>=0.9.7,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "metadata_api"
+module-root = ""

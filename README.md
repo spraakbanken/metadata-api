@@ -44,19 +44,48 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
   for downloadables when parsing YAML files, `?resource-paths=<resource_type/resource_id>,...` will process specific
   resources only.
 
-## Installation (SBX-specific)
+## Requirements
 
-- Install requirements from `requirements.txt`, e.g. with a (virtual environment):
+- [Python 3.10](https://docs.python.org/3.10/) or newer
+- [Memcached](https://memcached.org/) (optional, check [caching.md](docs/caching.md) for more info)
 
-  ```bash
-  python3 -m venv venv
-  source venv/bin/activate
-  pip install -r requirements.txt
-  ```
+## Installation
 
-- The app can be configured by creating `config.py` in the root directory. The configuration in
-  [`config_default.py`](config_default.py) is always loaded automatically but its values can be overridden by
-  `config.py`.
+To install the dependencies, we recommend using [uv](https://docs.astral.sh/uv/).
+
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if you don't have it already.
+2. While in the metadata-api directory, run:
+
+   ```sh
+   uv sync --no-install-project
+   ```
+
+   This will create a virtual environment in the `.venv` directory and install the dependencies listed in
+   `pyproject.toml`.
+
+Alternatively, you can set up a virtual environment manually using Python's built-in `venv` module and install the
+dependencies using pip:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+## Configuration
+
+The app can be configured by creating `config.py` in the root directory. The configuration in
+[`config_default.py`](config_default.py) is always loaded automatically but its values can be overridden by `config.py`.
+
+## Running a test server
+
+For testing purposes the app can be run with the following script (with an activated venv):
+
+```bash
+python run.py [--port PORT]
+```
+
+## Deployment (SBX-specific)
 
 - [Create a deploy
   key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#set-up-deploy-keys),
@@ -98,14 +127,6 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
   # Update Datacite metadata once per week
   15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
   ```
-
-## Running a test server
-
-For testing purposes the app can be run with the following script (with an activated venv):
-
-```bash
-python run.py [--port PORT]
-```
 
 ## Upgrading to a new app version
 
