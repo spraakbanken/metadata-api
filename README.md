@@ -4,6 +4,8 @@ The Språkbanken Text Metadata API is a RESTful web service that provides access
 maintained by Språkbanken Text, including corpora, lexicons, models, analyses, and utilities. The metadata is stored in
 YAML files in a separate [metadata repository](https://github.com/spraakbanken/metadata).
 
+For more technical details please refer to the [developer documentation](docs/dev-docs.md).
+
 ## API Usage
 
 Available API calls (please note that the URL contains the API version, e.g. `/v3`, `/dev` etc):
@@ -17,6 +19,10 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 - <https://ws.spraakbanken.gu.se/ws/metadata/v3/collections>: List all collections
 - <https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo>: List one specific resource. Add resource description
   (if available)
+- <https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache>: Update metadata files from git, re-process json files and
+  update cache. optional parameters: `?debug=True` will print debug info, `?offline=True` will omit getting file info
+  for downloadables when parsing YAML files, `?resource-paths=<resource_type/resource_id>,...` will process specific
+  resources only.
 - <https://ws.spraakbanken.gu.se/ws/metadata/v3/schema>: Return JSON schema for resources
 - <https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids>: List all existing resource IDs
 - <https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=[my-resource]>: Check if a given resource ID is
@@ -24,10 +30,6 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 - <https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=[some-id]>: Return bibtex citation for specified
   resource
 - <https://ws.spraakbanken.gu.se/ws/metadata/v3/doc>: Serve API documentation as JSON
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache>: Update metadata files from git, re-process json files and
-  update cache. optional parameters: `?debug=True` will print debug info, `?offline=True` will omit getting file info
-  for downloadables when parsing YAML files, `?resource-paths=<resource_type/resource_id>,...` will process specific
-  resources only.
 
 ## Requirements
 
