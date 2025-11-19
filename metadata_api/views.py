@@ -42,12 +42,14 @@ def metadata() -> Response:
     Returns:
         A JSON object containing corpus and lexicon metadata.
     """
-    resources_dict = utils.load_resources()
+    resources_dict = utils.load_resources(
+        current_app.config["RESOURCES"], cache_client=current_app.config.get("cache_client", None)
+    )
 
     # Single resource was requested
     resource_id = request.args.get("resource")
     if resource_id:
-        return utils.get_single_resource(resource_id, resources_dict)
+        return jsonify(utils.get_single_resource(resource_id, resources_dict))
 
     # All data was requested
     return jsonify({key: utils.dict_to_list(value) for key, value in resources_dict.items()})
@@ -65,7 +67,7 @@ def create_resource_route(resource_type: str) -> None:
         Returns:
             A JSON object containing metadata for the specified resource type.
         """
-        return utils.get_resource_type(resource_type)
+        return jsonify(utils.get_resource_type(resource_type))
 
     general.add_url_rule(f"/{resource_type}", endpoint=f"{resource_type}", view_func=resource)
 
@@ -87,7 +89,9 @@ def collections() -> Response:
     Returns:
         A JSON object containing collections metadata.
     """
-    collections = utils.load_json(current_app.config["COLLECTIONS_FILE"])
+    collections = utils.load_json(
+        current_app.config["COLLECTIONS_FILE"], cache_client=current_app.config.get("cache_client", None)
+    )
     data = utils.dict_to_list(collections)
     return jsonify({"hits": len(data), "resources": data})
 
@@ -99,12 +103,14 @@ def list_ids() -> list[str]:
     Returns:
         A sorted list of all existing resource IDs.
     """
-    resource_ids = [k for resource_type in utils.load_resources().values() for k in resource_type]
+    resources_mapping = current_app.config["RESOURCES"]
+    resources = utils.load_resources(resources_mapping, cache_client=current_app.config.get("cache_client", None))
+    resource_ids = [k for resource_type in resources.values() for k in resource_type]
     return sorted(resource_ids)
 
 
 @general.route("/check-id-availability")
-def check_id() -> Response:
+def check_id() -> tuple[Response, int]:
     """Check if a given resource ID is available.
 
     Returns:
@@ -112,11 +118,14 @@ def check_id() -> Response:
     """
     input_id = request.args.get("id")
     if not input_id:
-        return jsonify({"id": None, "error": "No ID provided"})
-    resource_ids = [k for resource_type in utils.load_resources().values() for k in resource_type]
+        return jsonify({"id": None, "error": "No ID provided"}), 400
+
+    resources_mapping = current_app.config["RESOURCES"]
+    resources = utils.load_resources(resources_mapping, cache_client=current_app.config.get("cache_client", None))
+    resource_ids = [k for resource_type in resources.values() for k in resource_type]
     if input_id in resource_ids:
-        return jsonify({"id": input_id, "available": False})
-    return jsonify({"id": input_id, "available": True})
+        return jsonify({"id": input_id, "available": False}), 200
+    return jsonify({"id": input_id, "available": True}), 200
 
 
 @general.route("/renew-cache", methods=["GET", "POST"])
@@ -250,7 +259,9 @@ def bibtex() -> Response:
     try:
         resource_id = request.args.get("resource")
         if resource_id:
-            resources_dict = utils.load_resources()
+            resources_dict = utils.load_resources(
+                current_app.config["RESOURCES"], cache_client=current_app.config.get("cache_client", None)
+            )
             bibtex = utils.get_bibtex(resource_id, resources_dict)
         else:
             bibtex = "Error: Incorrect arguments provided. Format: /bibtex?resource=<id>"

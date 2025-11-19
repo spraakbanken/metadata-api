@@ -7,15 +7,50 @@ import json
 import logging
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
-from flask import Response, current_app, jsonify
+
+if TYPE_CHECKING:
+    from pymemcache.client.base import Client
 
 logger = logging.getLogger(__name__)
 
 
-def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Response:
+def load_json(
+    jsonfile: str, prefix: str = "", cache_client: Client | None = None
+) -> dict[str, Any]:
+    """Load data from cache if available, otherwise load from JSON file.
+
+    Args:
+        jsonfile: The JSON file to load.
+        prefix: The prefix to add to keys.
+        cache_client: Memcache client to use.
+
+    Returns:
+        Dictionary containing the loaded data.
+    """
+    if not cache_client:
+        logger.warning("No memcache client available.")
+        return read_static_json(jsonfile)
+
+    # Populate cache if it's empty
+    data = cache_client.get(add_prefix(jsonfile, prefix))
+    if not data:
+        logger.debug("Data for '%s' not found in cache. Reloading.", add_prefix(jsonfile, prefix))
+        all_data = read_static_json(jsonfile)
+        cache_client.set(add_prefix(jsonfile, prefix), list(all_data.keys()))
+        for k, v in all_data.items():
+            cache_client.set(add_prefix(k, prefix), v)
+    else:
+        all_data = {}
+        for k in data:
+            all_data[k] = cache_client.get(add_prefix(k, prefix))
+
+    return all_data
+
+
+def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> dict[str, Any]:
     """Get resource from resource dictionaries and add long resource description if available.
 
     Args:
@@ -23,9 +58,15 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Res
         resources_dict: Dictionary of resources.
 
     Returns:
-        JSON response containing the resource.
+        Dictionary containing the resource.
     """
-    resource_texts = load_json(current_app.config["RESOURCE_TEXTS_FILE"], prefix="res_descr")
+    from flask import current_app  # noqa: PLC0415
+
+    resource_texts = load_json(
+        current_app.config["RESOURCE_TEXTS_FILE"],
+        prefix="res_descr",
+        cache_client=current_app.config.get("cache_client", None),
+    )
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}
@@ -37,53 +78,25 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> Res
     if resource and long_description:
         resource["description"] = long_description
 
-    return jsonify(resource)
+    return resource
 
 
-def load_resources() -> dict[str, dict[str, Any]]:
+def load_resources(
+    resource_mapping: dict[str, str], cache_client: Client | None = None
+) -> dict[str, Any]:
     """Load all resource types from JSON from cache or files.
+
+    Args:
+        resource_mapping: Mapping of resource types to their corresponding JSON files.
+        cache_client: Memcache client to use.
 
     Returns:
         Dictionary containing resource dictionaries.
     """
     resources = {}
-    for res_type, res_file in current_app.config["RESOURCES"].items():
-        resources[res_type] = load_json(res_file)
+    for res_type, res_file in resource_mapping.items():
+        resources[res_type] = load_json(res_file, cache_client=cache_client)
     return resources
-
-
-def load_json(jsonfile: str, prefix: str = "") -> dict[str, Any]:
-    """Load data from cache if available, otherwise load from JSON file.
-
-    Args:
-        jsonfile: The JSON file to load.
-        prefix: The prefix to add to keys.
-
-    Returns:
-        Dictionary containing the loaded data.
-    """
-    if current_app.config.get("NO_CACHE"):
-        return read_static_json(jsonfile)
-
-    mc = current_app.config.get("cache_client")
-    if not mc:
-        logger.warning("No memcache client available.")
-        return read_static_json(jsonfile)
-
-    # Repopulate cache if it's empty
-    data = mc.get(add_prefix(jsonfile, prefix))
-    if not data:
-        logger.debug("Data for '%s' not found in cache. Reloading.", add_prefix(jsonfile, prefix))
-        all_data = read_static_json(jsonfile)
-        mc.set(add_prefix(jsonfile, prefix), list(all_data.keys()))
-        for k, v in all_data.items():
-            mc.set(add_prefix(k, prefix), v)
-    else:
-        all_data = {}
-        for k in data:
-            all_data[k] = mc.get(add_prefix(k, prefix))
-
-    return all_data
 
 
 def read_static_json(jsonfile: str) -> dict[str, Any]:
@@ -95,6 +108,7 @@ def read_static_json(jsonfile: str) -> dict[str, Any]:
     Returns:
         Dictionary containing the JSON data.
     """
+    from flask import current_app  # noqa: PLC0415
     logger.info("Reading json %s", jsonfile)
     try:
         file_path = Path(current_app.config["STATIC"]) / jsonfile
@@ -136,19 +150,24 @@ def dict_to_list(input_obj: dict[str, Any]) -> list:
     return list(input_obj.values())
 
 
-def get_resource_type(resource_type: str) -> Response:
+def get_resource_type(resource_type: str) -> dict[str, Any]:
     """Get list of resources of one type.
 
     Args:
         resource_type: The type of resources to list.
 
     Returns:
-        JSON response containing the list of resources of the specified type.
+        Dictionary containing the list of resources of the specified type.
     """
-    filtered_resources = load_json(current_app.config["RESOURCES"].get(resource_type, {}))
+    from flask import current_app  # noqa: PLC0415
+
+    filtered_resources = load_json(
+        current_app.config["RESOURCES"].get(resource_type, {}),
+        cache_client=current_app.config.get("cache_client", None),
+    )
     data = dict_to_list(filtered_resources)
 
-    return jsonify({"resource_type": resource_type, "hits": len(data), "resources": data})
+    return {"resource_type": resource_type, "hits": len(data), "resources": data}
 
 
 def get_bibtex(resource_id: str, resources_dict: dict[str, Any]) -> str:
@@ -161,11 +180,10 @@ def get_bibtex(resource_id: str, resources_dict: dict[str, Any]) -> str:
     Returns:
         BibTeX entry as a string.
     """
-    bibtex = ""
     for resource_type in resources_dict.values():
         if resource_id in resource_type:
-            bibtex = create_bibtex(resource_type[resource_id])
-    return bibtex
+            return create_bibtex(resource_type[resource_id])
+    return "Error: Resource not found"
 
 
 def create_bibtex(resource: dict[str, Any]) -> str:
@@ -178,19 +196,13 @@ def create_bibtex(resource: dict[str, Any]) -> str:
         BibTeX entry as a string.
     """
     try:
-        # DOI
         f_doi = resource.get("doi", "")
-        # id/slug/maskinnamn
-        f_id = resource.get("id", "")
-        # creators, "Skapad av"
-        f_creators = resource.get("creators", [])
+        f_id = resource.get("id", "")  # id/slug/maskinnamn
+        f_creators = resource.get("creators", [])  # creators, "Skapad av"
         f_author = " and ".join(f_creators) if len(f_creators) > 0 else "Språkbanken Text"
-        # keywords
         f_words = resource.get("keywords", [])
         f_words.insert(0, "Language Technology (Computational Linguistics)")
-        # f_keywords = "Language Technology (Computational Linguistics)"
         f_keywords = ", ".join(f_words)
-        # languages
         f_languages = resource.get("languages", [])
         if len(f_languages) > 0:
             f_language = f_languages[0].get("code", "")
@@ -198,11 +210,10 @@ def create_bibtex(resource: dict[str, Any]) -> str:
                 f_language += ", " + item.get("code", "")
         else:
             f_language = ""
-        # name, title
         f_title = resource["name"].get("eng", "")
         if f_title:
             f_title = resource["name"].get("swe", "")
-        # year, fallback to current year
+        # Get year, fallback to current year
         f_year = str(datetime.datetime.now().date().year)
         f_updated = resource.get("updated", "")
         if f_updated:
@@ -211,17 +222,18 @@ def create_bibtex(resource: dict[str, Any]) -> str:
             f_created = resource.get("created", "")
             if f_created:
                 f_year = f_created[:4]
-        # target URL
+
+        # Target URL
         match resource["type"]:
             case "analysis" | "utility":
                 f_url = "https://spraakbanken.gu.se/analyser/"
             case "corpus" | "lexicon" | "model":
                 f_url = "https://spraakbanken.gu.se/resurser/"
             case _:
-                # fallback
+                # Fallback
                 f_url = "https://spraakbanken.gu.se/resurser/"
 
-        # build bibtex string
+        # Build bibtex string
         return (
             f"@misc{{{f_id},\n"
             f"  doi = {{{f_doi}}},\n"
@@ -236,20 +248,22 @@ def create_bibtex(resource: dict[str, Any]) -> str:
         )
 
     except Exception as e:
+        logger.exception("Error creating BibTeX entry")
         return "Error:" + str(e)
 
 
-def send_to_slack(message: str) -> None:
+def send_to_slack(message: str, slack_webhook: str) -> None:
     """Send message to Slack.
 
     Args:
         message: The message to send.
+        slack_webhook: The Slack webhook URL.
     """
-    if not current_app.config.get("SLACK_WEBHOOK"):
+    if not slack_webhook:
         logger.warning("No Slack webhook configured.")
         return
     try:
-        requests.post(current_app.config["SLACK_WEBHOOK"], json={"text": message})
+        requests.post(slack_webhook, json={"text": message})
     except Exception as e:
         logger.error("Error sending message to Slack, %s", e)
         logger.exception("Error sending message to Slack")

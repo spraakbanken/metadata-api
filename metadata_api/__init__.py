@@ -16,10 +16,9 @@ try:
     from pymemcache import serde
     from pymemcache.client.base import Client
 except ImportError:
-    logger.warning("Could not load pymemcache. Caching will be disabled.")
-    no_memcache = True
+    memcache_unavailable = True
 else:
-    no_memcache = False
+    memcache_unavailable = False
 
 
 def create_app(log_to_stdout: bool = False) -> Flask:
@@ -70,12 +69,13 @@ def create_app(log_to_stdout: bool = False) -> Flask:
     # Prevent flask from resorting JSON
     app.config["JSON_SORT_KEYS"] = False
 
+    # Warn if caching is not disabled but pymemcache is not available
+    if not app.config["NO_CACHE"] and memcache_unavailable:
+        logger.warning("Library pymemcache not available, disabling caching.")
+
     # Connect to memcached if possible
-    no_cache = no_memcache
-    if not no_memcache:
-        no_cache = app.config.get("NO_CACHE", False)
-    app.config["NO_CACHE"] = no_cache
-    if no_cache:
+    app.config["NO_CACHE"] = app.config.get("NO_CACHE", memcache_unavailable)
+    if app.config["NO_CACHE"]:
         logger.info("Not using cache")
     else:
         try:
