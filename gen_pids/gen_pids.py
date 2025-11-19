@@ -19,8 +19,10 @@ from requests.auth import HTTPBasicAuth
 YAML_DIR = Path("../metadata/yaml")
 DOI_KEY = "doi"
 DMS_URL = "https://api.datacite.org/dois"
-DMS_HEADERS = {"content-type": "application/json",
-               "User-agent": "GenPids/1.0 (https://spraakbanken.gu.se; mailto:sb-webb@svenska.gu.se)"}
+DMS_HEADERS = {
+    "content-type": "application/json",
+    "User-agent": "GenPids/1.0 (https://spraakbanken.gu.se; mailto:sb-webb@svenska.gu.se)",
+}
 DMS_PREFIX = "10.23695"
 DMS_REPOID = "SND.SPRKB"
 DMS_CREATOR_NAME = "Språkbanken Text"
@@ -38,6 +40,9 @@ DMS_LANG_SWE = "sv"
 DMS_LANG_MUL = "mul"
 DMS_TITLE_EXAMPLE_SWE = "Exempel (in English)"
 DMS_TITLE_EXAMPLE_ENG = "Example"
+DMS_LICENSE_SCHEME_URI = "https://spdx.org/licenses/"
+DMS_LICENSE_SCHEME_ID = "SPDX"
+DMS_LICENSE_OTHER = "LicenseRef-Other"
 
 DMS_RELATION_TYPE_ISPARTOF = "IsPartOf"
 DMS_RELATION_TYPE_HASPART = "HasPart"
@@ -48,7 +53,7 @@ RESPONSE_OK = 200
 RESPONSE_CREATED = 201
 
 DATACITE_RATE_LIMIT = 298
-DATACITE_RATE_LIMIT_TIMEOUT = (60 * 5)
+DATACITE_RATE_LIMIT_TIMEOUT = 60 * 5
 
 try:
     DMS_AUTH_USER, DMS_AUTH_ACCOUNT, DMS_AUTH_PASSWORD = netrc.netrc().authenticators("datacite.org")
@@ -63,23 +68,26 @@ except Exception:
 # Instantiate command line arg parser
 parser = argparse.ArgumentParser(
     description="Read YAML metadata files, create DOIs for those that are missing it, "
-                "create and update Datacite metadata."
+    "create and update Datacite metadata."
 )
 parser.add_argument("--debug", "-d", action="store_true", help="Print debug info")
-parser.add_argument("--test", "-t", action="store_true",
-                    help="Test - don't write back YAML and don't call Datacite to create DOI")
+parser.add_argument(
+    "--test", "-t", action="store_true", help="Test - don't write back YAML and don't call Datacite to create DOI"
+)
 parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
 parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
 parser.add_argument("--update", "-u", action="store_true", help="Force update of all metadata at Datacite")
 parser.add_argument("-f", action="store", dest="param_file", type=str)
 
 
-def main(param_debug: bool = False,
-         param_test: bool = False,
-         param_noupdate: bool = False,
-         param_analyses: bool = False,
-         param_update: bool = False,
-         param_file: str | None = None) -> None:
+def main(
+    param_debug: bool = False,
+    param_test: bool = False,
+    param_noupdate: bool = False,
+    param_analyses: bool = False,
+    param_update: bool = False,
+    param_file: str | None = None,
+) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Args:
@@ -185,7 +193,7 @@ def main(param_debug: bool = False,
                                         char = file_yaml.read(1)
                                         if not char:
                                             break
-                                        last_char_is_newline = (char == "\n")
+                                        last_char_is_newline = char == "\n"
                                     if last_char_is_newline:
                                         file_yaml.write(f"doi: {doi}\n")
                                     else:
@@ -316,7 +324,7 @@ def main(param_debug: bool = False,
                         get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
                         get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
                         param_debug,
-                )
+                    )
             except Exception:  # noqa: PERF203
                 print("gen_pids/main: Error when updating DMS for", res_id, file=sys.stderr)
                 print(traceback.format_exc(), file=sys.stderr)
@@ -376,12 +384,9 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, par
         return ""
 
 
-def dms_update(res_id: str,
-               res: dict,
-               res_is_dataset: bool,
-               param_debug: bool,
-               param_test: bool,
-               param_update: bool) -> bool:
+def dms_update(
+    res_id: str, res: dict, res_is_dataset: bool, param_debug: bool, param_test: bool, param_update: bool
+) -> bool:
     """Update existing DMS metadata.
 
     Returns:
@@ -422,15 +427,16 @@ def dms_update(res_id: str,
             )
 
             if param_debug:
-                print("gen_pids/dms_update: response",
-                      response.status_code)
+                print("gen_pids/dms_update: response", response.status_code)
             if response.status_code >= 300:  # noqa: PLR2004
-                print("gen_pids/dms_update: Error updating",
-                      res_id,
-                      doi,
-                      response.status_code,
-                      str(data_json),
-                      file=sys.stderr)
+                print(
+                    "gen_pids/dms_update: Error updating",
+                    res_id,
+                    doi,
+                    response.status_code,
+                    str(data_json),
+                    file=sys.stderr,
+                )
 
     return updated
 
@@ -545,16 +551,13 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
             dms_resource_type_general = DMS_RESOURCE_TYPE_ANALYSIS
     dms_json["data"]["attributes"]["types"] = {
         "resourceType": dms_resource_type,
-        "resourceTypeGeneral": dms_resource_type_general
+        "resourceTypeGeneral": dms_resource_type_general,
     }
 
     # 11. On. Alternate identifier
     # resource ID (which is unique within Språkbanken Text)
     dms_json["data"]["attributes"]["alternateIdentifiers"] = [
-        {
-            "alternateIdentifierType": DMS_SLUG,
-            "alternateIdentifier": res_id
-        }
+        {"alternateIdentifierType": DMS_SLUG, "alternateIdentifier": res_id}
     ]
 
     # 12. Rn. Related identifier
@@ -578,9 +581,8 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
         value = get_key_value(res, "license")
         if value:
             dms_json["data"]["attributes"]["rightsList"] = get_res_rights_a(
-                                                                value,
-                                                                res.get("tools", []),
-                                                                res.get("models", []))
+                value, res.get("tools", []), res.get("models", [])
+            )
     # 17. Rn. Descriptions
     dms_json["data"]["attributes"]["descriptions"] = []
     value_swe = get_key_value(res, "description", "swe")
@@ -903,7 +905,7 @@ def get_res_format(downloads_list: list) -> str:
     return result
 
 
-def get_res_license(download_item: dict) -> dict:
+def get_res_license(item: dict) -> dict:
     """Create item for rightsList structure.
 
     TODO: Add schema etc (right now we only send free text)
@@ -911,25 +913,40 @@ def get_res_license(download_item: dict) -> dict:
     Returns:
         rightsList item
     """
-    rights = download_item["license"]  # eg "CC BY 4.0"
+    rights = item.get("license", "")  # eg "CC BY 4.0"
 
-    return {"rights": rights}
+    # rights_str = item["license_other"] if rights == DMS_LICENSE_OTHER else rights
+
+    if rights == DMS_LICENSE_OTHER:  # noqa: SIM108
+        rights_str = item.get("license_other", "")
+    else:
+        rights_str = rights
+
+    return {
+        "rights": rights_str,
+        "lang": DMS_LANG_ENG,
+        "schemeURI": DMS_LICENSE_SCHEME_URI,
+        "rightsIdentifierScheme": DMS_LICENSE_SCHEME_ID,
+        "rightsIdentifier": rights,
+    }
 
 
-def get_res_rights(downloads_list: list) -> dict:
+def get_res_rights(downloads_list: list) -> list:
     """Create dict of resource rights information.
 
     Returns:
         rightsList item (or empty dict)
     """
-    result_set = set()
+    result_list = []
     for item in downloads_list:
-        rights = item.get("license", "")
+        rights = get_res_license(item)
         if rights:
-            result_set.add(rights)
-    return [{"rights": rights} for rights in result_set]
+            result_list.append(rights)
+    # return [{"rights": rights} for rights in result_set]
+    return result_list
 
-def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> dict:
+
+def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> list:
     """Create dict of analysis rights information.
 
     Analysis licenses has three ways of specifiying license:
@@ -940,18 +957,23 @@ def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> 
     Returns:
         rightsList item (or empty dict)
     """
-    result_set = set()
+    result_list = []
     if license_code:
-        result_set.add(license_code)
+        rights = get_res_license({"license": license_code})
+        if rights:
+            result_list.append(rights)
     for item in tools_list:
-        rights = item.get("license", "")
+        rights = get_res_license(item)
         if rights:
-            result_set.add(rights)
+            result_list.append(rights)
     for item in models_list:
-        rights = item.get("license", "")
+        rights = get_res_license(item)
         if rights:
-            result_set.add(rights)
-    return [{"rights": rights} for rights in result_set]
+            result_list.append(rights)
+
+    return result_list
+    # return [{"rights": rights} for rights in result_set]
+
 
 def get_res_creators(res: str) -> list:
     """Build creators structure."""
@@ -981,10 +1003,7 @@ def get_res_keywords(res: dict) -> list:
     """Build keywords structure."""
     keywords = get_key_list_value(res, "keywords")
     if keywords:  # noqa: SIM108
-        dms_keywords = [
-            {"subject": keyword,
-             "subjectScheme": "keyword"}
-            for keyword in keywords]
+        dms_keywords = [{"subject": keyword, "subjectScheme": "keyword"} for keyword in keywords]
     else:
         dms_keywords = []
     return dms_keywords
@@ -1065,9 +1084,11 @@ def get_doi_from_rid(res: dict, rid: str) -> str:
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(param_debug=args.debug,
-         param_test=args.test,
-         param_noupdate=args.noupdate,
-         param_analyses=args.analyses,
-         param_update=args.update,
-         param_file=args.param_file)
+    main(
+        param_debug=args.debug,
+        param_test=args.test,
+        param_noupdate=args.noupdate,
+        param_analyses=args.analyses,
+        param_update=args.update,
+        param_file=args.param_file,
+    )
