@@ -33,7 +33,6 @@ DMS_TARGET_ANALYSIS_PREFIX = "https://spraakbanken.gu.se/analyser/"
 DMS_RESOURCE_TYPE_DATASET = "Dataset"
 DMS_RESOURCE_TYPE_ANALYSIS = "Workflow"
 DMS_RESOURCE_TYPE_COLLECTION = "Collection"
-# DMS_DEFAULT_YEAR = "2024"  # Set for resources without a date
 DMS_SLUG = "slug"  # Språkbanken Texts resource ID ("slug") type
 DMS_HANDLE = "handle"
 DMS_LANG_ENG = "en"
@@ -56,7 +55,7 @@ DATACITE_RATE_LIMIT = 298
 DATACITE_RATE_LIMIT_TIMEOUT = 60 * 5
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(name)s/%(funcName)s: %(levelname)s - %(message)s")
 logger = logging.getLogger("gen_pids")
 
 # Get DataCite authenticators from netrc file
@@ -125,7 +124,7 @@ def main(
     resources = {}
     files_yaml = {}
 
-    logger.debug("main: Reading resources from YAML.")
+    logger.debug("Reading resources from YAML.")
 
     if param_file is None:
         # Find all resources YAML files recursively
@@ -139,8 +138,7 @@ def main(
                         resources[res_id] = res
 
             except Exception:
-                logger.error("main: Error when opening/reading YAML file %s", filepath.stem)
-                # logger.debug(traceback.format_exc())
+                logger.exception("Error when opening/reading YAML file %s", filepath.stem)
                 # sys.exit()
     else:
         filepath = YAML_DIR / param_file
@@ -156,17 +154,16 @@ def main(
                     resources[res_id] = res
 
         except Exception:
-            logger.error("main: Error when opening single YAML file. Exiting.")
-            logger.error(traceback.format_exc())
+            logger.exception("Error when opening single YAML file. Exiting.")
             sys.exit()
 
     datacite_calls = 0
 
     # 2. Assign DOIs
-    logger.debug("main: Assign DOIs to %d resources.", len(resources))
+    logger.debug("Assign DOIs to %d resources.", len(resources))
     for res_id, res in resources.items():
         if datacite_calls > DATACITE_RATE_LIMIT:
-            logger.debug("main: Rate limit reached, Sleeping...")
+            logger.debug("Rate limit reached, Sleeping...")
             time.sleep(DATACITE_RATE_LIMIT_TIMEOUT)
             datacite_calls = 0
         try:
@@ -184,7 +181,7 @@ def main(
                         doi = dms_new(res_id, res, res_is_dataset, param_test)
                     if doi:
                         resources[res_id][DOI_KEY] = doi
-                        logger.debug("main: Assign DOI for %s %s", res_id, doi)
+                        logger.debug("Assign DOI for %s %s", res_id, doi)
                         if not param_test:
                             # Add line with "doi:" to YAML
                             try:
@@ -200,16 +197,15 @@ def main(
                                     else:
                                         file_yaml.write(f"\ndoi: {doi}\n")
                             except Exception:
-                                logger.error("main: Error adding DOI to YAML %s %s", res_id, doi)
+                                logger.error("Error adding DOI to YAML %s %s", res_id, doi)
                     else:
-                        logger.error("main: Error creating DOI for YAML %s %s", res_id, doi)
+                        logger.error("Error creating DOI for YAML %s %s", res_id, doi)
                 elif not param_noupdate:
                     # Calls to Datacite: 1-2
                     datacite_calls += 2
                     dms_update(res_id, res, res_is_dataset, param_test, param_update)
         except Exception:
-            logger.error("main: Error when working on %s", res_id)
-            logger.error(traceback.format_exc())
+            logger.exception("Error when working on %s", res_id)
             sys.exit()
 
     # 3a. Map Collections and Resources in both directions
@@ -224,7 +220,7 @@ def main(
         c = {}
         for res_id, res in resources.items():
             try:
-                logger.debug("main: Map collections for %s", res_id)
+                logger.debug("Map collections for %s", res_id)
                 if get_key_value(res, "collection") and res_id not in c:
                     c[res_id] = {}
                     c[res_id][DMS_RELATION_TYPE_HASPART] = []
@@ -257,8 +253,7 @@ def main(
                         if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
                             c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
             except Exception:
-                logger.error("main: Error when mapping collections for %s", res_id)
-                logger.error(traceback.format_exc())
+                logger.exception("Error when mapping collections for %s", res_id)
 
         # 3b. Successors
 
@@ -269,7 +264,7 @@ def main(
 
         for res_id, res in resources.items():
             try:
-                logger.debug("main: Map successors for %s", res_id)
+                logger.debug("Map successors for %s", res_id)
                 successor_list = res.get("successors", [])
                 if successor_list:
                     if res_id not in c:
@@ -288,25 +283,24 @@ def main(
                                 c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = []
                             c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY].append(res_id)
             except Exception:
-                logger.error("main: Error when mapping successors for %s", res_id)
-                logger.error(traceback.format_exc())
+                logger.exception("Error when mapping successors for %s", res_id)
 
         # 3c. Update DMS
 
         # All previous related identifiers are removed when setting new field
         # so all relations have to be set at the same time.
 
-        logger.debug("main: update relation metadata at Datacite")
+        logger.debug("Update relation metadata at Datacite")
 
         for res in c.items():
             if datacite_calls > DATACITE_RATE_LIMIT:
-                logger.debug("main: Rate limit reached, Sleeping...")
+                logger.debug("Rate limit reached, Sleeping...")
                 time.sleep(DATACITE_RATE_LIMIT_TIMEOUT)
                 datacite_calls = 0
             try:
                 res_id = res[0]
                 if param_test is False:
-                    logger.debug("main: Update DMS for %s", res_id)
+                    logger.debug("Update DMS for %s", res_id)
                     # Datacite calls: 1
                     datacite_calls += 1
                     dms_related(
@@ -318,8 +312,7 @@ def main(
                         get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
                     )
             except Exception:
-                logger.error("main: Error when updating DMS for %s", res_id)
-                logger.error(traceback.format_exc())
+                logger.exception("Error when updating DMS for %s", res_id)
 
 
 def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool) -> str:
@@ -348,7 +341,7 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool) -> s
     data_json["data"]["attributes"]["event"] = "publish"
     data_json["data"]["attributes"]["prefix"] = DMS_PREFIX
 
-    logger.debug("dms_new: call with JSON")
+    logger.debug("Call with JSON")
     # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
 
     if not param_test:
@@ -357,7 +350,7 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool) -> s
             DMS_URL, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
         )
 
-        logger.debug("dms_new: response %s", response.status_code)
+        logger.debug("Response %s", response.status_code)
         # logger.debug(response.json())
 
         doi = ""
@@ -371,11 +364,11 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool) -> s
                         doi = data[0]["id"]
                         if len(data) > 1:
                             # This should never happen, as res_id should be unique among Språkbanken Text
-                            logger.error("dms_new: Error, multiple answers for %s", res_id)
+                            logger.error("Error, multiple answers for %s", res_id)
                 else:
                     doi = data["id"]
         else:
-            logger.error("dms_new: Error, could not create DOI for %s %s", res_id, response.content)
+            logger.error("Error, could not create DOI for %s %s", res_id, response.content)
         return doi
     return ""
 
@@ -418,7 +411,7 @@ def dms_update(
         else:
             data_json["data"]["attributes"]["publicationYear"] = datetime.date.today().strftime("%Y")
 
-        logger.debug("dms_update: updating %s %s", res_id, doi)
+        logger.debug("Updating %s %s", res_id, doi)
         # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
 
         if not param_test:
@@ -428,7 +421,7 @@ def dms_update(
                 url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
             )
 
-            logger.debug("dms_update: response %s", response.status_code)
+            logger.debug("Response: %s", response.status_code)
             if response.status_code >= 300:  # noqa: PLR2004
                 logger.error("Error updating %s %s %s %s", res_id, doi, response.status_code, data_json)
 
@@ -707,7 +700,7 @@ def dms_related(
             }
         }
 
-        logger.debug("dms_related: Set related identifiers for %s", rid)
+        logger.debug("Set related identifiers for %s", rid)
 
         # Update resource
         url = DMS_URL + "/" + res_doi
@@ -715,11 +708,11 @@ def dms_related(
             url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
         )
 
-        logger.debug("dms_related: %s", response.status_code)
+        logger.debug("Response: %s", response.status_code)
         # logger.debug(json.dumps(response.json(), indent=4, ensure_ascii=False))
 
         if response.status_code != RESPONSE_OK:
-            logger.error("dms_related: Error setting related %s %s", rid, response.status_code)
+            logger.error("Error setting related %s %s", rid, response.status_code)
         return response.status_code == RESPONSE_OK
     return False
 
@@ -757,7 +750,7 @@ def dms_doi_get(res_id: str) -> str:
 
     response = requests.get(url=search_url)
 
-    logger.debug("dms_doi_get: Get DOI from res id %s", res_id)
+    logger.debug("Get DOI from res id %s", res_id)
     if response.status_code == RESPONSE_OK:
         d = response.json()
         if "data" in d:
@@ -769,7 +762,7 @@ def dms_doi_get(res_id: str) -> str:
                     # dms_updated = datetime.datetime.strftime(data[0]["updated"], "%Y-%m-%d")
                     if len(data) > 1:
                         # This should never happen, as res_id should be unique among Språkbanken Text
-                        logger.error("dms_doi_get: Error, multiple answers %s", res_id)
+                        logger.error("Error, multiple answers %s", res_id)
             else:
                 doi = data["id"]
     return doi
@@ -809,7 +802,7 @@ def dms_doi_get_updated(doi: str) -> tuple[str, str, str]:
         url=search_url,
     )
 
-    logger.debug("dms_doi_get_updated: Get updated %s", doi)
+    logger.debug("Get updated %s", doi)
     if response.status_code == RESPONSE_OK:
         d = response.json()
         if "data" in d:
