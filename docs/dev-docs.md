@@ -89,7 +89,7 @@ Cache renewal can be triggered by calling the `/renew-cache` route. This will do
 
   ```bash
   # Generate pids every night
-  5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --noupdate > /dev/null
+  5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --analyses --noupdate > /dev/null
   # Update Datacite metadata once per week
   15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
   ```
