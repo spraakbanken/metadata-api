@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 def load_json(
-    jsonfile: str, prefix: str = "", cache_client: Client | None = None
+    json_path: Path, prefix: str = "", cache_client: Client | None = None
 ) -> dict[str, Any]:
     """Load data from cache if available, otherwise load from JSON file.
 
     Args:
-        jsonfile: The JSON file to load.
+        json_path: The path to the JSON file to load.
         prefix: The prefix to add to keys.
         cache_client: Memcache client to use.
 
@@ -32,13 +32,14 @@ def load_json(
     """
     if not cache_client:
         logger.warning("No memcache client available.")
-        return read_static_json(jsonfile)
+        return read_static_json(json_path)
 
     # Populate cache if it's empty
+    jsonfile = json_path.name
     data = cache_client.get(add_prefix(jsonfile, prefix))
     if not data:
         logger.debug("Data for '%s' not found in cache. Reloading.", add_prefix(jsonfile, prefix))
-        all_data = read_static_json(jsonfile)
+        all_data = read_static_json(json_path)
         cache_client.set(add_prefix(jsonfile, prefix), list(all_data.keys()))
         for k, v in all_data.items():
             cache_client.set(add_prefix(k, prefix), v)
@@ -63,7 +64,7 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> dic
     from flask import current_app  # noqa: PLC0415
 
     resource_texts = load_json(
-        current_app.config["RESOURCE_TEXTS_FILE"],
+        Path(current_app.config["STATIC"]) / current_app.config["RESOURCE_TEXTS_FILE"],
         prefix="res_descr",
         cache_client=current_app.config.get("cache_client", None),
     )
@@ -82,12 +83,13 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> dic
 
 
 def load_resources(
-    resource_mapping: dict[str, str], cache_client: Client | None = None
+    resource_mapping: dict[str, str], static_path: Path, cache_client: Client | None = None
 ) -> dict[str, Any]:
     """Load all resource types from JSON from cache or files.
 
     Args:
         resource_mapping: Mapping of resource types to their corresponding JSON files.
+        static_path: Path to the static folder.
         cache_client: Memcache client to use.
 
     Returns:
@@ -95,30 +97,28 @@ def load_resources(
     """
     resources = {}
     for res_type, res_file in resource_mapping.items():
-        resources[res_type] = load_json(res_file, cache_client=cache_client)
+        resources[res_type] = load_json(static_path / res_file, cache_client=cache_client)
     return resources
 
 
-def read_static_json(jsonfile: str) -> dict[str, Any]:
+def read_static_json(json_path: Path) -> dict[str, Any]:
     """Load json file from static folder and return as object.
 
     Args:
-        jsonfile: The JSON file to read.
+        json_path: Path to the JSON file.
 
     Returns:
         Dictionary containing the JSON data.
     """
-    from flask import current_app  # noqa: PLC0415
-    logger.info("Reading json %s", jsonfile)
+    logger.info("Reading json %s", json_path)
     try:
-        file_path = Path(current_app.config["STATIC"]) / jsonfile
-        with file_path.open("r") as f:
+        with json_path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        logger.error("File not found: %s", file_path)
+        logger.error("File not found: %s", json_path)
         return {}
     except json.JSONDecodeError:
-        logger.error("Error reading JSON file: %s", file_path)
+        logger.error("Error reading JSON file: %s", json_path)
         return {}
 
 
@@ -162,7 +162,7 @@ def get_resource_type(resource_type: str) -> dict[str, Any]:
     from flask import current_app  # noqa: PLC0415
 
     filtered_resources = load_json(
-        current_app.config["RESOURCES"].get(resource_type, {}),
+        Path(current_app.config["STATIC"]) / current_app.config["RESOURCES"].get(resource_type, {}),
         cache_client=current_app.config.get("cache_client", None),
     )
     data = dict_to_list(filtered_resources)

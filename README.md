@@ -34,7 +34,8 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 ## Requirements
 
 - [Python 3.10](https://docs.python.org/3.10/) or newer
-- [Memcached](https://memcached.org/) (optional, check [caching.md](docs/caching.md) for more info)
+- [Redis](https://redis.io/) (used for Celery background tasks)
+- [Memcached](https://memcached.org/) (for optional caching, check [caching.md](docs/caching.md) for more info)
 
 ## Installation
 

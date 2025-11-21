@@ -31,6 +31,9 @@ LOG_DIR = "logs"
 # GitHub limit for modified/added files to list in a webhook payload
 GITHUB_FILE_LIMIT = 3000
 
+# Celery settings
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+
 # Caching settings
 NO_CACHE = False  # Set to True to disable caching with memcached
 MEMCACHED_HOST = "localhost"

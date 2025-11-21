@@ -1,18 +1,15 @@
 """Routes for the metadata API."""
 
-import io
 import json
 import logging
 from pathlib import Path
 
 import yaml
 from flask import Blueprint, Response, current_app, jsonify, request
-from git import Repo
 
 from . import utils
 from .adapt_schema import adapt_schema
-from .parse_yaml import logger as parse_yaml_logger
-from .parse_yaml import process_resources
+from .tasks import renew_cache_task
 
 general = Blueprint("general", __name__)
 logger = logging.getLogger(__name__)
@@ -43,7 +40,9 @@ def metadata() -> Response:
         A JSON object containing corpus and lexicon metadata.
     """
     resources_dict = utils.load_resources(
-        current_app.config["RESOURCES"], cache_client=current_app.config.get("cache_client", None)
+        current_app.config["RESOURCES"],
+        Path(current_app.config["STATIC"]),
+        cache_client=current_app.config.get("cache_client", None),
     )
 
     # Single resource was requested
@@ -90,7 +89,8 @@ def collections() -> Response:
         A JSON object containing collections metadata.
     """
     collections = utils.load_json(
-        current_app.config["COLLECTIONS_FILE"], cache_client=current_app.config.get("cache_client", None)
+        Path(current_app.config["STATIC"]) / current_app.config["COLLECTIONS_FILE"],
+        cache_client=current_app.config.get("cache_client", None),
     )
     data = utils.dict_to_list(collections)
     return jsonify({"hits": len(data), "resources": data})
@@ -103,8 +103,11 @@ def list_ids() -> list[str]:
     Returns:
         A sorted list of all existing resource IDs.
     """
-    resources_mapping = current_app.config["RESOURCES"]
-    resources = utils.load_resources(resources_mapping, cache_client=current_app.config.get("cache_client", None))
+    resources = utils.load_resources(
+        current_app.config["RESOURCES"],
+        Path(current_app.config["STATIC"]),
+        cache_client=current_app.config.get("cache_client", None),
+    )
     resource_ids = [k for resource_type in resources.values() for k in resource_type]
     return sorted(resource_ids)
 
@@ -120,8 +123,11 @@ def check_id() -> tuple[Response, int]:
     if not input_id:
         return jsonify({"id": None, "error": "No ID provided"}), 400
 
-    resources_mapping = current_app.config["RESOURCES"]
-    resources = utils.load_resources(resources_mapping, cache_client=current_app.config.get("cache_client", None))
+    resources = utils.load_resources(
+        current_app.config["RESOURCES"],
+        Path(current_app.config["STATIC"]),
+        cache_client=current_app.config.get("cache_client", None),
+    )
     resource_ids = [k for resource_type in resources.values() for k in resource_type]
     if input_id in resource_ids:
         return jsonify({"id": input_id, "available": False}), 200
@@ -130,123 +136,30 @@ def check_id() -> tuple[Response, int]:
 
 @general.route("/renew-cache", methods=["GET", "POST"])
 def renew_cache() -> tuple[Response, int]:
-    """Update metadata files from git, re-process json files and update cache.
-
-    API arguments:
-        resource-paths: Path to specific resources to parse and update (<resource_type/resource_id>).
-        debug: Print debug info while parsing YAML files.
-        offline: Skip getting file info for downloadables when parsing YAML files.
-
-    Returns:
-        A JSON object indicating whether the cache was successfully renewed.
-    """
+    """Trigger cache renewal as a background job."""
     # Parse resource_paths (may be overridden by GitHub webhook payload)
     resource_paths = request.args.get("resource-paths") or None
     resource_paths = resource_paths.split(",") if resource_paths else None
     debug = bool(request.args.get("debug")) or False
     offline = bool(request.args.get("offline")) or False
 
-    # Pull changes from GitHub before parsing YAML files
     try:
-        repo = Repo(Path(current_app.config["METADATA_DIR"]))
-        repo.remotes.origin.pull()
-    except Exception as e:
-        msg = f"Error when pulling changes from GitHub: {e}"
-        logger.error(msg)
-        utils.send_to_slack(msg)
-        return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 500
-
-    # Parse POST request payload from GitHub webhook
-    if request.method == "POST":
-        try:
-            payload = request.get_json()
-            logger.debug("GitHub payload: %s", payload)
-            if payload:
-                # Check if the webhook was triggered on the main branch
-                if payload.get("ref", "") != "refs/heads/main":
-                    msg = "GitHub webhook triggered, but not on main branch. Nothing to do."
-                    logger.info(msg)
-                    return jsonify({"cache_renewed": False, "errors": [], "warnings": [msg], "info": []}), 200
-                # Check if payload contains a list of changed files
-                changed_files = []
-                git_commits = payload.get("commits", [])
-                if not git_commits:
-                    msg = f"No commits detected in payload.\nPayload:\n{payload}"
-                    logger.error(msg)
-                    utils.send_to_slack(msg)
-                    return jsonify({"cache_renewed": False, "errors": [msg], "warnings": [], "info": []}), 400
-                for commit in git_commits:
-                    changed_files.extend(commit.get("added", []))
-                    changed_files.extend(commit.get("modified", []))
-                    changed_files.extend(commit.get("removed", []))
-
-                # If too many files were changed, GitHub will not provide a complete list. Update all data in this case.
-                file_limit = current_app.config["GITHUB_FILE_LIMIT"]
-                if len(changed_files) > file_limit:
-                    resource_paths = None
-                # Format paths (strip first component and file ending) to create input for process_resources
-                else:
-                    resource_paths = []
-                    for p in changed_files:
-                        # Only process resource metadata YAML files
-                        if Path(p).parts[0] == "yaml" and Path(p).suffix == ".yaml":
-                            resource_paths.append(str(Path(*Path(p).parts[1:-1]) / Path(p).stem))
-
-        except Exception as e:
-            msg = f"Error when parsing GitHub payload: {e}.\nPayload:\n{payload}"
-            logger.error(msg)
-            utils.send_to_slack(msg)
-            return jsonify({"cache_renewed": False, "errors": [str(e)], "warnings": [], "info": []}), 500
-
-    # Create a string buffer to capture logs from process_resources
-    log_capture_string = io.StringIO()
-    log_handler = logging.StreamHandler(log_capture_string)
-    log_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-    parse_yaml_logger.addHandler(log_handler)
-    errors = []
-    warnings = []
-    info = []
-
-    try:
-        # Update data and rebuild all JSON files (reprocess all data if resource_paths is None)
-        process_resources(
-            resource_paths=resource_paths, config_obj=current_app.config, validate=True, debug=debug, offline=offline
+        logger.debug("Triggering cache renewal task.")
+        # Enqueue the Celery task
+        task = renew_cache_task.delay(
+            request_method=request.method,
+            resource_paths=resource_paths,
+            static_path=str(current_app.config["STATIC"]),
+            debug=debug,
+            offline=offline,
         )
-
-        if not current_app.config["NO_CACHE"]:
-            mc = current_app.config["cache_client"]
-            mc.flush_all()
-        # Reload resources and resource texts to populate cache
-        utils.load_resources()
-        utils.load_json(current_app.config["RESOURCE_TEXTS_FILE"], prefix="res_descr")
-        utils.load_json(current_app.config["COLLECTIONS_FILE"])
-        success = True
-
+        logger.debug("Cache renewal task enqueued with task id: %s", task.id)
     except Exception as e:
-        success = False
-        errors = [str(e)]
+        logger.exception("Error triggering cache renewal task: %s", e)
+        return jsonify({"error": str(e), "message": "Failed to trigger cache renewal"}), 500
 
-    # Get the process_resources logs from the string buffer
-    log_messages = log_capture_string.getvalue().splitlines()
-    log_capture_string.close()
-    parse_yaml_logger.removeHandler(log_handler)
-
-    # Sort log messages into errors, warnings, and info/other
-    for message in log_messages:
-        if message.startswith(("ERROR", "CRITICAL")):
-            errors.append(message)
-        elif message.startswith("WARNING"):
-            warnings.append(message)
-        else:
-            info.append(message)
-    logger.info("Cache renewal completed.")
-
-    if errors or warnings:
-        utils.send_to_slack("Cache renewal completed.\n" + "\n".join(errors + warnings))
-
-    return jsonify(
-        {"cache_renewed": success, "errors": errors, "warnings": warnings, "info": info}
-    ), 200 if success else 500
+    # Return the task id so client can poll for status/results
+    return jsonify({"task_id": task.id, "message": "Cache renewal triggered in background."}), 202
 
 
 @general.route("/bibtex")
@@ -260,7 +173,9 @@ def bibtex() -> Response:
         resource_id = request.args.get("resource")
         if resource_id:
             resources_dict = utils.load_resources(
-                current_app.config["RESOURCES"], cache_client=current_app.config.get("cache_client", None)
+                current_app.config["RESOURCES"],
+                Path(current_app.config["STATIC"]),
+                cache_client=current_app.config.get("cache_client", None),
             )
             bibtex = utils.get_bibtex(resource_id, resources_dict)
         else:
