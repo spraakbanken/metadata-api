@@ -13,7 +13,6 @@ import jsonschema
 import pycountry
 import requests
 import yaml
-from flask import Config
 from jsonschema.exceptions import ValidationError
 
 # Swedish translations for language names
@@ -27,7 +26,7 @@ def process_resources(
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
-    config_obj: Config | dict | None = None,
+    config_obj: dict | None = None,
 ) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
@@ -37,14 +36,10 @@ def process_resources(
         debug: Print debug info.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
-        config_obj: Configuration object or dictionary.
+        config_obj: Dictionary containing configuration values.
     """
     if config_obj is None:
         raise ValueError("Configuration object is required")
-
-    # Convert config_obj to dict if it is a Config object
-    if isinstance(config_obj, Config):
-        config_obj = {key: config_obj[key] for key in config_obj}
 
     resource_types = [Path(i).stem for i in config_obj["RESOURCES"].values()]
     all_resources = {}
