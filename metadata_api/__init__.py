@@ -1,5 +1,8 @@
 """Instanciation of flask app."""
 
+from gevent import monkey; monkey.patch_all()  # noqa: E702, I001
+# ruff: noqa: E402
+
 import logging
 import traceback
 from datetime import datetime
@@ -89,9 +92,8 @@ def create_app(log_to_stdout: bool = False) -> Flask:
         except Exception:
             logger.exception("Error initializing memcache client")
 
-    # Create resource routes for resource types defined in the config ("RESOURCES")
-    with app.app_context():
-        views.create_routes()
+    # Create resource routes for resource types defined in the config
+    views.create_routes(list(app.config["RESOURCES"].keys()))
 
     app.register_blueprint(views.general)
 

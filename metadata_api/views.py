@@ -71,14 +71,13 @@ def create_resource_route(resource_type: str) -> None:
     general.add_url_rule(f"/{resource_type}", endpoint=f"{resource_type}", view_func=resource)
 
 
-def create_routes() -> None:
+def create_routes(resource_types: list[str]) -> None:
     """Create routes for each resource type.
 
     This function is called by __init__.py when the app is created.
     """
-    with current_app.app_context():
-        for resource_type in current_app.config["RESOURCES"]:
-            create_resource_route(resource_type)
+    for resource_type in resource_types:
+        create_resource_route(resource_type)
 
 
 @general.route("/collections")

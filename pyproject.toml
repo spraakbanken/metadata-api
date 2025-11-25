@@ -13,6 +13,7 @@ dependencies = [
     "celery[redis]>=5.5.3",
     "flask>=3.1.2",
     "flask-cors>=6.0.1",
+    "gevent>=25.9.1",
     "gitpython>=3.1.45",
     "gunicorn>=23.0.0",
     "jsonschema>=4.25.1",

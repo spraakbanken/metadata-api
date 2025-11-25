@@ -96,7 +96,7 @@ to install the dependencies. Don't forget to add your own configuration to the a
 
   ```bash
   [program:metadata]
-  command=%(ENV_HOME)s/metadata-api/dev/venv/bin/gunicorn --chdir %(ENV_HOME)s/metadata-api/dev -b "0.0.0.0:1337" metadata_api:create_app()
+  command=%(ENV_HOME)s/metadata-api/dev/venv/bin/gunicorn --chdir %(ENV_HOME)s/metadata-api/dev -b "0.0.0.0:1337" --worker-class gevent --workers 4 metadata_api:create_app()
 
   [program:metadata-celery]
   command=%(ENV_HOME)s/metadata-api/dev/venv/bin/celery -A metadata_api.tasks worker --loglevel=INFO

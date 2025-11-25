@@ -72,3 +72,9 @@ For testing purposes the app can be run with the following script (with an activ
 ```bash
 python run.py [--port PORT]
 ```
+
+If you prefer to run the app with `gunicorn`, you can use the following command:
+
+```bash
+gunicorn "metadata_api:create_app()"
+```
