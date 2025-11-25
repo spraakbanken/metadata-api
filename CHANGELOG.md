@@ -3,6 +3,29 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- Added an `update` argument to the `gen_pids.sh` script to force updates of all Datacite metadata.
+- Added proper license information to Datacite metadata.
+- Added possibility to run the app async with gevent workers in gunicorn.
+
+### Changed
+
+- Cache-renewal is now done in a background task with Celery, using Redis as broker.
+- Change preferred installation method to use `uv` for dependency management.
+- `gen_pids.py` now uses logging instead of print statements.
+- Moved some documentation from README.md to docs/dev-docs.md.
+- Slightly improved caching logic.
+
+### Fixed
+
+- Cache-renewal is only triggered when changes are detected in the main branch of the metadata repo (instead of all
+  branches).
+- Fixed bug in `gen_pids.py` that caused emtpy resource sized.
+- Fixed Pylance type warnings.
+
 ## [3.1] - 2025-02-28
 
 ### Added
@@ -21,8 +44,6 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fixed bug that caused errors in logging.
 - Do not delete the app logs during log rotation in `gen_pids.sh`.
 - Fixed bug in `/renew-cache` that caused attempts to process non-metadata files.
-
-### Removed
 
 ## [3.0] - 2025-02-25
 
