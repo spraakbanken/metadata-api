@@ -1,8 +1,5 @@
 """Instanciation of flask app."""
 
-from gevent import monkey; monkey.patch_all()  # noqa: E702, I001
-# ruff: noqa: E402
-
 import logging
 import traceback
 from datetime import datetime
@@ -71,6 +68,10 @@ def create_app(log_to_stdout: bool = False) -> Flask:
 
     # Prevent flask from resorting JSON
     app.config["JSON_SORT_KEYS"] = False
+
+    # Set celery log level to INFO to reduce verbosity
+    logging.getLogger("celery").setLevel(logging.INFO)
+    logging.getLogger("celery.app.trace").setLevel(logging.INFO)
 
     # Warn if caching is not disabled but pymemcache is not available
     if not app.config["NO_CACHE"] and memcache_unavailable:

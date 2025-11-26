@@ -45,10 +45,10 @@ def load_config() -> dict:
 
 config = load_config()
 logger = logging.getLogger()
-celery_app = Celery("metadata_api", broker=config["CELERY_BROKER_URL"])
+app = Celery("metadata_api", broker=config["CELERY_BROKER_URL"])
 
 
-@celery_app.task
+@app.task
 def renew_cache_task(
     request_method: str,
     resource_paths: list | None,

@@ -101,13 +101,17 @@ to install the dependencies. Don't forget to add your own configuration to the a
   [program:metadata-celery]
   command=%(ENV_HOME)s/metadata-api/dev/venv/bin/celery -A metadata_api.tasks worker --loglevel=INFO
   directory=%(ENV_HOME)s/metadata-api/dev/
+  redirect_stderr=true
+  stopasgroup=true
+  killasgroup=true
 
   [program:redis-metadata]
   command=%(ENV_HOME)s/redis-install/src/redis-server %(ENV_HOME)s/redis-install/redis.conf
+  redirect_stderr=true
 
   [program:memcached-metadata]
-  command=%(ENV_HOME)s/memcached-jox/memcached-install/bin/memcached
-         -v
+  command=%(ENV_HOME)s/memcached-jox/memcached-install/bin/memcached -v
+  redirect_stderr=true
   ```
 
 - Update supervisord and start the services with `supervisorctl update`.
