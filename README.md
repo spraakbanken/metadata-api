@@ -10,26 +10,22 @@ For more technical details please refer to the [developer documentation](docs/de
 
 Available API calls (please note that the URL contains the API version, e.g. `/v3`, `/dev` etc):
 
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/>: List all resources
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/corpora>: List all corpora
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/lexicons>: List all lexicons
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/models>: List all models
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/analyses>: List all analyses
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/utilities>: List all utilities
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/collections>: List all collections
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo>: List one specific resource. Add resource description
-  (if available)
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache>: Update metadata files from git, re-process json files and
-  update cache. optional parameters: `?debug=True` will print debug info, `?offline=True` will omit getting file info
-  for downloadables when parsing YAML files, `?resource-paths=<resource_type/resource_id>,...` will process specific
-  resources only.
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/schema>: Return JSON schema for resources
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids>: List all existing resource IDs
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=[my-resource]>: Check if a given resource ID is
-  free
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=[some-id]>: Return bibtex citation for specified
-  resource
-- <https://ws.spraakbanken.gu.se/ws/metadata/v3/doc>: Serve API documentation as JSON
+| Endpoint | Description |
+|----------|-------------|
+| 📁 [/](https://ws.spraakbanken.gu.se/ws/metadata/v3/) | List all resources |
+| 📁 [/corpora](https://ws.spraakbanken.gu.se/ws/metadata/v3/corpora) | List all corpora |
+| 📁 [/lexicons](https://ws.spraakbanken.gu.se/ws/metadata/v3/lexicons) | List all lexicons |
+| 📁 [/models](https://ws.spraakbanken.gu.se/ws/metadata/v3/models) | List all models |
+| 📁 [/analyses](https://ws.spraakbanken.gu.se/ws/metadata/v3/analyses) | List all analyses |
+| 📁 [/utilities](https://ws.spraakbanken.gu.se/ws/metadata/v3/utilities) | List all utilities |
+| 📁 [/collections](https://ws.spraakbanken.gu.se/ws/metadata/v3/collections) | List all collections |
+| 📁 [/list-ids](https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids) | List all existing resource IDs |
+| 🔍 [/?resource=saldo](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo) | Retrieve a specific resource and its description (if available) |
+| 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=[resource-id]) | Check if a given resource ID is available |
+| 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=[resource-id]) | Return BibTeX citation for the specified resource |
+| 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update metadata files from git, re-process JSON, and update cache.<br>Optional parameters:<ul><li><code>debug=True</code></li><li><code>offline=True</code></li><li><code>resource-paths=&lt;resource-type&gt;/&lt;resource-id&gt;,...</code> e.g. <code>corpus/attasidor,lexicon/saldo</code></li></ul> |
+| 📘 [/schema](https://ws.spraakbanken.gu.se/ws/metadata/v3/schema) | Return JSON schema for resources |
+| 📘 [/doc](https://ws.spraakbanken.gu.se/ws/metadata/v3/doc) | Serve API documentation as JSON |
 
 ## Requirements
 
