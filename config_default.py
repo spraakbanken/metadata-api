@@ -35,9 +35,7 @@ GITHUB_FILE_LIMIT = 3000
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 
 # Caching settings
-NO_CACHE = False  # Set to True to disable caching with memcached
-MEMCACHED_HOST = "localhost"
-MEMCACHED_PORT = 11211
+MEMCACHED_SERVER = "localhost:11211"
 
 # Slack incoming webhook URL, used to send error messages to a Slack channel
 SLACK_WEBHOOK = ""

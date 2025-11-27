@@ -11,15 +11,15 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
+from .memcached import cache
+
 if TYPE_CHECKING:
     from pymemcache.client.base import Client
 
 logger = logging.getLogger(__name__)
 
 
-def load_json(
-    json_path: Path, prefix: str = "", cache_client: Client | None = None
-) -> dict[str, Any]:
+def load_json(json_path: Path, prefix: str = "", cache_client: Client | None = None) -> dict[str, Any]:
     """Load data from cache if available, otherwise load from JSON file.
 
     Args:
@@ -34,19 +34,34 @@ def load_json(
         logger.warning("No memcache client available.")
         return read_static_json(json_path)
 
-    # Populate cache if it's empty
     jsonfile = json_path.name
-    data = cache_client.get(add_prefix(jsonfile, prefix))
+    cache_key = add_prefix(jsonfile, prefix)
+
+    try:
+        data = cache_client.get(cache_key)
+    except Exception:
+        logger.exception("Error reading key '%s' from cache; falling back to disk", cache_key)
+        return read_static_json(json_path)
+
     if not data:
-        logger.debug("Data for '%s' not found in cache. Reloading.", add_prefix(jsonfile, prefix))
+        # Populate cache if it's empty
+        logger.debug("Data for '%s' not found in cache. Reloading.", cache_key)
         all_data = read_static_json(json_path)
-        cache_client.set(add_prefix(jsonfile, prefix), list(all_data.keys()))
-        for k, v in all_data.items():
-            cache_client.set(add_prefix(k, prefix), v)
+        try:
+            cache_client.set(cache_key, list(all_data.keys()))
+            for k, v in all_data.items():
+                cache_client.set(add_prefix(k, prefix), v)
+        except Exception:
+            logger.exception("Error populating cache; continuing without cache")
+            return all_data
     else:
-        all_data = {}
+        # Load individual items from cache
+        all_data: dict[str, Any] = {}
         for k in data:
-            all_data[k] = cache_client.get(add_prefix(k, prefix))
+            try:
+                all_data[k] = cache_client.get(add_prefix(k, prefix))
+            except Exception:
+                logger.exception("Error reading key '%s' from cache; skipping", add_prefix(k, prefix))
 
     return all_data
 
@@ -63,11 +78,12 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> dic
     """
     from flask import current_app  # noqa: PLC0415
 
-    resource_texts = load_json(
-        Path(current_app.config["STATIC"]) / current_app.config["RESOURCE_TEXTS_FILE"],
-        prefix="res_descr",
-        cache_client=current_app.config.get("cache_client", None),
-    )
+    with cache.get_client() as cache_client:
+        resource_texts = load_json(
+            Path(current_app.config["STATIC"]) / current_app.config["RESOURCE_TEXTS_FILE"],
+            prefix="res_descr",
+            cache_client=cache_client,
+        )
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}
@@ -161,10 +177,11 @@ def get_resource_type(resource_type: str) -> dict[str, Any]:
     """
     from flask import current_app  # noqa: PLC0415
 
-    filtered_resources = load_json(
-        Path(current_app.config["STATIC"]) / current_app.config["RESOURCES"].get(resource_type, {}),
-        cache_client=current_app.config.get("cache_client", None),
-    )
+    with cache.get_client() as cache_client:
+        filtered_resources = load_json(
+            Path(current_app.config["STATIC"]) / current_app.config["RESOURCES"].get(resource_type, {}),
+            cache_client=cache_client,
+        )
     data = dict_to_list(filtered_resources)
 
     return {"resource_type": resource_type, "hits": len(data), "resources": data}

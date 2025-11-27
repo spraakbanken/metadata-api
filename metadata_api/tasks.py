@@ -11,6 +11,7 @@ from celery import Celery
 from git import Repo
 
 from . import utils
+from .memcached import cache
 from .parse_yaml import logger as parse_yaml_logger
 from .parse_yaml import process_resources
 
@@ -43,8 +44,10 @@ def load_config() -> dict:
     return config
 
 
+# Initialize Celery app, cache, logger and config
 config = load_config()
 logger = logging.getLogger()
+cache.initialize(config["MEMCACHED_SERVER"])
 app = Celery("metadata_api", broker=config["CELERY_BROKER_URL"])
 
 
@@ -149,16 +152,17 @@ def renew_cache_task(
         )
         logger.info("Cache renewal task: process_resources completed.")
 
-        cache_client = None
-        if not config.get("NO_CACHE") and config.get("cache_client") is not None:
-            cache_client = config["cache_client"]
-            cache_client.flush_all()
-        # Reload resources and resource texts to populate cache
-        utils.load_resources(config["RESOURCES"], config["STATIC"], cache_client=cache_client)
-        utils.load_json(
-            config["STATIC"] / config["RESOURCE_TEXTS_FILE"], prefix="res_descr", cache_client=cache_client
-        )
-        utils.load_json(config["STATIC"] / config["COLLECTIONS_FILE"], cache_client=cache_client)
+        with cache.get_client() as cache_client:
+            if cache_client:
+                # Clear cache
+                cache_client.flush_all()
+
+            # Reload resources and resource texts to populate cache
+            utils.load_resources(config["RESOURCES"], config["STATIC"], cache_client=cache_client)
+            utils.load_json(
+                config["STATIC"] / config["RESOURCE_TEXTS_FILE"], prefix="res_descr", cache_client=cache_client
+            )
+            utils.load_json(config["STATIC"] / config["COLLECTIONS_FILE"], cache_client=cache_client)
         success = True
 
     except Exception as e:

@@ -9,6 +9,7 @@ from flask import Blueprint, Response, current_app, jsonify, request
 
 from . import utils
 from .adapt_schema import adapt_schema
+from .memcached import cache
 from .tasks import renew_cache_task
 
 general = Blueprint("general", __name__)
@@ -39,11 +40,10 @@ def metadata() -> Response:
     Returns:
         A JSON object containing corpus and lexicon metadata.
     """
-    resources_dict = utils.load_resources(
-        current_app.config["RESOURCES"],
-        Path(current_app.config["STATIC"]),
-        cache_client=current_app.config.get("cache_client", None),
-    )
+    with cache.get_client() as cache_client:
+        resources_dict = utils.load_resources(
+            current_app.config["RESOURCES"], Path(current_app.config["STATIC"]), cache_client=cache_client
+        )
 
     # Single resource was requested
     resource_id = request.args.get("resource")
@@ -87,10 +87,10 @@ def collections() -> Response:
     Returns:
         A JSON object containing collections metadata.
     """
-    collections = utils.load_json(
-        Path(current_app.config["STATIC"]) / current_app.config["COLLECTIONS_FILE"],
-        cache_client=current_app.config.get("cache_client", None),
-    )
+    with cache.get_client() as cache_client:
+        collections = utils.load_json(
+            Path(current_app.config["STATIC"]) / current_app.config["COLLECTIONS_FILE"], cache_client=cache_client
+        )
     data = utils.dict_to_list(collections)
     return jsonify({"hits": len(data), "resources": data})
 
@@ -102,11 +102,10 @@ def list_ids() -> list[str]:
     Returns:
         A sorted list of all existing resource IDs.
     """
-    resources = utils.load_resources(
-        current_app.config["RESOURCES"],
-        Path(current_app.config["STATIC"]),
-        cache_client=current_app.config.get("cache_client", None),
-    )
+    with cache.get_client() as cache_client:
+        resources = utils.load_resources(
+            current_app.config["RESOURCES"], Path(current_app.config["STATIC"]), cache_client=cache_client
+        )
     resource_ids = [k for resource_type in resources.values() for k in resource_type]
     return sorted(resource_ids)
 
@@ -122,11 +121,10 @@ def check_id() -> tuple[Response, int]:
     if not input_id:
         return jsonify({"id": None, "error": "No ID provided"}), 400
 
-    resources = utils.load_resources(
-        current_app.config["RESOURCES"],
-        Path(current_app.config["STATIC"]),
-        cache_client=current_app.config.get("cache_client", None),
-    )
+    with cache.get_client() as cache_client:
+        resources = utils.load_resources(
+            current_app.config["RESOURCES"], Path(current_app.config["STATIC"]), cache_client=cache_client
+        )
     resource_ids = [k for resource_type in resources.values() for k in resource_type]
     if input_id in resource_ids:
         return jsonify({"id": input_id, "available": False}), 200
@@ -171,11 +169,10 @@ def bibtex() -> Response:
     try:
         resource_id = request.args.get("resource")
         if resource_id:
-            resources_dict = utils.load_resources(
-                current_app.config["RESOURCES"],
-                Path(current_app.config["STATIC"]),
-                cache_client=current_app.config.get("cache_client", None),
-            )
+            with cache.get_client() as cache_client:
+                resources_dict = utils.load_resources(
+                    current_app.config["RESOURCES"], Path(current_app.config["STATIC"]), cache_client=cache_client
+                )
             bibtex = utils.get_bibtex(resource_id, resources_dict)
         else:
             bibtex = "Error: Incorrect arguments provided. Format: /bibtex?resource=<id>"

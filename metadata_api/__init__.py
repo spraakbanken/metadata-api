@@ -9,16 +9,9 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 from . import views
+from .memcached import cache
 
 logger = logging.getLogger(__name__)
-
-try:
-    from pymemcache import serde
-    from pymemcache.client.base import Client
-except ImportError:
-    memcache_unavailable = True
-else:
-    memcache_unavailable = False
 
 
 def create_app(log_to_stdout: bool = False) -> Flask:
@@ -73,25 +66,8 @@ def create_app(log_to_stdout: bool = False) -> Flask:
     logging.getLogger("celery").setLevel(logging.INFO)
     logging.getLogger("celery.app.trace").setLevel(logging.INFO)
 
-    # Warn if caching is not disabled but pymemcache is not available
-    if not app.config["NO_CACHE"] and memcache_unavailable:
-        logger.warning("Library pymemcache not available, disabling caching.")
-
-    # Connect to memcached if possible
-    app.config["NO_CACHE"] = app.config.get("NO_CACHE", memcache_unavailable)
-    if app.config["NO_CACHE"]:
-        logger.info("Not using cache")
-    else:
-        try:
-            app.config["cache_client"] = Client(
-                (app.config["MEMCACHED_HOST"], app.config["MEMCACHED_PORT"]), serde=serde.pickle_serde
-            )
-            mc = app.config["cache_client"]
-            mc.set("test_key", "test_value")
-            mc.get("test_key")
-            logger.info("Connected to memcached")
-        except Exception:
-            logger.exception("Error initializing memcache client")
+    # Initialize memcached client
+    cache.initialize(app.config["MEMCACHED_SERVER"])
 
     # Create resource routes for resource types defined in the config
     views.create_routes(list(app.config["RESOURCES"].keys()))
