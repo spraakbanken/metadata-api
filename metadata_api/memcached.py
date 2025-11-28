@@ -18,6 +18,9 @@ class CacheManager:
     def initialize(self, cache_server: str) -> None:
         """Initialize the cache client."""
         self.server = cache_server
+        if not self.server:
+            logger.info("Caching server not configured. Caching is disabled.")
+            return
 
         try:
             with self.get_client() as cache_client:
@@ -30,7 +33,9 @@ class CacheManager:
     def get_client(self) -> Generator[Any, None, None]:
         """Retrieve a connected Memcached client."""
         if self.server is None:
-            raise RuntimeError("Cache client not initialized. Call 'initialize' first.")
+            logger.info("Caching is disabled.")
+            yield None
+            return
 
         try:
             from pymemcache import serde  # noqa: PLC0415

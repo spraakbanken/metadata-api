@@ -74,3 +74,11 @@ If you prefer to run the app with `gunicorn`, you can use the following command:
 ```bash
 gunicorn "metadata_api:create_app()"
 ```
+
+You also need to have a running Celery worker for background tasks. You can start a worker with:
+
+```bash
+celery -A metadata_api.tasks worker --loglevel=INFO
+```
+
+Please note that you need to have a running [Redis](https://redis.io/) server for Celery to work.
