@@ -17,11 +17,16 @@ This project contains the following main components:
 - [**`gen_pids.sh`**](gen_pids.sh) - A shell script that runs periodically on the server (via cron) and calls
   [`gen_pids.py`](/gen_pids/gen_pids.py).
 
-## Bumping the version number
+## Logging
 
-If you want to bump the app version number, update the `version` field in [`pyproject.toml`](pyproject.toml). If you
-change the major version, run [`set_version.sh`](set_version.sh) to automatically update all version references in the
-URLs in the [README file](README.md).
+Logging is configured via environment variables in `metadata_api/settings.py`. Important variables:
+
+- `LOG_LEVEL` (default: `INFO`)
+- `LOG_TO_FILE` (default: `True`): If `True`, logs are saved to `logs/metadata_api_<DATE>.log`. If `False`, logs are
+  sent only to stdout.
+
+When running the development server (`python run.py`), logs are always sent to the console and the log level is set to
+`DEBUG`. The log level can be changed with the `--log-level` argument.
 
 ## Caching
 
@@ -61,6 +66,12 @@ done in the background. If `SLACK_WEBHOOK_URL` is set in the configuration and a
 with the results of the cache renewal will be sent to the specified Slack channel when the task is finished. Messages
 from the task will also be logged to the celery worker log.
 
+## Bumping the version number
+
+If you want to bump the app version number, update the `version` field in [`pyproject.toml`](pyproject.toml). If you
+change the major version, run [`set_version.sh`](set_version.sh) to automatically update all version references in the
+URLs in the [README file](README.md).
+
 ## Deployment (SBX-specific)
 
 Set up the metadata-api app by following the [installation instructions](../README.md#installation) in the README file
@@ -96,10 +107,13 @@ to install the dependencies. Don't forget to add your own configuration to the a
 
   ```bash
   [program:metadata]
-  command=%(ENV_HOME)s/metadata-api/dev/venv/bin/gunicorn --chdir %(ENV_HOME)s/metadata-api/dev -b "0.0.0.0:1337" --worker-class gevent --workers 4 metadata_api:create_app()
+  directory=%(ENV_HOME)s/metadata-api/dev/
+  command=%(ENV_HOME)s/metadata-api/dev/.venv/bin/uvicorn --app-dir %(ENV_HOME)s/metadata-api/dev --root-path /ws/metadata/dev --host "localhost" --port 1337 --workers 4 metadata_api.main:app
+  redirect_stderr=true
+  stopasgroup=true
 
   [program:metadata-celery]
-  command=%(ENV_HOME)s/metadata-api/dev/venv/bin/celery -A metadata_api.tasks worker --loglevel=INFO
+  command=%(ENV_HOME)s/metadata-api/dev/.venv/bin/celery -A metadata_api.tasks worker --loglevel=INFO
   directory=%(ENV_HOME)s/metadata-api/dev/
   redirect_stderr=true
   stopasgroup=true

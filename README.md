@@ -21,11 +21,12 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 | 📁 [/collections](https://ws.spraakbanken.gu.se/ws/metadata/v3/collections) | List all collections |
 | 📁 [/list-ids](https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids) | List all existing resource IDs |
 | 🔍 [/?resource=saldo](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo) | Retrieve a specific resource and its description (if available) |
-| 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=[resource-id]) | Check if a given resource ID is available |
-| 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=[resource-id]) | Return BibTeX citation for the specified resource |
-| 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update metadata files from git, re-process JSON, and update cache.<br>Optional parameters:<ul><li><code>debug=True</code></li><li><code>offline=True</code></li><li><code>resource-paths=&lt;resource-type&gt;/&lt;resource-id&gt;,...</code> e.g. <code>corpus/attasidor,lexicon/saldo</code></li></ul> |
+| 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=attasidor) | Check if a given resource ID is available |
+| 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=attasidor) | Return BibTeX citation for the specified resource |
+| 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update all metadata files from git, re-process JSON, and update cache.|
+| 🔧 [/renew-cache?resource-paths=[resource-type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache?resource-paths=corpus/attasidor) | Update cache for specific resources, e.g.:<br><code>resource-paths=corpus/attasidor,lexicon/saldo</code>|
 | 📘 [/schema](https://ws.spraakbanken.gu.se/ws/metadata/v3/schema) | Return JSON schema for resources |
-| 📘 [/doc](https://ws.spraakbanken.gu.se/ws/metadata/v3/doc) | Serve API documentation as JSON |
+| 📘 [/openapi.json](https://ws.spraakbanken.gu.se/ws/metadata/v3/openapi.json) | Serve API documentation as JSON |
 
 ## Requirements
 
@@ -58,21 +59,51 @@ pip install -e .
 
 ## Configuration
 
-The app can be configured by creating `config.py` in the root directory. The configuration in
-[`config_default.py`](config_default.py) is always loaded automatically but its values can be overridden by `config.py`.
+The default configuration is specified in [`metadata_api/settings.py`](metadata_api/settings.py). You can override these
+settings using environment variables or by creating a local `.env` file in the project's root directory. Common
+configuration options include:
+
+- `LOG_LEVEL` (default: `INFO`)
+- `LOG_TO_FILE` (default: `True`): If `True`, logs are written to `logs/metadata_api_<DATE>.log`; if `False`, logs are
+  output to the console only.
+- `ROOT_PATH`: The root path for the API, e.g., "/metadata-api" if served from a subpath.
+- `METADATA_DIR`: Absolute path to the directory containing the [metadata YAML
+  files](https://github.com/spraakbanken/metadata).
+- `CELERY_BROKER_URL`: URL for the Celery broker used for background tasks.
+- `MEMCACHED_SERVER`: Host and port of the Memcached server, or path to the socket file.
+- `SLACK_WEBHOOK`: URL to a Slack webhook for error notifications (optional).
+
+Example `.env` file:
+
+```env
+LOG_LEVEL=DEBUG
+LOG_TO_FILE=False
+ROOT_PATH="/metadata-api"
+METADATA_DIR="/path-to-metadata-dir"
+CELERY_BROKER_URL="redis://localhost:6379/1"
+MEMCACHED_SERVER="localhost:11211"  # Set to None to disable caching
+SLACK_WEBHOOK="https://hooks.slack.com/services/..."
+```
 
 ## Running a test server
 
-For testing purposes the app can be run with the following script (with an activated venv):
+For testing purposes, you can run the app using the following script (with an activated virtual environment, or by
+prefixing with `uv run`). The default settings when using `run.py` are:
+
+- Host/port: `127.0.0.1:8000`
+- `ENV=development`
+- `LOG_LEVEL=DEBUG`
+- `LOG_TO_FILE=False` (logs to console only)
+- `reload=True` (auto-restart on code changes)
 
 ```bash
-python run.py [--port PORT]
+python run.py [--host HOST] [--port PORT] [--log-level LOG_LEVEL]
 ```
 
-If you prefer to run the app with `gunicorn`, you can use the following command:
+If you prefer to run the app with `uvicorn`, you can use the following command:
 
 ```bash
-gunicorn "metadata_api:create_app()"
+uvicorn metadata_api.main:app
 ```
 
 You also need to have a running Celery worker for background tasks. You can start a worker with:

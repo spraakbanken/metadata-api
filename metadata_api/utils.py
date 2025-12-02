@@ -6,17 +6,26 @@ import datetime
 import json
 import logging
 import tomllib
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import requests
 
-from .memcached import cache
+from metadata_api.settings import settings
 
 if TYPE_CHECKING:
     from pymemcache.client.base import Client
 
 logger = logging.getLogger(__name__)
+
+
+# Define ResourceTypes enum from settings
+ResourceTypes = Enum(
+    "ResourceTypes",
+    {name: name for name in settings.RESOURCE_TYPES},
+    type=str
+)
 
 
 def load_json(json_path: Path, prefix: str = "", cache_client: Client | None = None) -> dict[str, Any]:
@@ -66,24 +75,24 @@ def load_json(json_path: Path, prefix: str = "", cache_client: Client | None = N
     return all_data
 
 
-def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> dict[str, Any]:
+def get_single_resource(
+    resource_id: str, resources_dict: dict[str, Any], cache_client: Client | None = None
+) -> dict[str, Any]:
     """Get resource from resource dictionaries and add long resource description if available.
 
     Args:
         resource_id: The ID of the resource.
         resources_dict: Dictionary of resources.
+        cache_client: Memcache client to use.
 
     Returns:
         Dictionary containing the resource.
     """
-    from flask import current_app  # noqa: PLC0415
-
-    with cache.get_client() as cache_client:
-        resource_texts = load_json(
-            Path(current_app.config["STATIC"]) / current_app.config["RESOURCE_TEXTS_FILE"],
-            prefix="res_descr",
-            cache_client=cache_client,
-        )
+    resource_texts = load_json(
+        settings.STATIC / settings.RESOURCE_TEXTS_FILE,
+        prefix="res_descr",
+        cache_client=cache_client,
+    )
     long_description = resource_texts.get(resource_id, {})
 
     resource = {}
@@ -99,7 +108,7 @@ def get_single_resource(resource_id: str, resources_dict: dict[str, Any]) -> dic
 
 
 def load_resources(
-    resource_mapping: dict[str, str], static_path: Path, cache_client: Client | None = None
+    resource_mapping: dict[str, str], static_path: Path, cache_client: Client | None = None, legacy: bool = True
 ) -> dict[str, Any]:
     """Load all resource types from JSON from cache or files.
 
@@ -107,13 +116,17 @@ def load_resources(
         resource_mapping: Mapping of resource types to their corresponding JSON files.
         static_path: Path to the static folder.
         cache_client: Memcache client to use.
+        legacy: Whether to use legacy keys (True) or singular keys (False).
 
     Returns:
         Dictionary containing resource dictionaries.
     """
     resources = {}
     for res_type, res_file in resource_mapping.items():
-        resources[res_type] = load_json(static_path / res_file, cache_client=cache_client)
+        if legacy:
+            resources[res_type] = load_json(static_path / res_file, cache_client=cache_client)
+        else:
+            resources[res_file[:-5]] = load_json(static_path / res_file, cache_client=cache_client)
     return resources
 
 
@@ -164,27 +177,6 @@ def dict_to_list(input_obj: dict[str, Any]) -> list:
     """
     # return sorted(input.values(), key=lambda x: locale.strxfrm(x.get("name_sv")))
     return list(input_obj.values())
-
-
-def get_resource_type(resource_type: str) -> dict[str, Any]:
-    """Get list of resources of one type.
-
-    Args:
-        resource_type: The type of resources to list.
-
-    Returns:
-        Dictionary containing the list of resources of the specified type.
-    """
-    from flask import current_app  # noqa: PLC0415
-
-    with cache.get_client() as cache_client:
-        filtered_resources = load_json(
-            Path(current_app.config["STATIC"]) / current_app.config["RESOURCES"].get(resource_type, {}),
-            cache_client=cache_client,
-        )
-    data = dict_to_list(filtered_resources)
-
-    return {"resource_type": resource_type, "hits": len(data), "resources": data}
 
 
 def get_bibtex(resource_id: str, resources_dict: dict[str, Any]) -> str:
@@ -292,7 +284,7 @@ def get_version_from_pyproject(path: Path = Path("pyproject.toml")) -> str:
     Args:
         path: Path to the pyproject.toml file.
     """
-    # print absolute path
+    # Get absolute path
     path = path.resolve()
     if not path.exists() or not path.is_file():
         logger.error("Could not find pyproject.toml file at %s", path)
