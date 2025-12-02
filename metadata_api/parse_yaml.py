@@ -15,6 +15,8 @@ import requests
 import yaml
 from jsonschema.exceptions import ValidationError
 
+from metadata_api.settings import settings
+
 # Swedish translations for language names
 SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"])
 
@@ -26,31 +28,24 @@ def process_resources(
     debug: bool = False,
     offline: bool = False,
     validate: bool = False,
-    config_obj: dict | None = None,
 ) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Args:
         resource_paths: List of specific resource to reprocess (["resource_type/resource_id"]).
             This list may contain deleted resources which will then be removed from the API.
-        debug: Print debug info.
+        debug: Log debug info while parsing YAML files.
         offline: Skip getting file info for downloadables.
         validate: Validate metadata using schema.
-        config_obj: Dictionary containing configuration values.
     """
-    if config_obj is None:
-        raise ValueError("Configuration object is required")
-
-    resource_types = [Path(i).stem for i in config_obj["RESOURCES"].values()]
+    resource_types = [Path(i).stem for i in settings.RESOURCES.values()]
     all_resources = {}
     resource_texts = defaultdict(dict)
-    resource_text_file = Path(config_obj["STATIC"]) / config_obj["RESOURCE_TEXTS_FILE"]
-    collections_file = Path(config_obj["STATIC"]) / config_obj["COLLECTIONS_FILE"]
+    resource_text_file = settings.STATIC / settings.RESOURCE_TEXTS_FILE
+    collections_file = settings.STATIC / settings.COLLECTIONS_FILE
     collection_mappings = {}
-    metadata_dir = Path(config_obj["METADATA_DIR"])
-    if config_obj is None:
-        raise ValueError("Configuration object is required")
-    localizations = get_localizations(metadata_dir / config_obj["LOCALIZATIONS_DIR"])
+    metadata_dir = settings.METADATA_DIR
+    localizations = get_localizations(metadata_dir / settings.LOCALIZATIONS_DIR)
 
     failed_files = []
 
@@ -58,7 +53,7 @@ def process_resources(
         logger.setLevel(logging.DEBUG)
 
     if validate:
-        resource_schema = get_schema(metadata_dir / config_obj["SCHEMA_FILE"])
+        resource_schema = get_schema(metadata_dir / settings.SCHEMA_FILE)
         # YAML safe_load() - handle dates as strings
         yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
             yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
@@ -67,13 +62,13 @@ def process_resources(
         resource_schema = None
 
     if not resource_paths:
-        filepaths = sorted((metadata_dir / config_obj["YAML_DIR"]).rglob("*.yaml"))
+        filepaths = sorted((metadata_dir / settings.YAML_DIR).rglob("*.yaml"))
     else:
         # When processing a single YAML file: set filepaths and load existing resource data
-        filepaths = [metadata_dir / config_obj["YAML_DIR"] / f"{i}.yaml" for i in resource_paths]
+        filepaths = [metadata_dir / settings.YAML_DIR / f"{i}.yaml" for i in resource_paths]
 
         for resource_type in resource_types:
-            with (Path(config_obj["STATIC"]) / f"{resource_type}.json").open(encoding="utf-8") as f:
+            with (settings.STATIC / f"{resource_type}.json").open(encoding="utf-8") as f:
                 all_resources.update(json.load(f))
         with resource_text_file.open(encoding="utf-8") as f:
             resource_texts.update(json.load(f))
@@ -116,7 +111,7 @@ def process_resources(
         res_json = {k: v for k, v in all_resources.items() if v.get("type", "") == resource_type}
         # Set has_description for every resource and save as json.
         set_description_bool(res_json, resource_texts)
-        write_json(Path(config_obj["STATIC"]) / f"{resource_type}.json", res_json)
+        write_json(settings.STATIC / f"{resource_type}.json", res_json)
 
     messages = []
     if failed_files:
@@ -420,18 +415,6 @@ def write_json(filename: Path, data: dict) -> None:
 
 if __name__ == "__main__":
     import argparse
-    import sys
-
-    # Add the parent directory to the system path to import config or config_default
-    sys.path.append(str(Path(__file__).resolve().parent.parent))
-    import config_default
-    config_dict = {k: v for k, v in vars(config_default).items() if not k.startswith("__")}
-    try:
-        import config
-        config_dict.update({k: v for k, v in vars(config).items() if not k.startswith("__")})
-    except ImportError:
-        pass
-    config_dict["STATIC"] = Path(__file__).resolve().parent / "static"
 
     # Configure logging
     LOG_FORMAT = "%(levelname)s - %(message)s"
@@ -443,16 +426,15 @@ if __name__ == "__main__":
     parser.add_argument("--offline", action="store_true", help="Skip getting file info for downloadables")
     parser.add_argument("--validate", action="store_true", help="Validate metadata using schema")
     parser.add_argument(
-        "--resource-path", type=str, help="Comma-separated paths to the resources to update (format: 'type/id')"
+        "--resource-paths", type=str, help="Comma-separated paths to the resources to update (format: 'type/id')"
     )
 
     # Parse command line arguments
     args = parser.parse_args()
 
     process_resources(
-        resource_paths=args.resource_path.split(",") if args.resource_path else None,
+        resource_paths=args.resource_paths.split(",") if args.resource_paths else None,
         debug=args.debug,
         offline=args.offline,
         validate=args.validate,
-        config_obj=config_dict,
     )

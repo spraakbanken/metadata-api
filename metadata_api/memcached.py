@@ -24,7 +24,8 @@ class CacheManager:
 
         try:
             with self.get_client() as cache_client:
-                cache_client.get("test_connection")
+                if cache_client:
+                    cache_client.get("test_connection")
             logger.info("Connected to memcached on %s", cache_server)
         except Exception as e:
             logger.warning("Failed to connect to memcached on %s: %s", cache_server, e)
@@ -32,7 +33,7 @@ class CacheManager:
     @contextmanager
     def get_client(self) -> Generator[Any, None, None]:
         """Retrieve a connected Memcached client."""
-        if self.server is None:
+        if not self.server:
             logger.info("Caching is disabled.")
             yield None
             return
@@ -48,17 +49,21 @@ class CacheManager:
         client: Client | None = None
         try:
             client = Client(self.server, serde=serde.pickle_serde)
-            yield client
         except Exception:
             logger.exception("Error initializing memcache client")
             yield None
+            return
 
+        try:
+            yield client
+        except Exception:
+            logger.exception("Error using memcache client")
         finally:
             if client is not None:
                 try:
                     client.close()
                 except Exception:
-                    pass
+                    logger.debug("Failed to close memcache client", exc_info=True)
 
 
 cache = CacheManager()

@@ -9,15 +9,26 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Added an `update` argument to the `gen_pids.sh` script to force updates of all Datacite metadata.
 - Added proper license information to Datacite metadata.
-- Added possibility to run the app async with gevent workers in gunicorn.
+- Added `/redoc` route for API documentation with ReDoc.
+- Added `/docs` route for API documentation with Swagger UI.
 
 ### Changed
 
+- Flask is replaced with FastAPI as the web framework and the app is run asynchronously.
+- Minimal Python version is now 3.11.
+- The app is now run with `uvicorn` instead of `gunicorn`.
 - Cache-renewal is now done in a background task with Celery, using Redis as broker.
 - Change preferred installation method to use `uv` for dependency management.
 - `gen_pids.py` now uses logging instead of print statements.
 - Moved some documentation from README.md to docs/dev-docs.md.
 - Slightly improved caching logic.
+
+### Deprecated
+
+- The `/corpora`, `/lexicons`, `/models`, `/analyses`, `/utilities` and `/collections` routes are deprecated and will be
+  removed in a future version. Use the main `/` route with the `resource` parameter instead.
+- The `/doc` route serving the OpenAPI documentation in YAML format is deprecated and will be removed in a future
+  version. Use `/openapi.json` instead.
 
 ### Fixed
 
