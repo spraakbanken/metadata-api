@@ -4,6 +4,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 class Settings(BaseSettings):
     """Default app settings."""
@@ -15,7 +17,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(levelname)s - %(message)s"
     LOG_DIR: Path = Path("logs")
-    LOG_TO_FILE: bool = True  # Whether to log to a file instead of console
+    LOG_TO_FILE: bool = True  # Always log to console; if True, also log to a file in LOG_DIR
 
     RESOURCE_TYPES: list[str] = ["corpus", "lexicon", "model", "analysis", "utility", "collection"]
     # Resource types and their corresponding data files (relative to "static" directory)
@@ -44,13 +46,17 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
 
     # Caching settings
-    MEMCACHED_SERVER: str = ""  # e.g. "localhost:11211". Set to None to disable caching
+    MEMCACHED_SERVER: str = ""  # e.g. "localhost:11211". Set to "" to disable caching
 
     # Slack incoming webhook URL, used to send error messages to a Slack channel
     SLACK_WEBHOOK: str = ""
 
     # Override Settings with variables from a .env file or environment variables
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
 
 
 settings = Settings()

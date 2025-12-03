@@ -13,16 +13,11 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 | Endpoint | Description |
 |----------|-------------|
 | 📁 [/](https://ws.spraakbanken.gu.se/ws/metadata/v3/) | List all resources |
-| 📁 [/corpora](https://ws.spraakbanken.gu.se/ws/metadata/v3/corpora) | List all corpora |
-| 📁 [/lexicons](https://ws.spraakbanken.gu.se/ws/metadata/v3/lexicons) | List all lexicons |
-| 📁 [/models](https://ws.spraakbanken.gu.se/ws/metadata/v3/models) | List all models |
-| 📁 [/analyses](https://ws.spraakbanken.gu.se/ws/metadata/v3/analyses) | List all analyses |
-| 📁 [/utilities](https://ws.spraakbanken.gu.se/ws/metadata/v3/utilities) | List all utilities |
-| 📁 [/collections](https://ws.spraakbanken.gu.se/ws/metadata/v3/collections) | List all collections |
+| 📁 [/?resource-type=[resource-type]](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource-type=corpus) | List all resources of a specific type.<br>Available types: `corpus`, `lexicon`, `model`, `analysis`, `utility`, `collection` |
 | 📁 [/list-ids](https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids) | List all existing resource IDs |
 | 🔍 [/?resource=saldo](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo) | Retrieve a specific resource and its description (if available) |
-| 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=attasidor) | Check if a given resource ID is available |
 | 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=attasidor) | Return BibTeX citation for the specified resource |
+| 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=attasidor) | Check if a given resource ID is available |
 | 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update all metadata files from git, re-process JSON, and update cache.|
 | 🔧 [/renew-cache?resource-paths=[resource-type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache?resource-paths=corpus/attasidor) | Update cache for specific resources, e.g.:<br><code>resource-paths=corpus/attasidor,lexicon/saldo</code>|
 | 📘 [/schema](https://ws.spraakbanken.gu.se/ws/metadata/v3/schema) | Return JSON schema for resources |
@@ -30,7 +25,7 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 
 ## Requirements
 
-- [Python 3.10](https://docs.python.org/3.10/) or newer
+- [Python 3.11](https://docs.python.org/3.11/) or newer
 - [Redis](https://redis.io/) (used for Celery background tasks)
 - [Memcached](https://memcached.org/) (for optional caching, check [caching.md](docs/caching.md) for more info)
 
@@ -64,8 +59,8 @@ settings using environment variables or by creating a local `.env` file in the p
 configuration options include:
 
 - `LOG_LEVEL` (default: `INFO`)
-- `LOG_TO_FILE` (default: `True`): If `True`, logs are written to `logs/metadata_api_<DATE>.log`; if `False`, logs are
-  output to the console only.
+- `LOG_TO_FILE` (default: `True`): Logs always go to stdout; if `True`, they are also saved to
+  `logs/metadata_api_<DATE>.log`.
 - `ROOT_PATH`: The root path for the API, e.g., "/metadata-api" if served from a subpath.
 - `METADATA_DIR`: Absolute path to the directory containing the [metadata YAML
   files](https://github.com/spraakbanken/metadata).

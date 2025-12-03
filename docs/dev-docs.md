@@ -22,8 +22,8 @@ This project contains the following main components:
 Logging is configured via environment variables in `metadata_api/settings.py`. Important variables:
 
 - `LOG_LEVEL` (default: `INFO`)
-- `LOG_TO_FILE` (default: `True`): If `True`, logs are saved to `logs/metadata_api_<DATE>.log`. If `False`, logs are
-  sent only to stdout.
+- `LOG_TO_FILE` (default: `True`): Logs always go to stdout; if `True`, they are also saved to
+  `logs/metadata_api_<DATE>.log`.
 
 When running the development server (`python run.py`), logs are always sent to the console and the log level is set to
 `DEBUG`. The log level can be changed with the `--log-level` argument.
@@ -31,13 +31,10 @@ When running the development server (`python run.py`), logs are always sent to t
 ## Caching
 
 Caching can be used in the API to improve response times. [Memcached](https://memcached.org/) is used for this purpose
-and can be configured in `config.py` with the following settings:
+and can be configured in `.env` with the following settings:
 
-```python
-# Caching settings
-NO_CACHE = False  # Set to True to disable caching with memcached
-MEMCACHED_HOST = "localhost"
-MEMCACHED_PORT = 11211
+```env
+MEMCACHED_SERVER="localhost:11211"  # Set to "" to disable caching
 ```
 
 ### What is being cached?
@@ -108,7 +105,7 @@ to install the dependencies. Don't forget to add your own configuration to the a
   ```bash
   [program:metadata]
   directory=%(ENV_HOME)s/metadata-api/dev/
-  command=%(ENV_HOME)s/metadata-api/dev/.venv/bin/uvicorn --app-dir %(ENV_HOME)s/metadata-api/dev --root-path /ws/metadata/dev --host "localhost" --port 1337 --workers 4 metadata_api.main:app
+  command=%(ENV_HOME)s/metadata-api/dev/.venv/bin/uvicorn --app-dir %(ENV_HOME)s/metadata-api/dev --root-path /ws/metadata/dev --host "localhost" --port 1337 --workers 4  --proxy-headers --forwarded-allow-ips=* metadata_api.main:app
   redirect_stderr=true
   stopasgroup=true
 

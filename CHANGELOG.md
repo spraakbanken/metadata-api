@@ -3,7 +3,7 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [3.2.0] - 2025-12-03
 
 ### Added
 
@@ -15,6 +15,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - Flask is replaced with FastAPI as the web framework and the app is run asynchronously.
+- Minimal Python version is now 3.11.
 - The app is now run with `uvicorn` instead of `gunicorn`.
 - Cache-renewal is now done in a background task with Celery, using Redis as broker.
 - Change preferred installation method to use `uv` for dependency management.

@@ -24,15 +24,13 @@ from metadata_api.settings import settings
 
 API_VERSION = utils.get_version_from_pyproject(Path("pyproject.toml"))
 
-# Configure logging
+# Configure logging: always log to console; optionally also to file
 log_dir = settings.LOG_DIR
-handlers: list[logging.Handler] = []
+handlers: list[logging.Handler] = [logging.StreamHandler()]
 if settings.LOG_TO_FILE:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"metadata_api_{datetime.now().strftime('%Y-%m-%d')}.log"
     handlers.append(logging.FileHandler(log_file))
-else:
-    handlers.append(logging.StreamHandler())
 
 logging.basicConfig(level=settings.LOG_LEVEL, format=settings.LOG_FORMAT, handlers=handlers)
 logger = logging.getLogger(__name__)

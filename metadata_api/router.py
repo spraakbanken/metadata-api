@@ -252,8 +252,10 @@ async def openapi_alias(request: Request) -> dict:
 @router.get("/redoc", tags=["Documentation"], summary="ReDoc API documentation", response_class=HTMLResponse)
 def overridden_redoc(request: Request) -> HTMLResponse:
     """Serve ReDoc documentation."""
+    root_path = request.scope.get("root_path", "") or ""
+    openapi_path = request.app.router.url_path_for("openapi_json")
     return get_redoc_html(
-        openapi_url="/openapi.json",
+        openapi_url=f"{root_path}{openapi_path}",
         title=f"{request.app.title} - ReDoc",
         redoc_favicon_url=str(request.url_for("static", path="favicon.png")),
     )
@@ -262,8 +264,10 @@ def overridden_redoc(request: Request) -> HTMLResponse:
 @router.get("/docs", tags=["Documentation"], summary="Swagger UI documentation", response_class=HTMLResponse)
 def overridden_swagger(request: Request) -> HTMLResponse:
     """Serve Swagger UI documentation."""
+    root_path = request.scope.get("root_path", "") or ""
+    openapi_path = request.app.router.url_path_for("openapi_json")
     return get_swagger_ui_html(
-        openapi_url="/openapi.json",
+        openapi_url=f"{root_path}{openapi_path}",
         title=f"{request.app.title} - Swagger UI",
         swagger_favicon_url=str(request.url_for("static", path="favicon.png")),
     )
