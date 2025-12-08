@@ -208,7 +208,9 @@ def process_yaml_file(
                         english_name, swedish_name = get_lang_names(langcode)
                         langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
                     except LookupError:
-                        logger.error("Could not find language code '%s' (resource: '%s')", langcode, fileid)
+                        logger.error(
+                            "Could not find language code '%s' (resource: '%s/%s')", langcode, res_type, fileid
+                        )
             res["languages"] = langs
             res.pop("language_codes", "")
 
@@ -223,7 +225,7 @@ def process_yaml_file(
                 for d in res.get("downloads", []):
                     url = d.get("url")
                     if url and "size" not in d and "last-modified" not in d:
-                        size, date = get_download_metadata(url, fileid)
+                        size, date = get_download_metadata(url, fileid, res_type)
                         d["size"] = size
                         d["last-modified"] = date
 
@@ -322,12 +324,13 @@ def get_schema(filepath: Path) -> dict | None:
     return schema
 
 
-def get_download_metadata(url: str, name: str) -> tuple[int | None, str | None]:
+def get_download_metadata(url: str, name: str, res_type: Path) -> tuple[int | None, str | None]:
     """Check headers of file from URL and return the file size and last modified date.
 
     Args:
         url: URL of the downloadable file.
         name: Name of the resource.
+        res_type: Type of the resource (used for logging).
 
     Returns:
         File size and last modified date.
@@ -344,9 +347,9 @@ def get_download_metadata(url: str, name: str) -> tuple[int | None, str | None]:
         if date:
             date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
         if res.status_code == 404:  # noqa: PLR2004
-            logger.error("Could not find downloadable for '%s': %s", name, url)
+            logger.error("Could not find downloadable for '%s/%s': %s", res_type, name, url)
     except Exception:
-        logger.exception("Could not get downloadable '%s': %s", name, url)
+        logger.exception("Could not get downloadable '%s/%s': %s", res_type, name, url)
     return size, date
 
 
