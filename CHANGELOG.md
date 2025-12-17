@@ -5,6 +5,13 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
 
+### Added
+
+- Added atomic tracking of pending cache renewal tasks using Redis to prevent overload.
+
+### Changed
+
+- Improved error messages from `gen_pids.py` and `parse_yaml.py` for better clarity.
 
 ## [3.2.0] - 2025-12-03
 

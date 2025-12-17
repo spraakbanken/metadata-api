@@ -3,8 +3,9 @@
 import json
 import logging
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 
+import redis
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -18,6 +19,9 @@ from metadata_api.tasks import renew_cache_task
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Redis client for managing pending renew-cache tasks
+redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
 
 
 # ------------------------------------------------------------------------------
@@ -172,18 +176,29 @@ def _renew_cache(
     offline: bool,
     payload: dict | None,
 ) -> JSONResponse:
-    """Shared renew-cache logic for GET/POST routes."""
     paths_list = resource_paths.split(",") if resource_paths else None
+
+    # Do atomic increment of pending counter
+    logger.info("Pending renew-cache tasks: %s", cast(int, redis_client.get(settings.PENDING_KEY)) or 0)
+    pending = cast(int, redis_client.incr(settings.PENDING_KEY))
+    if pending > settings.MAX_PENDING:
+        # Too many pending tasks, roll back the increment
+        redis_client.decr(settings.PENDING_KEY)
+        raise HTTPException(status_code=409, detail="Too many cache renewals queued. Try again later.")
+
     try:
-        task = renew_cache_task.delay(
-            request_method=request_method,
-            resource_paths=paths_list,
-            debug=debug,
-            offline=offline,
-            payload=payload if request_method == "POST" else None,
-        )
+        task = renew_cache_task.apply_async(kwargs={
+            "request_method": request_method,
+            "resource_paths": paths_list,
+            "debug": debug,
+            "offline": offline,
+            "payload": payload if request_method == "POST" else None,
+        })
     except Exception as e:
+        # Roll back the slot if enqueue failed
+        redis_client.decr(settings.PENDING_KEY)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
     return JSONResponse({"task_id": task.id, "message": "Cache renewal triggered in background."})
 
 

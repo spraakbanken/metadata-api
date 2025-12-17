@@ -110,8 +110,9 @@ to install the dependencies. Don't forget to add your own configuration to the a
   stopasgroup=true
 
   [program:metadata-celery]
-  command=%(ENV_HOME)s/metadata-api/dev/.venv/bin/celery -A metadata_api.tasks worker --loglevel=INFO
+  command=%(ENV_HOME)s/metadata-api/dev/.venv/bin/celery -A metadata_api.tasks worker -P solo --loglevel=INFO
   directory=%(ENV_HOME)s/metadata-api/dev/
+  stopwaitsecs=600
   redirect_stderr=true
   stopasgroup=true
   killasgroup=true

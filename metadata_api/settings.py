@@ -44,6 +44,8 @@ class Settings(BaseSettings):
 
     # Celery settings
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    PENDING_KEY: str = "metadata_api:renew_cache:pending"  # Redis key to track pending cache renewal tasks
+    MAX_PENDING: int = 3  # Maximum number of pending cache renewal tasks
 
     # Caching settings
     MEMCACHED_SERVER: str = ""  # e.g. "localhost:11211". Set to "" to disable caching
