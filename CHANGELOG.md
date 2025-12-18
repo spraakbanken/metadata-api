@@ -8,6 +8,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Added atomic tracking of pending cache renewal tasks using Redis to prevent overload.
+- Added support for wildcards using simple glob-style patterns (`*` and `?`) in collection resource references.
 
 ### Changed
 

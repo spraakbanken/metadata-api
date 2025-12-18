@@ -6,6 +6,7 @@ import datetime
 import gettext
 import json
 import logging
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -275,9 +276,29 @@ def _update_collections(collection_mappings: dict, all_resources: dict) -> dict:
                     res.pop("in_collections")
             continue
 
+        # Expand wildcards in resource references (e.g. "kubhist-*")
+        expanded_res_list = []
+        for res_ref in res_list:
+            if "*" in res_ref or "?" in res_ref:
+                matches = [res_id for res_id in all_resources if _wildcard_match(res_ref, res_id)]
+                logger.debug(
+                    "Expanding wildcard '%s' in collection '%s' to matches: %s", res_ref, collection, ", ".join(matches)
+                )
+                if not matches:
+                    logger.warning(
+                        "The wildcard '%s' in collection '%s' did not match any resources. "
+                        "Removing from collection.",
+                        res_ref,
+                        collection,
+                    )
+                expanded_res_list.extend(matches)
+            else:
+                expanded_res_list.append(res_ref)
+        expanded_res_list = sorted(set(expanded_res_list))
+
         # Remove resource IDs for non-existing resources
-        new_res_list = [i for i in res_list if i in all_resources]
-        removed_resources = list(set(res_list).difference(set(new_res_list)))
+        new_res_list = [i for i in expanded_res_list if i in all_resources]
+        removed_resources = list(set(expanded_res_list).difference(set(new_res_list)))
         if removed_resources and len(removed_resources) == 1:
             logger.warning(
                 "The resource '%s' does not exist and was removed from the '%s' collection.",
@@ -404,6 +425,21 @@ def _get_lang_names(langcode: str) -> tuple[str, str]:
     english_name = l.name
     swedish_name = SWEDISH.gettext(english_name).lower()
     return english_name, swedish_name
+
+
+def _wildcard_match(pattern: str, value: str) -> bool:
+    """Match simple glob-style patterns (* and ?) against a value.
+
+    Args:
+        pattern: The pattern containing wildcards.
+        value: The value to match against the pattern.
+
+    Returns:
+        Whether the value matches the pattern.
+    """
+    regex = re.escape(pattern)
+    regex = regex.replace(r"\*", ".*").replace(r"\?", ".")
+    return bool(re.fullmatch(regex, value))
 
 
 def _write_json(filename: Path, data: dict) -> None:
