@@ -31,11 +31,11 @@ redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
 @router.get("/", response_model=models.AllResouresList, tags=["Metadata retrieval"], summary="List all resources")
 def list_resources(
     resource_type: utils.ResourceTypes | None = Query(  # type: ignore
-        default=None, alias="resource-type", title="Resource type", example="corpus", enum=settings.RESOURCE_TYPES
+        default=None, alias="resource-type", title="Resource type", examples=["corpus"], enum=settings.RESOURCE_TYPES
     ),
-    resource: str | None = Query(default=None, title="Resource ID", example="attasidor"),
+    resource: str | None = Query(default=None, title="Resource ID", examples=["attasidor"]),
     legacy: bool = Query(
-        default=True, description="If true, use legacy response format ('corpora' instead of 'corpus' etc.)."
+        default=True, description="If true, use legacy response format ('corpora' instead of 'corpus' etc.).",
     ),
 ) -> JSONResponse:
     """List metadata for all resources, all resources of a given type or a single resource by ID.
@@ -94,7 +94,7 @@ def list_ids() -> JSONResponse:
 
 @router.get("/bibtex", response_model=models.BibtexResponse, tags=["Metadata retrieval"], summary="Get BibTeX citation")
 def bibtex(
-    resource: str = Query(title="Resource ID", example="attasidor"),
+    resource: str = Query(title="Resource ID", examples=["attasidor"]),
 ) -> JSONResponse:
     """Return bibtex citation as text."""
     with cache.get_client() as cache_client:
@@ -149,7 +149,7 @@ def list_collections() -> JSONResponse:
     summary="Check resource ID availability",
 )
 def check_id(
-    resource_id: str = Query(alias="id", title="Resource ID", example="my-new-resource"),
+    resource_id: str = Query(alias="id", title="Resource ID", examples=["my-new-resource"]),
 ) -> JSONResponse:
     """Check if a given resource ID is available."""
     with cache.get_client() as cache_client:
@@ -215,7 +215,7 @@ def renew_cache_get(
         default=None,
         alias="resource-paths",
         description="Comma-separated list of specific resources to reprocess (<resource_type/resource_id>).",
-        example="corpus/attasidor,lexicon/saldo",
+        examples=["corpus/attasidor,lexicon/saldo"],
     ),
     debug: bool = Query(default=False, description="If true, log debug info while parsing YAML files."),
     offline: bool = Query(default=False, description="If true, skip getting file info for downloadables."),
