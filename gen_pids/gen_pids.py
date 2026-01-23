@@ -1,4 +1,11 @@
-"""Read YAML metadata files, set DOIs for resources that miss one."""
+"""Read YAML metadata files, assign missing DOIs via DataCite, and update DataCite metadata.
+
+Created DOIs are written back to YAML. Updates of the DataCite metadata includes collection/successor relationships and
+updated timestamps. The script supports flags to limit updates, include analyses, or run in dry-run mode.
+
+Usage:
+    uv run gen_pids/gen_pids.py [--debug] [--test] [--noupdate] [--analyses] [--update] [-f FILENAME]
+"""
 
 import argparse
 import datetime
@@ -17,8 +24,10 @@ import yaml
 from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
-YAML_DIR = Path("../metadata/yaml")
-DOI_KEY = "doi"
+YAML_DIR = Path(__file__).parent.resolve().parent / "metadata" / "yaml"
+DOI_KEY = "doi"  # DOI = Digital Object Identifier
+
+# DMS (DataCite Metadata Schema) constants
 DMS_URL = "https://api.datacite.org/dois"
 DMS_HEADERS = {
     "content-type": "application/json",
@@ -49,6 +58,7 @@ DMS_RELATION_TYPE_HASPART = "HasPart"
 DMS_RELATION_TYPE_ISOBSOLETEDBY = "IsObsoletedBy"
 DMS_RELATION_TYPE_OBSOLETES = "Obsoletes"
 
+# Datacite API response codes and settings
 RESPONSE_OK = 200
 RESPONSE_CREATED = 201
 DATACITE_RATE_LIMIT = 298
@@ -84,7 +94,14 @@ parser.add_argument(
 parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
 parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
 parser.add_argument("--update", "-u", action="store_true", help="Force update of all metadata at Datacite")
-parser.add_argument("-f", action="store", dest="param_file", type=str)
+parser.add_argument(
+    "-f",
+    action="store",
+    dest="param_file",
+    type=str,
+    help="Process only the given YAML file, e.g. 'lexicon/saldo.yaml'. "
+    "Collections and successors are still processed for all resources.",
+)
 
 
 def main(
@@ -119,51 +136,101 @@ def main(
     if param_debug:
         logger.setLevel(logging.DEBUG)
 
-    # 1. Get all resources
+    if param_test:
+        logger.debug("Running in TEST mode - no changes will be written to YAML files.")
 
-    resources = {}
-    files_yaml = {}
+    if param_noupdate:
+        logger.debug("Running in NO UPDATE mode - existing Datacite metadata will not be updated, "
+                     "but DOIs will be created for resources missing them.")
 
+    yaml_paths = {}  # YAML file paths {resource_id: filepath, ...}
+    all_resources = {}  # All resources {resource_id: resource_dict, ...}
+    process_resources = all_resources  # Resources to process, all by default
+    read_all_resources = True  # Whether to read all resources or just a specific one
+
+    # 1. Read YAML file(s)
     logger.debug("Reading resources from YAML.")
 
-    if param_file is None:
-        # Find all resources YAML files recursively
-        for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
-            try:
-                res_id = filepath.stem
-                files_yaml[res_id] = filepath
-                with filepath.open(encoding="utf-8") as file_yaml:
-                    res = yaml.safe_load(file_yaml)
-                    if not get_key_value(res, "unlisted") and (param_analyses or is_dataset(res)):
-                        resources[res_id] = res
-
-            except Exception:
-                logger.exception("Error when opening/reading YAML file '%s'", filepath)
-                # sys.exit()
-    else:
+    if param_file is not None:
+        # Quit early if file does not exist
         filepath = YAML_DIR / param_file
-        short_filepath = filepath.relative_to(YAML_DIR).with_suffix("")
-        logger.debug("Reading from '%s'", short_filepath)
-
-        # Get resource from yaml
-        try:
-            res_id = filepath.stem
-            files_yaml[res_id] = filepath
-            with filepath.open(encoding="utf-8") as file_yaml:
-                res = yaml.safe_load(file_yaml)
-                if not get_key_value(res, "unlisted") and (param_analyses or is_dataset(res)):
-                    resources[res_id] = res
-
-        except Exception:
-            logger.exception("Error when opening/reading YAML file '%s'. Exiting.", filepath)
+        res_id = filepath.stem
+        if not filepath.exists():
+            logger.error("File '%s' does not exist. Exiting.", filepath)
             sys.exit()
+        read_resource_file(filepath, all_resources, yaml_paths, param_analyses)
+        process_resources = {res_id: all_resources[res_id]}
 
-    datacite_calls = 0
+        # In most cases we need to read all YAML files because of collections and successors,
+        # but if a specific file is given, noupdate is set, and the file is not a collection, we can skip the rest
+        is_collection = filepath.parent.relative_to(YAML_DIR) == "collection"
+        if param_noupdate and not is_collection:
+            read_all_resources = False
+
+    if read_all_resources:
+        # Read all YAML files
+        for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
+            if param_file is not None and filepath == YAML_DIR / param_file:
+                continue  # already read above
+            read_resource_file(filepath, all_resources, yaml_paths, param_analyses)
+
+    datacite_calls = 0  # Number of Datacite API calls made
 
     # 2. Assign DOIs
-    logger.debug("Assign DOIs to %d resources.", len(resources))
-    for res_id, res in resources.items():
-        short_filepath = files_yaml[res_id].relative_to(YAML_DIR).with_suffix("")
+    assign_doi(process_resources, all_resources, yaml_paths, datacite_calls, param_test, param_noupdate, param_update)
+    if not param_noupdate:
+        # 3a. Map Collections and Resources in both directions
+        collections = map_collections(all_resources, yaml_paths)
+        # 3b. Successors
+        map_successors(all_resources, yaml_paths, collections)
+        # 3c. Update DMS
+        update_dms_related(all_resources, yaml_paths, collections, datacite_calls, param_test)
+
+
+def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict, param_analyses: bool) -> None:
+    """Read a YAML resource file and add it to yaml_paths and all_resources if applicable.
+
+    Args:
+        filepath: Path to the YAML file.
+        all_resources: dictionary of all resources
+        yaml_paths: dictionary of YAML file paths
+        param_analyses: whether to include analyses/utilities
+    """
+    try:
+        res_id = filepath.stem
+        yaml_paths[res_id] = filepath
+        with filepath.open(encoding="utf-8") as file_yaml:
+            res = yaml.safe_load(file_yaml)
+            if not get_key_value(res, "unlisted") and (param_analyses or is_dataset(res)):
+                all_resources[res_id] = res
+    except Exception:
+        logger.exception("Error when opening/reading YAML file '%s'", filepath)
+
+
+def assign_doi(
+    process_resources: dict,
+    all_resources: dict,
+    yaml_paths: dict,
+    datacite_calls: int,
+    param_test: bool,
+    param_noupdate: bool,
+    param_update: bool,
+) -> None:
+    """Assign DOI to resource if it does not have one, else update metadata at Datacite.
+
+    Args:
+        process_resources: dictionary of resources to process
+        all_resources: dictionary of all resources
+        yaml_paths: dictionary of YAML file paths
+        datacite_calls: number of Datacite API calls made
+        param_test: flag indicating test mode
+        param_noupdate: flag indicating no update mode
+        param_update: flag indicating update mode
+    """
+    logger.debug("Assign DOIs to %d resources.", len(process_resources))
+    for res_id, res in process_resources.items():
+        filepath = yaml_paths[res_id]
+        short_filepath = filepath.relative_to(YAML_DIR).with_suffix("")
         if datacite_calls > DATACITE_RATE_LIMIT:
             logger.debug("Rate limit reached, Sleeping...")
             time.sleep(DATACITE_RATE_LIMIT_TIMEOUT)
@@ -181,27 +248,25 @@ def main(
                         # Generate DOI and Datacite metadata record
                         datacite_calls += 1
                         doi = dms_new(res_id, res, res_is_dataset, param_test, short_filepath)
-                    if doi:
-                        resources[res_id][DOI_KEY] = doi
+                        if not doi:
+                            logger.error("Error creating DOI '%s' for YAML '%s'", doi, short_filepath)
+                            continue
+
+                    if not param_test:
+                        # Update YAML with new DOI
                         logger.debug("Assign DOI '%s' for '%s'", doi, short_filepath)
-                        if not param_test:
-                            # Add line with "doi:" to YAML
-                            try:
-                                with files_yaml[res_id].open(mode="r+", encoding="utf-8") as file_yaml:
-                                    # Find out if last char is \n
-                                    while True:
-                                        char = file_yaml.read(1)
-                                        if not char:
-                                            break
-                                        last_char_is_newline = char == "\n"
-                                    if last_char_is_newline:
-                                        file_yaml.write(f"doi: {doi}\n")
-                                    else:
-                                        file_yaml.write(f"\ndoi: {doi}\n")
-                            except Exception:
-                                logger.error("Error adding DOI '%s' to YAML '%s'", doi, short_filepath)
-                    else:
-                        logger.error("Error creating DOI '%s' for YAML '%s'", doi, short_filepath)
+                        all_resources[res_id][DOI_KEY] = doi
+                        try:
+                            with filepath.open(mode="w", encoding="utf-8") as file_yaml:
+                                yaml.dump(
+                                    all_resources[res_id],
+                                    file_yaml,
+                                    Dumper=IndentDumper,
+                                    sort_keys=False,
+                                    allow_unicode=True,
+                                )
+                        except Exception:
+                            logger.error("Error adding DOI '%s' to YAML '%s'", doi, short_filepath)
                 elif not param_noupdate:
                     # Calls to Datacite: 1-2
                     datacite_calls += 2
@@ -210,115 +275,194 @@ def main(
             logger.exception("Error when working on '%s'", short_filepath)
             sys.exit()
 
-    # 3a. Map Collections and Resources in both directions
 
-    # Fill dict with all resources that have parts ('collection' + 'resources')
-    # or are part of collection ('in_collection').
-    # All resources now have DOIs.
-    # Set Datacite Metadata Schema field 12 - RelatedIdentifier
-    # All previous related identifiers are removed when setting new field.
+def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
+    """Map collections and resources in both directions.
 
-    if not param_noupdate:
-        c = {}
-        for res_id, res in resources.items():
-            short_filepath = files_yaml[res_id].relative_to(YAML_DIR).with_suffix("")
-            try:
-                logger.debug("Map collections for '%s'", short_filepath)
-                if get_key_value(res, "collection") and res_id not in c:
-                    c[res_id] = {}
-                    c[res_id][DMS_RELATION_TYPE_HASPART] = []
-                member_list = res.get("resources", [])
-                if member_list:
-                    for member_res_id in member_list:
-                        if member_res_id not in c:
-                            c[member_res_id] = {}
-                            c[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
-                        if res_id not in c:
-                            c[res_id] = {}
-                        if DMS_RELATION_TYPE_HASPART not in c[res_id]:
-                            c[res_id][DMS_RELATION_TYPE_HASPART] = []
-                        if member_res_id not in c[res_id][DMS_RELATION_TYPE_HASPART]:
-                            c[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
-                        if res_id not in c[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                            c[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
-                parent_list = res.get("in_collections", [])
-                if parent_list:
-                    for parent_res_id in parent_list:
-                        if parent_res_id not in c:
-                            c[parent_res_id] = {}
-                            c[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
-                        if res_id not in c:
-                            c[res_id] = {}
-                        if DMS_RELATION_TYPE_ISPARTOF not in c[res_id]:
-                            c[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
-                        if parent_res_id not in c[res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                            c[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
-                        if res_id not in c[parent_res_id][DMS_RELATION_TYPE_HASPART]:
-                            c[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
-            except Exception:
-                logger.exception("Error when mapping collections for '%s'", short_filepath)
+    Fill dict with all resources that have parts ('collection' + 'resources')
+    or are part of collection ('in_collection').
+    All resources now have DOIs.
+    Set Datacite Metadata Schema field 12 - RelatedIdentifier
+    All previous related identifiers are removed when setting new field.
 
-        # 3b. Successors
+    Args:
+        all_resources: dictionary of all resources
+        yaml_paths: dictionary of YAML file paths
 
-        # Fill dict with all resources that have successors.
-        # Set Datacite Metadata Schema field 12 - RelatedIdentifier
-        #     IsObsoletedBy
-        #     Obsoletes
+    Returns:
+        collection mapping dictionary
+    """
+    collections = {}
 
-        for res_id, res in resources.items():
-            short_filepath = files_yaml[res_id].relative_to(YAML_DIR).with_suffix("")
-            try:
+    for res_id, res in all_resources.items():
+        short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
+        try:
+            if get_key_value(res, "collection") and res_id not in collections:
+                collections[res_id] = {}
+                collections[res_id][DMS_RELATION_TYPE_HASPART] = []
+            member_list = expand_res_ref(res.get("resources", []), all_resources)
+            if member_list:
+                logger.debug("Map resources for collection '%s'", short_filepath)
+                for member_res_id in member_list:
+                    if member_res_id not in collections:
+                        collections[member_res_id] = {}
+                        collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+
+                    if DMS_RELATION_TYPE_HASPART not in collections[res_id]:
+                        collections[res_id][DMS_RELATION_TYPE_HASPART] = []
+                    if member_res_id not in collections[res_id][DMS_RELATION_TYPE_HASPART]:
+                        collections[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
+                    if res_id not in collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                        collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
+            parent_list = res.get("in_collections", [])
+            if parent_list:
+                logger.debug("Map in_collections for resource '%s'", short_filepath)
+                for parent_res_id in parent_list:
+                    if parent_res_id not in collections:
+                        collections[parent_res_id] = {}
+                        collections[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
+                    if res_id not in collections:
+                        collections[res_id] = {}
+                    if DMS_RELATION_TYPE_ISPARTOF not in collections[res_id]:
+                        collections[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+                    if parent_res_id not in collections[res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                        collections[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
+                    if res_id not in collections[parent_res_id][DMS_RELATION_TYPE_HASPART]:
+                        collections[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
+        except Exception:
+            logger.exception("Error when mapping collections for '%s'", short_filepath)
+
+    return collections
+
+
+def map_successors(all_resources: dict, yaml_paths: dict, collections: dict) -> None:
+    """Map successors.
+
+    Fill collections dict with all resources that have successors.
+    Set Datacite Metadata Schema field 12 - RelatedIdentifier
+        IsObsoletedBy
+        Obsoletes
+
+    Args:
+        all_resources: dictionary of all resources
+        yaml_paths: dictionary of YAML file paths
+        collections: collection mapping dictionary
+    """
+    for res_id, res in all_resources.items():
+        short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
+        try:
+            successor_list = res.get("successors", [])
+            if successor_list:
                 logger.debug("Map successors for '%s'", short_filepath)
-                successor_list = res.get("successors", [])
-                if successor_list:
-                    if res_id not in c:
-                        c[res_id] = {}
-                        c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = successor_list
-                    else:
-                        if DMS_RELATION_TYPE_ISOBSOLETEDBY not in c[res_id]:
-                            c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = []
-                        c[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
-                    for successor_res_id in successor_list:
-                        if successor_res_id not in c:
-                            c[successor_res_id] = {}
-                            c[successor_res_id][DMS_RELATION_TYPE_OBSOLETES] = [res_id]
-                        else:
-                            if DMS_RELATION_TYPE_ISOBSOLETEDBY not in c[successor_res_id]:
-                                c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] = []
-                            c[successor_res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY].append(res_id)
-            except Exception:
-                logger.exception("Error when mapping successors for '%s'", short_filepath)
+                ensure_collection_entry(collections, res_id, DMS_RELATION_TYPE_ISOBSOLETEDBY)
+                collections[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
+                for successor_res_id in successor_list:
+                    ensure_collection_entry(collections, successor_res_id, DMS_RELATION_TYPE_OBSOLETES)
+                    collections[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
+        except Exception:
+            logger.exception("Error when mapping successors for '%s'", short_filepath)
 
-        # 3c. Update DMS
 
-        # All previous related identifiers are removed when setting new field
-        # so all relations have to be set at the same time.
+def ensure_collection_entry(collections: dict, res_id: str, relation_type: str) -> None:
+    """Ensure that collections dict has an entry for the given resource and relation type.
 
+    Args:
+        collections: collection mapping dictionary
+        res_id: resource id
+        relation_type: relation type to ensure
+    """
+    if res_id not in collections:
+        collections[res_id] = {}
+    if relation_type not in collections[res_id]:
+        collections[res_id][relation_type] = []
+
+
+def update_dms_related(
+    all_resources: dict, yaml_paths: dict, collections: dict, datacite_calls: int, param_test: bool
+) -> None:
+    """Update DMS related identifiers for collections and successors.
+
+    All previous related identifiers are removed when setting new field so all relations have to be set at the same time.
+
+    Args:
+        all_resources: dictionary of all resources
+        yaml_paths: dictionary of YAML file paths
+        collections: collection mapping dictionary
+        datacite_calls: number of Datacite API calls made
+        param_test: flag indicating test mode
+    """
+    if param_test:
+        logger.debug("Update relation metadata at Datacite (Test mode: not performing real updates)")
+    else:
         logger.debug("Update relation metadata at Datacite")
 
-        for res in c.items():
-            short_filepath = files_yaml[res[0]].relative_to(YAML_DIR).with_suffix("")
-            if datacite_calls > DATACITE_RATE_LIMIT:
-                logger.debug("Rate limit reached, Sleeping...")
-                time.sleep(DATACITE_RATE_LIMIT_TIMEOUT)
-                datacite_calls = 0
-            try:
-                res_id = res[0]
-                if param_test is False:
-                    logger.debug("Update DMS for '%s'", short_filepath)
-                    # Datacite calls: 1
-                    datacite_calls += 1
-                    dms_related(
-                        resources,
-                        res_id,
-                        get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
-                        get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
-                        get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
-                        get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
-                        short_filepath,
-                    )
-            except Exception:
-                logger.exception("Error when updating DMS for '%s'", filepath)
+    for res in collections.items():
+        short_filepath = yaml_paths[res[0]].relative_to(YAML_DIR).with_suffix("")
+        if datacite_calls > DATACITE_RATE_LIMIT:
+            logger.debug("Rate limit reached, Sleeping...")
+            time.sleep(DATACITE_RATE_LIMIT_TIMEOUT)
+            datacite_calls = 0
+        try:
+            res_id = res[0]
+            if param_test is False:
+                logger.debug("Update DMS for '%s'", short_filepath)
+                datacite_calls += 1
+                dms_related(
+                    all_resources,
+                    res_id,
+                    get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
+                    get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
+                    get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
+                    get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
+                    short_filepath,
+                )
+        except Exception:
+            logger.exception("Error when updating DMS for '%s'", short_filepath)
+
+
+def expand_res_ref(res_refs: list[str], all_resources: dict) -> list[str]:
+    """Expand a resource reference with possible wildcards and type prefix to a list of matching resource IDs.
+
+    E.g.: "corpus/kubhist-*" -> ["kubhist-dalpilen-1850", "kubhist-dalpilen-1860", ...]
+
+    Args:
+        res_refs: A list of resource reference strings, which may contain wildcards or a type prefix (e.g. "corpus/*").
+        all_resources: Dictionary of all resources {resource_id: resource_dict, ...}.
+    """
+    expanded_res_ids = []
+    for res_ref in res_refs:
+        if "/" in res_ref:
+            res_type, res_id_part = res_ref.split("/", 1)
+            expanded_res_ids.extend([
+                res_id
+                for res_id, res_data in all_resources.items()
+                if res_data.get("type") == res_type and _wildcard_match(res_id_part, res_id)
+            ])
+        if "*" in res_ref or "?" in res_ref:
+            expanded_res_ids.extend([res_id for res_id in all_resources if _wildcard_match(res_ref, res_id)])
+        else:
+            expanded_res_ids.append(res_ref)
+
+    if res_refs != expanded_res_ids:
+        logger.debug("Expanded resource references %s to %s resources", res_refs, len(expanded_res_ids))
+
+    # Make sure all returned resource IDs exist
+    return [res_id for res_id in expanded_res_ids if res_id in all_resources]
+
+
+def _wildcard_match(pattern: str, value: str) -> bool:
+    """Match simple glob-style patterns (* and ?) against a value.
+
+    Args:
+        pattern: The pattern containing wildcards.
+        value: The value to match against the pattern.
+
+    Returns:
+        Whether the value matches the pattern.
+    """
+    regex = re.escape(pattern)
+    regex = regex.replace(r"\*", ".*").replace(r"\?", ".")
+    return bool(re.fullmatch(regex, value))
 
 
 def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool, filepath: str) -> str:
@@ -1057,6 +1201,38 @@ def get_doi_from_rid(res: dict, rid: str) -> str:
     if rid in res and "doi" in res[rid]:
         return res[rid]["doi"]
     return ""
+
+
+# ------------------------------------------------------------------------------
+# Dumping YAML with preserved formatting
+# TODO: This code has been copied to several places, should be refactored to a common module.
+# ------------------------------------------------------------------------------
+
+def str_presenter(dumper: yaml.Dumper, data: str) -> yaml.ScalarNode:
+    """Configure yaml package for dumping multiline strings (for preserving format).
+
+    # https://github.com/yaml/pyyaml/issues/240
+    # https://pythonhint.com/post/9957829820118202/yamldump-adding-unwanted-newlines-in-multiline-strings
+    # Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+    """
+    if data.count("\n") > 0:  # check for multiline string
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+class IndentDumper(yaml.Dumper):
+    """Indent list items (for preserving format).
+
+    https://reorx.com/blog/python-yaml-tips/#enhance-list-indentation-dump
+    """
+
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:  # noqa: ARG002
+        """Increase the indentation level."""
+        return super().increase_indent(flow, indentless=False)
+
+
+yaml.add_representer(str, str_presenter)
+IndentDumper.add_representer(str, str_presenter)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,11 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
 
+### Fixed
+
+- Fixed bug in `gen_pids.py` which didn not expand resource references with wildcards when generating `HasPart`
+  relations for collections.
+
 ## [3.3.0] - 2026-01-15
 
 ### Added
