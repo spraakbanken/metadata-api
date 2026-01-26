@@ -5,6 +5,10 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
 
+### Changed
+
+- Changed names and behavior of flags in `gen_pids.py`. Run with `--help` to see the new options.
+
 ### Fixed
 
 - Fixed bug in `gen_pids.py` which didn not expand resource references with wildcards when generating `HasPart`

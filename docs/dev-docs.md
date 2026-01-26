@@ -144,7 +144,7 @@ to install the dependencies. Don't forget to add your own configuration to the a
 
   ```bash
   # Generate pids every night
-  5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --analyses --noupdate > /dev/null
+  5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --no-update > /dev/null
   # Update Datacite metadata once per week
   15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
   ```

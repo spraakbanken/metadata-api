@@ -1,10 +1,10 @@
 """Read YAML metadata files, assign missing DOIs via DataCite, and update DataCite metadata.
 
 Created DOIs are written back to YAML. Updates of the DataCite metadata includes collection/successor relationships and
-updated timestamps. The script supports flags to limit updates, include analyses, or run in dry-run mode.
+updated timestamps. The script supports flags to run in dry-run mode, limit updates or force updates.
 
 Usage:
-    uv run gen_pids/gen_pids.py [--debug] [--test] [--noupdate] [--analyses] [--update] [-f FILENAME]
+    uv run gen_pids/gen_pids.py [--debug] [--dry-run | --no-update | --force-update] [--file FILENAME]
 """
 
 import argparse
@@ -88,16 +88,25 @@ parser = argparse.ArgumentParser(
     "create and update Datacite metadata."
 )
 parser.add_argument("--debug", "-d", action="store_true", help="Print debug info")
-parser.add_argument(
-    "--test", "-t", action="store_true", help="Test - don't write back YAML and don't call Datacite to create DOI"
+mode_group = parser.add_mutually_exclusive_group()
+mode_group.add_argument(
+    "--dry-run",
+    "-t",
+    action="store_true",
+    help="Do not write back YAML metadata and do not create/update records at Datacite",
 )
-parser.add_argument("--noupdate", "-n", action="store_true", help="Do not update Datacite metadata, only create DOIs")
-parser.add_argument("--analyses", "-a", action="store_true", help="Create Datacite metadata for analyses")
-parser.add_argument("--update", "-u", action="store_true", help="Force update of all metadata at Datacite")
+mode_group.add_argument(
+    "--no-update",
+    "-n",
+    action="store_true",
+    help="Do not update Datacite metadata, only create DOIs for resources without them",
+)
+mode_group.add_argument("--force-update", "-u", action="store_true", help="Force update of all metadata at Datacite")
 parser.add_argument(
+    "--file",
     "-f",
     action="store",
-    dest="param_file",
+    dest="single_file",
     type=str,
     help="Process only the given YAML file, e.g. 'lexicon/saldo.yaml'. "
     "Collections and successors are still processed for all resources.",
@@ -105,23 +114,20 @@ parser.add_argument(
 
 
 def main(
-    param_debug: bool = False,
-    param_test: bool = False,
-    param_noupdate: bool = False,
-    param_analyses: bool = False,
-    param_update: bool = False,
-    param_file: str | None = None,
+    debug: bool = False,
+    dry_run: bool = False,
+    no_update: bool = False,
+    force_update: bool = False,
+    single_file: str | None = None,
 ) -> None:
     """Read YAML metadata files, compile and prepare information for the API (main wrapper).
 
     Args:
-        param_debug: Print messages about what it is doing.
-        param_test: Do not modify YAML (but DMS is still created/updated).
-        param_noupdate: Do not update Datacite metadata, only create DOIs for resources without
-        param_analyses: Also process analyses/utilities and create DOI:s for them
-        param_update: Force update of all metadata at Datacite. Overridden by param_noupdate.
-        param_file: Pass a filename that will be handled -- else all files are read.
-                            Filename built from YAML_DIR.
+        debug: Print messages about what it is doing.
+        dry_run: Do not write back YAML metadata or create/update records at Datacite.
+        no_update: Do not update Datacite metadata, only create DOIs for resources without them.
+        force_update: Force update of all metadata at Datacite.
+        single_file: Pass a filename that will be handled -- else all files are read.
 
     1. Get all resources YAML metadata
     2. Assign DOIs
@@ -133,15 +139,16 @@ def main(
     3. Map collections and successors into relatedIdentifiers
         update Datacite repos
     """
-    if param_debug:
+    if debug:
         logger.setLevel(logging.DEBUG)
 
-    if param_test:
-        logger.debug("Running in TEST mode - no changes will be written to YAML files.")
-
-    if param_noupdate:
-        logger.debug("Running in NO UPDATE mode - existing Datacite metadata will not be updated, "
-                     "but DOIs will be created for resources missing them.")
+    if dry_run:
+        logger.debug("Running in dry-run mode - no YAML writes and no Datacite writes.")
+    if no_update:
+        logger.debug(
+            "Running in no-update mode - existing Datacite metadata will not be updated, "
+            "but DOIs will be created for resources missing them."
+        )
 
     yaml_paths = {}  # YAML file paths {resource_id: filepath, ...}
     all_resources = {}  # All resources {resource_id: resource_dict, ...}
@@ -151,57 +158,56 @@ def main(
     # 1. Read YAML file(s)
     logger.debug("Reading resources from YAML.")
 
-    if param_file is not None:
+    if single_file is not None:
         # Quit early if file does not exist
-        filepath = YAML_DIR / param_file
+        filepath = YAML_DIR / single_file
         res_id = filepath.stem
         if not filepath.exists():
             logger.error("File '%s' does not exist. Exiting.", filepath)
             sys.exit()
-        read_resource_file(filepath, all_resources, yaml_paths, param_analyses)
+        read_resource_file(filepath, all_resources, yaml_paths)
         process_resources = {res_id: all_resources[res_id]}
 
         # In most cases we need to read all YAML files because of collections and successors,
-        # but if a specific file is given, noupdate is set, and the file is not a collection, we can skip the rest
+        # but if no-update is enabled and the file is not a collection, we can skip the rest.
         is_collection = filepath.parent.relative_to(YAML_DIR) == "collection"
-        if param_noupdate and not is_collection:
+        if no_update and not is_collection:
             read_all_resources = False
 
     if read_all_resources:
         # Read all YAML files
         for filepath in sorted(YAML_DIR.glob("**/*.yaml")):
-            if param_file is not None and filepath == YAML_DIR / param_file:
+            if single_file is not None and filepath == YAML_DIR / single_file:
                 continue  # already read above
-            read_resource_file(filepath, all_resources, yaml_paths, param_analyses)
+            read_resource_file(filepath, all_resources, yaml_paths)
 
     datacite_calls = 0  # Number of Datacite API calls made
 
     # 2. Assign DOIs
-    assign_doi(process_resources, all_resources, yaml_paths, datacite_calls, param_test, param_noupdate, param_update)
-    if not param_noupdate:
+    assign_doi(process_resources, all_resources, yaml_paths, datacite_calls, dry_run, no_update, force_update)
+    if not no_update:
         # 3a. Map Collections and Resources in both directions
         collections = map_collections(all_resources, yaml_paths)
         # 3b. Successors
         map_successors(all_resources, yaml_paths, collections)
         # 3c. Update DMS
-        update_dms_related(all_resources, yaml_paths, collections, datacite_calls, param_test)
+        update_dms_related(all_resources, yaml_paths, collections, datacite_calls, dry_run)
 
 
-def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict, param_analyses: bool) -> None:
+def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict) -> None:
     """Read a YAML resource file and add it to yaml_paths and all_resources if applicable.
 
     Args:
         filepath: Path to the YAML file.
         all_resources: dictionary of all resources
         yaml_paths: dictionary of YAML file paths
-        param_analyses: whether to include analyses/utilities
     """
     try:
         res_id = filepath.stem
         yaml_paths[res_id] = filepath
         with filepath.open(encoding="utf-8") as file_yaml:
             res = yaml.safe_load(file_yaml)
-            if not get_key_value(res, "unlisted") and (param_analyses or is_dataset(res)):
+            if not get_key_value(res, "unlisted"):
                 all_resources[res_id] = res
     except Exception:
         logger.exception("Error when opening/reading YAML file '%s'", filepath)
@@ -212,9 +218,9 @@ def assign_doi(
     all_resources: dict,
     yaml_paths: dict,
     datacite_calls: int,
-    param_test: bool,
-    param_noupdate: bool,
-    param_update: bool,
+    dry_run: bool,
+    no_update: bool,
+    force_update: bool,
 ) -> None:
     """Assign DOI to resource if it does not have one, else update metadata at Datacite.
 
@@ -223,9 +229,9 @@ def assign_doi(
         all_resources: dictionary of all resources
         yaml_paths: dictionary of YAML file paths
         datacite_calls: number of Datacite API calls made
-        param_test: flag indicating test mode
-        param_noupdate: flag indicating no update mode
-        param_update: flag indicating update mode
+        dry_run: flag indicating dry-run mode
+        no_update: flag indicating no update mode
+        force_update: flag indicating force update mode
     """
     logger.debug("Assign DOIs to %d resources.", len(process_resources))
     for res_id, res in process_resources.items():
@@ -247,12 +253,12 @@ def assign_doi(
                     if not doi:
                         # Generate DOI and Datacite metadata record
                         datacite_calls += 1
-                        doi = dms_new(res_id, res, res_is_dataset, param_test, short_filepath)
+                        doi = dms_new(res_id, res, res_is_dataset, dry_run, short_filepath)
                         if not doi:
                             logger.error("Error creating DOI '%s' for YAML '%s'", doi, short_filepath)
                             continue
 
-                    if not param_test:
+                    if not dry_run:
                         # Update YAML with new DOI
                         logger.debug("Assign DOI '%s' for '%s'", doi, short_filepath)
                         all_resources[res_id][DOI_KEY] = doi
@@ -267,10 +273,10 @@ def assign_doi(
                                 )
                         except Exception:
                             logger.error("Error adding DOI '%s' to YAML '%s'", doi, short_filepath)
-                elif not param_noupdate:
+                elif not no_update:
                     # Calls to Datacite: 1-2
                     datacite_calls += 2
-                    dms_update(res_id, res, res_is_dataset, param_test, param_update, short_filepath)
+                    dms_update(res_id, res, res_is_dataset, dry_run, force_update, short_filepath)
         except Exception:
             logger.exception("Error when working on '%s'", short_filepath)
             sys.exit()
@@ -378,21 +384,22 @@ def ensure_collection_entry(collections: dict, res_id: str, relation_type: str) 
 
 
 def update_dms_related(
-    all_resources: dict, yaml_paths: dict, collections: dict, datacite_calls: int, param_test: bool
+    all_resources: dict, yaml_paths: dict, collections: dict, datacite_calls: int, dry_run: bool
 ) -> None:
     """Update DMS related identifiers for collections and successors.
 
-    All previous related identifiers are removed when setting new field so all relations have to be set at the same time.
+    All previous related identifiers are removed when setting new field so all relations have to be set at the same
+    time.
 
     Args:
         all_resources: dictionary of all resources
         yaml_paths: dictionary of YAML file paths
         collections: collection mapping dictionary
         datacite_calls: number of Datacite API calls made
-        param_test: flag indicating test mode
+        dry_run: flag indicating dry-run mode
     """
-    if param_test:
-        logger.debug("Update relation metadata at Datacite (Test mode: not performing real updates)")
+    if dry_run:
+        logger.debug("Update relation metadata at Datacite (Dry run: not performing real updates)")
     else:
         logger.debug("Update relation metadata at Datacite")
 
@@ -404,7 +411,7 @@ def update_dms_related(
             datacite_calls = 0
         try:
             res_id = res[0]
-            if param_test is False:
+            if dry_run is False:
                 logger.debug("Update DMS for '%s'", short_filepath)
                 datacite_calls += 1
                 dms_related(
@@ -465,14 +472,14 @@ def _wildcard_match(pattern: str, value: str) -> bool:
     return bool(re.fullmatch(regex, value))
 
 
-def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool, filepath: str) -> str:
+def dms_new(res_id: str, res: dict, res_is_dataset: bool, dry_run: bool, filepath: str) -> str:
     """Construct DMS and call Datacite API.
 
     Args:
         res_id: resource id
         res: resource metadata
         res_is_dataset: whether the resource is a dataset
-        param_test: test flag
+        dry_run: flag indicating dry-run mode
         filepath: path to the resource YAML file (used for logging)
 
     Returns:
@@ -495,7 +502,7 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool, file
     logger.debug("Call with JSON")
     # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
 
-    if not param_test:
+    if not dry_run:
         # Register resource
         response = requests.post(
             DMS_URL, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
@@ -524,17 +531,15 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, param_test: bool, file
     return ""
 
 
-def dms_update(
-    res_id: str, res: dict, res_is_dataset: bool, param_test: bool, param_update: bool, filepath: str
-) -> bool:
+def dms_update(res_id: str, res: dict, res_is_dataset: bool, dry_run: bool, force_update: bool, filepath: str) -> bool:
     """Update existing DMS metadata.
 
     Args:
         res_id: resource id
         res: resource metadata
         res_is_dataset: whether the resource is a dataset
-        param_test: test flag
-        param_update: force update flag
+        dry_run: flag indicating dry-run mode
+        force_update: force update flag
         filepath: path to the resource YAML file (used for logging)
 
     Returns:
@@ -546,8 +551,8 @@ def dms_update(
     yaml_created, yaml_updated = get_res_dates(res)
     dms_created, dms_updated, dms_publication_year = dms_doi_get_updated(doi, filepath)
 
-    # Only update DataCite record if it is older than YAML record
-    if (dms_updated < yaml_updated or not yaml_updated) or param_update:
+    # Only update DataCite record if it is older than YAML record or if 'force_update' is True
+    if (dms_updated < yaml_updated or not yaml_updated) or force_update:
         if yaml_created:
             dms_created = yaml_created
         if yaml_updated:
@@ -563,10 +568,11 @@ def dms_update(
         else:
             data_json["data"]["attributes"]["publicationYear"] = datetime.date.today().strftime("%Y")
 
-        logger.debug("Updating DOI '%s' for '%s'", doi, filepath)
-        # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
-
-        if not param_test:
+        if dry_run:
+            logger.debug("Updating DOI '%s' for '%s' (Dry run: not performing real updates)", doi, filepath)
+        else:
+            logger.debug("Updating DOI '%s' for '%s'", doi, filepath)
+            # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
             # Update resource
             url = DMS_URL + "/" + doi
             response = requests.put(
@@ -963,18 +969,15 @@ def dms_doi_get_updated(doi: str, filepath: str) -> tuple[str, str, str]:
             publicationYear (YYYY)
 
     """
-    search_url = DMS_URL + "/" + doi
-    # "&detail=true"
+    search_url = DMS_URL + "/" + doi  # "&detail=true"
 
     dms_updated = ""
     dms_created = ""
     dms_publication_year = ""
 
-    response = requests.get(
-        url=search_url,
-    )
+    logger.debug("Get DataCite metadata for DOI '%s' (%s)", doi, filepath)
+    response = requests.get(url=search_url)
 
-    logger.debug("Get updated DOI '%s' for '%s'", doi, filepath)
     if response.status_code == RESPONSE_OK:
         d = response.json()
         if "data" in d:
@@ -994,9 +997,9 @@ def dms_doi_get_updated(doi: str, filepath: str) -> tuple[str, str, str]:
     return dms_created, dms_updated, dms_publication_year
 
 
-###############################################################################
+# ------------------------------------------------------------------------------
 # Helper functions
-###############################################################################
+# ------------------------------------------------------------------------------
 
 
 def is_dataset(resource: dict) -> bool:
@@ -1238,10 +1241,9 @@ IndentDumper.add_representer(str, str_presenter)
 if __name__ == "__main__":
     args = parser.parse_args()
     main(
-        param_debug=args.debug,
-        param_test=args.test,
-        param_noupdate=args.noupdate,
-        param_analyses=args.analyses,
-        param_update=args.update,
-        param_file=args.param_file,
+        debug=args.debug,
+        dry_run=args.dry_run,
+        no_update=args.no_update,
+        force_update=args.force_update,
+        single_file=args.single_file,
     )
