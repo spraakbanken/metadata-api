@@ -7,6 +7,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `gen_pids.py`: is now called as a module using `uv run -m gen_pids.gen_pids`.
 - Changed names and behavior of flags in `gen_pids.py`. Run with `--help` to see the new options.
 
 ### Fixed
