@@ -504,7 +504,7 @@ wheels = [
 
 [[package]]
 name = "metadata-api"
-version = "3.3.0.dev0"
+version = "3.4.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

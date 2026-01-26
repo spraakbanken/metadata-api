@@ -132,10 +132,14 @@ def main(
     if debug:
         logger.setLevel(logging.DEBUG)
 
+    if sum([dry_run, no_update, force_update]) > 1:
+        logger.error("Use only one of --dry-run, --no-update, or --force-update.")
+        sys.exit(2)
+
     if dry_run:
-        logger.debug("Running in dry-run mode - no YAML writes and no Datacite writes.")
+        logger.info("Running in dry-run mode - no YAML writes and no Datacite writes.")
     if no_update:
-        logger.debug(
+        logger.info(
             "Running in no-update mode - existing Datacite metadata will not be updated, "
             "but DOIs will be created for resources missing them."
         )
@@ -146,7 +150,7 @@ def main(
     read_all_resources = True  # Whether to read all resources or just a specific one
 
     # 1. Read YAML file(s)
-    logger.debug("Reading resources from YAML.")
+    logger.info("Reading resources from YAML.")
 
     if single_file is not None:
         # Quit early if file does not exist
@@ -181,7 +185,10 @@ def main(
         # 3b. Successors
         map_successors(all_resources, yaml_paths, collections)
         # 3c. Update DMS
-        update_dms_related(all_resources, yaml_paths, collections, datacite_calls, dry_run)
+        if dry_run:
+            logger.info("Dry run: not updating relation metadata at Datacite.")
+        else:
+            update_dms_related(all_resources, yaml_paths, collections, datacite_calls)
 
 
 def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict) -> None:
@@ -223,7 +230,9 @@ def assign_doi(
         no_update: flag indicating no update mode
         force_update: flag indicating force update mode
     """
-    logger.debug("Assign DOIs to %d resources.", len(process_resources))
+    logger.info("Assign DOIs to %d resources.", len(process_resources))
+    if dry_run:
+        logger.info("Dry run: skipping update checks.")
     for res_id, res in process_resources.items():
         filepath = yaml_paths[res_id]
         short_filepath = filepath.relative_to(YAML_DIR).with_suffix("")
@@ -232,7 +241,7 @@ def assign_doi(
             time.sleep(DATACITE_RATE_LIMIT_TIMEOUT)
             datacite_calls = 0
         try:
-            logger.debug("Working on '%s'", short_filepath)
+            logger.debug("Checking DOI for resource '%s'", short_filepath)
             if res:
                 res_is_dataset = utils.is_dataset(res)
                 # Does the resource already have a DOI?
@@ -242,8 +251,11 @@ def assign_doi(
                     doi = dms_doi_get(res_id, short_filepath)
                     if not doi:
                         # Generate DOI and Datacite metadata record
+                        if dry_run:
+                            logger.debug("Dry run: would create DOI for '%s'", short_filepath)
+                            continue
                         datacite_calls += 1
-                        doi = dms_new(res_id, res, res_is_dataset, dry_run, short_filepath)
+                        doi = dms_new(res_id, res, res_is_dataset, short_filepath)
                         if not doi:
                             logger.error("Error creating DOI '%s' for YAML '%s'", doi, short_filepath)
                             continue
@@ -264,9 +276,11 @@ def assign_doi(
                         except Exception:
                             logger.error("Error adding DOI '%s' to YAML '%s'", doi, short_filepath)
                 elif not no_update:
-                    # Calls to Datacite: 1-2
-                    datacite_calls += 2
-                    dms_update(res_id, res, res_is_dataset, dry_run, force_update, short_filepath)
+                    if dry_run:
+                        # Skip update check in dry-run mode
+                        continue
+                    updated = dms_update(res_id, res, res_is_dataset, force_update, short_filepath)
+                    datacite_calls += 1 if not updated else 2
         except Exception:
             logger.exception("Error when working on '%s'", short_filepath)
             sys.exit()
@@ -288,6 +302,7 @@ def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
     Returns:
         collection mapping dictionary
     """
+    logger.info("Map collections and resources.")
     collections = {}
 
     for res_id, res in all_resources.items():
@@ -344,6 +359,7 @@ def map_successors(all_resources: dict, yaml_paths: dict, collections: dict) -> 
         yaml_paths: dictionary of YAML file paths
         collections: collection mapping dictionary
     """
+    logger.info("Map successors.")
     for res_id, res in all_resources.items():
         short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
         try:
@@ -359,9 +375,7 @@ def map_successors(all_resources: dict, yaml_paths: dict, collections: dict) -> 
             logger.exception("Error when mapping successors for '%s'", short_filepath)
 
 
-def update_dms_related(
-    all_resources: dict, yaml_paths: dict, collections: dict, datacite_calls: int, dry_run: bool
-) -> None:
+def update_dms_related(all_resources: dict, yaml_paths: dict, collections: dict, datacite_calls: int) -> None:
     """Update DMS related identifiers for collections and successors.
 
     All previous related identifiers are removed when setting new field so all relations have to be set at the same
@@ -372,12 +386,8 @@ def update_dms_related(
         yaml_paths: dictionary of YAML file paths
         collections: collection mapping dictionary
         datacite_calls: number of Datacite API calls made
-        dry_run: flag indicating dry-run mode
     """
-    if dry_run:
-        logger.debug("Update relation metadata at Datacite (Dry run: not performing real updates)")
-    else:
-        logger.debug("Update relation metadata at Datacite")
+    logger.info("Update relation metadata at Datacite.")
 
     for res in collections.items():
         short_filepath = yaml_paths[res[0]].relative_to(YAML_DIR).with_suffix("")
@@ -387,30 +397,32 @@ def update_dms_related(
             datacite_calls = 0
         try:
             res_id = res[0]
-            if dry_run is False:
-                logger.debug("Update DMS for '%s'", short_filepath)
-                datacite_calls += 1
-                dms_related(
-                    all_resources,
-                    res_id,
-                    utils.get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
-                    utils.get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
-                    utils.get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
-                    utils.get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
-                    short_filepath,
-                )
+            res_doi = utils.get_doi_from_rid(all_resources, res_id)
+            if not res_doi:
+                logger.debug("Skipping related-identifier update for '%s' (missing DOI)", short_filepath)
+                continue
+            logger.debug("Update DMS for '%s'", short_filepath)
+            dms_related(
+                all_resources,
+                res_doi,
+                utils.get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
+                utils.get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
+                utils.get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
+                utils.get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
+                short_filepath,
+            )
+            datacite_calls += 1
         except Exception:
             logger.exception("Error when updating DMS for '%s'", short_filepath)
 
 
-def dms_new(res_id: str, res: dict, res_is_dataset: bool, dry_run: bool, filepath: str) -> str:
+def dms_new(res_id: str, res: dict, res_is_dataset: bool, filepath: str) -> str:
     """Construct DMS and call Datacite API.
 
     Args:
         res_id: resource id
         res: resource metadata
         res_is_dataset: whether the resource is a dataset
-        dry_run: flag indicating dry-run mode
         filepath: path to the resource YAML file (used for logging)
 
     Returns:
@@ -430,46 +442,41 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, dry_run: bool, filepat
     data_json["data"]["attributes"]["event"] = "publish"
     data_json["data"]["attributes"]["prefix"] = DMS_PREFIX
 
-    logger.debug("Call with JSON")
+    # Register resource
+    logger.info("Calling Datacite API to create DOI for '%s'", filepath)
     # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
+    response = requests.post(
+        DMS_URL, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
+    )
+    # logger.debug("Response %s", response.status_code)
+    # logger.debug(response.json())
 
-    if not dry_run:
-        # Register resource
-        response = requests.post(
-            DMS_URL, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
-        )
+    doi = ""
 
-        logger.debug("Response %s", response.status_code)
-        # logger.debug(response.json())
-
-        doi = ""
-
-        if response.status_code == RESPONSE_CREATED:
-            d = response.json()
-            if "data" in d:
-                data = d["data"]
-                if type(data) is list:
-                    if len(data) > 0:
-                        doi = data[0]["id"]
-                        if len(data) > 1:
-                            # This should never happen, as res_id should be unique among Språkbanken Text
-                            logger.error("Multiple answers for '%s'", filepath)
-                else:
-                    doi = data["id"]
-        else:
-            logger.error("Could not create DOI for '%s': %s", filepath, response.content)
-        return doi
-    return ""
+    if response.status_code == RESPONSE_CREATED:
+        d = response.json()
+        if "data" in d:
+            data = d["data"]
+            if type(data) is list:
+                if len(data) > 0:
+                    doi = data[0]["id"]
+                    if len(data) > 1:
+                        # This should never happen, as res_id should be unique among Språkbanken Text
+                        logger.error("Multiple answers for '%s'", filepath)
+            else:
+                doi = data["id"]
+    else:
+        logger.error("Could not create DOI for '%s': %s", filepath, response.content)
+    return doi
 
 
-def dms_update(res_id: str, res: dict, res_is_dataset: bool, dry_run: bool, force_update: bool, filepath: str) -> bool:
+def dms_update(res_id: str, res: dict, res_is_dataset: bool, force_update: bool, filepath: str) -> bool:
     """Update existing DMS metadata.
 
     Args:
         res_id: resource id
         res: resource metadata
         res_is_dataset: whether the resource is a dataset
-        dry_run: flag indicating dry-run mode
         force_update: force update flag
         filepath: path to the resource YAML file (used for logging)
 
@@ -499,26 +506,23 @@ def dms_update(res_id: str, res: dict, res_is_dataset: bool, dry_run: bool, forc
         else:
             data_json["data"]["attributes"]["publicationYear"] = datetime.date.today().strftime("%Y")
 
-        if dry_run:
-            logger.debug("Updating DOI '%s' for '%s' (Dry run: not performing real updates)", doi, filepath)
-        else:
-            logger.debug("Updating DOI '%s' for '%s'", doi, filepath)
-            # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
-            # Update resource
-            url = DMS_URL + "/" + doi
-            response = requests.put(
-                url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
-            )
+        # Update resource
+        logger.info("Updating DOI '%s' for '%s'", doi, filepath)
+        # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
+        url = DMS_URL + "/" + doi
+        response = requests.put(
+            url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
+        )
 
-            logger.debug("Response: %s", response.status_code)
-            if response.status_code >= 300:  # noqa: PLR2004
-                logger.error(
-                    "Error updating '%s'. DOI: '%s'. status: '%s'. data: '%s'",
-                    filepath,
-                    doi,
-                    response.status_code,
-                    data_json,
-                )
+        # logger.debug("Response: %s", response.status_code)
+        if response.status_code >= 300:  # noqa: PLR2004
+            logger.error(
+                "Error updating '%s'. DOI: '%s'. status: '%s'. data: '%s'",
+                filepath,
+                doi,
+                response.status_code,
+                data_json,
+            )
 
     return updated
 
@@ -720,13 +724,19 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
 
 
 def dms_related(
-    resources: dict, rid: str, has_part: list, is_part_of: list, obsoletes: list, is_obsoleted_by: list, filepath: str
+    resources: dict,
+    res_doi: str,
+    has_part: list,
+    is_part_of: list,
+    obsoletes: list,
+    is_obsoleted_by: list,
+    filepath: str,
 ) -> bool:
     """Set related identifiers for resource, both collections and members.
 
     Args:
         resources: all resources
-        rid: ID of resource.
+        res_doi: DOI for the resource.
         has_part: list of resources (resource IDs) that the entity is collection for (HasPart).
         is_part_of: list of resources (resource IDs) that the entity is a member of (IsPartOf).
         obsoletes: list of resources that are made obsoleted by entity
@@ -737,7 +747,6 @@ def dms_related(
         True if related identifiers were set, False otherwise.
     """
     # Get DOI of resource with related other resources
-    res_doi = utils.get_doi_from_rid(resources, rid)
     if res_doi:
         # Build list of relatedIdentifiers (HasPart)
         result = []
@@ -796,9 +805,8 @@ def dms_related(
             }
         }
 
-        logger.debug("Set related identifiers for '%s'", filepath)
-
         # Update resource
+        logger.info("Set related identifiers for '%s'", filepath)
         url = DMS_URL + "/" + res_doi
         response = requests.put(
             url, json=data_json, headers=DMS_HEADERS, auth=HTTPBasicAuth(DMS_AUTH_USER, DMS_AUTH_PASSWORD)
@@ -819,7 +827,7 @@ def dms_related(
 
 
 def dms_doi_get(res_id: str, filepath: str) -> str:
-    """Metadata.yaml could be autogenerated, so look up if existing at DC.
+    """Metadata.yaml could be autogenerated, so look up if existing at DataCite.
 
     Args:
         res_id: resource id to look for
@@ -853,6 +861,7 @@ def dms_doi_get(res_id: str, filepath: str) -> str:
 
     doi = ""
 
+    logger.debug("Searching for resource id '%s' at Datacite", res_id)
     response = requests.get(url=search_url)
 
     logger.debug("Get DOI from resource '%s'", filepath)
