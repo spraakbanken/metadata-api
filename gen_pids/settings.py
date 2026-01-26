@@ -2,7 +2,13 @@
 
 from pathlib import Path
 
-YAML_DIR = Path(__file__).parent.resolve().parent / "metadata" / "yaml"
+LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+LOG_FORMAT = "%(name)s/%(funcName)s: %(levelname)s - %(message)s"
+
+# YAML metadata repository paths
+YAML_REPO_ROOT = Path(__file__).resolve().parent.parent / "metadata"
+YAML_DIR = YAML_REPO_ROOT / "yaml"
+
 DOI_KEY = "doi"  # DOI = Digital Object Identifier
 
 # DMS (DataCite Metadata Schema) constants
@@ -42,3 +48,7 @@ RESPONSE_CREATED = 201
 DATACITE_RATE_LIMIT = 298
 DATACITE_RATE_LIMIT_TIMEOUT = 60 * 5
 DATACITE_REQUEST_TIMEOUT = 30
+
+# Git settings
+GIT_AUTHOR_NAME = "sb-sparv"
+GIT_AUTHOR_EMAIL = "38045079+sb-sparv@users.noreply.github.com"

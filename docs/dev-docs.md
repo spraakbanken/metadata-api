@@ -12,10 +12,8 @@ This project contains the following main components:
   functionality is deprecated).
 - [**`tasks.py`**](/metadata_api/tasks.py) - Celery background tasks for the REST API, e.g. for cache renewal.
 - [**`gen_pids.py`**](/gen_pids/gen_pids.py) - A Python script that generates new PIDs (Datacite DOIs) by reading our
-  metadata YAML files and registering resources at Datacite. For documentation, see the code comments and
-  [`pid_creation.md`](/docs/pid_creation.md).
-- [**`gen_pids.sh`**](gen_pids.sh) - A shell script that runs periodically on the server (via cron) and calls
-  [`gen_pids.py`](/gen_pids/gen_pids.py).
+  metadata YAML files and registering resources at Datacite. It also handles log files, git add/commit/push, and log
+  rotation when run as a script. For documentation, see the code comments and [`pid_creation.md`](/docs/pid_creation.md).
 
 Furthermore there are some scripts in the `batch_jobs/` directory that are used for batch processing of resources, e.g.
 for adding new fields to all metadata YAML files or for extracting information.
@@ -139,12 +137,12 @@ to install the dependencies. Don't forget to add your own configuration to the a
 - Store Datacite login credentials in `/home/fksbwww/.netrc` (check [pid_creation.md](docs/pid_creation.md) for more
   info).
 
-- Set up cron jobs that periodically run `gen_pids.sh` to add DOIs to resources and update Datacite. The following cron
-  jobs are run on `fksbwww@k2`:
+- Set up cron jobs that periodically run `gen_pids.py` to add DOIs to resources, update Datacite, and push metadata
+  changes. The following cron jobs are run on `fksbwww@k2`:
 
   ```bash
   # Generate pids every night
-  5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --no-update > /dev/null
+  5 1 * * * cd /home/fksbwww/metadata-api/v3 && uv run -m gen_pids.gen_pids --no-update > /dev/null
   # Update Datacite metadata once per week
-  15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
+  15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && uv run -m gen_pids.gen_pids > /dev/null
   ```

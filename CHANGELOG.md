@@ -9,11 +9,16 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `gen_pids.py`: is now called as a module using `uv run -m gen_pids.gen_pids`.
 - Changed names and behavior of flags in `gen_pids.py`. Run with `--help` to see the new options.
+- `gen_pids.py` now handles git commits and log rotation.
 
 ### Fixed
 
 - Fixed bug in `gen_pids.py` which didn not expand resource references with wildcards when generating `HasPart`
   relations for collections.
+
+### Removed
+
+- Removed `gen_pids.sh` script. Use `uv run -m gen_pids.gen_pids` instead.
 
 ## [3.3.0] - 2026-01-15
 

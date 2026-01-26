@@ -1,7 +1,11 @@
 """Read YAML metadata files, assign missing DOIs via DataCite, and update DataCite metadata.
 
-Created DOIs are written back to YAML. Updates of the DataCite metadata includes collection/successor relationships and
-updated timestamps. The script supports flags to run in dry-run mode, limit updates or force updates.
+- Created DOIs are written back to YAML.
+- Updates of the DataCite metadata includes collection/successor relationships and updated timestamps.
+- Pushes changes in YAML files to Git repository.
+- Does log rotation.
+
+The script supports flags to run in dry-run mode, limit updates or force updates.
 
 Usage with uv:
     uv run -m gen_pids.gen_pids [--debug] [--dry-run | --no-update | --force-update] [-f FILENAME]
@@ -18,9 +22,8 @@ from pathlib import Path
 
 import yaml
 
-
+from gen_pids import dump_yaml, git_utils, log_utils, utils
 from gen_pids.datacite import DataCiteClient, build_datacite_client
-from gen_pids.dump_yaml import IndentDumper
 from gen_pids.settings import (
     DMS_CREATOR_NAME,
     DMS_CREATOR_ROR,
@@ -40,13 +43,13 @@ from gen_pids.settings import (
     DMS_TITLE_EXAMPLE_ENG,
     DMS_TITLE_EXAMPLE_SWE,
     DOI_KEY,
+    LOG_DIR,
     RESPONSE_CREATED,
     RESPONSE_OK,
     YAML_DIR,
 )
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format="%(name)s/%(funcName)s: %(levelname)s - %(message)s")
 logger = logging.getLogger("gen_pids")
 
 # Instantiate command line arg parser
@@ -105,6 +108,8 @@ def main(
         if it has DOI, update ALL information depending on dates
     3. Map collections and successors into relatedIdentifiers
         update Datacite repos
+    4. Commit and push changes to Git repository
+    5. Remove logs older than 6 months
     """
     if debug:
         logger.setLevel(logging.DEBUG)
@@ -113,13 +118,18 @@ def main(
         logger.error("Use only one of --dry-run, --no-update, or --force-update.")
         sys.exit(2)
 
+    log_utils.configure_logging(LOG_DIR, logger)
+    datacite_client = build_datacite_client(logger)
+
     if dry_run:
         logger.info("Running in dry-run mode - no YAML writes and no Datacite writes.")
-    if no_update:
+    elif no_update:
         logger.info(
             "Running in no-update mode - existing Datacite metadata will not be updated, "
             "but DOIs will be created for resources missing them."
         )
+    elif force_update:
+        logger.info("Running in force-update mode - all Datacite metadata will be updated.")
 
     yaml_paths = {}  # YAML file paths {resource_id: filepath, ...}
     all_resources = {}  # All resources {resource_id: resource_dict, ...}
@@ -165,6 +175,13 @@ def main(
         else:
             update_dms_related(all_resources, yaml_paths, collections, datacite_client)
 
+    if dry_run:
+        logger.info("Dry run: skipping git commit and push.")
+    else:
+        git_utils.commit_metadata_changes()
+
+    log_utils.rotate_logs(LOG_DIR, logger)
+
 
 def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict) -> None:
     """Read a YAML resource file and add it to yaml_paths and all_resources if applicable.
@@ -205,7 +222,7 @@ def assign_doi(
         no_update: flag indicating no update mode
         force_update: flag indicating force update mode
     """
-    logger.info("Assign DOIs to %d resources.", len(process_resources))
+    logger.info("Checking DOIs for %d resources.", len(process_resources))
     if dry_run:
         logger.info("Dry run: skipping update checks.")
     for res_id, res in process_resources.items():
@@ -238,7 +255,7 @@ def assign_doi(
                                 yaml.dump(
                                     all_resources[res_id],
                                     file_yaml,
-                                    Dumper=IndentDumper,
+                                    Dumper=dump_yaml.IndentDumper,
                                     sort_keys=False,
                                     allow_unicode=True,
                                 )
@@ -250,7 +267,7 @@ def assign_doi(
                         continue
                     dms_update(res_id, res, res_is_dataset, force_update, short_filepath, datacite_client)
         except Exception:
-            logger.exception("Error when working on '%s'", short_filepath)
+            logger.exception("Error while working on DOI for '%s'", short_filepath)
             sys.exit()
 
 
