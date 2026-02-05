@@ -251,14 +251,7 @@ def assign_doi(
                         logger.debug("Assign DOI '%s' for '%s'", doi, short_filepath)
                         all_resources[res_id][DOI_KEY] = doi
                         try:
-                            with filepath.open(mode="w", encoding="utf-8") as file_yaml:
-                                yaml.dump(
-                                    all_resources[res_id],
-                                    file_yaml,
-                                    Dumper=dump_yaml.IndentDumper,
-                                    sort_keys=False,
-                                    allow_unicode=True,
-                                )
+                            dump_yaml.dump_with_header(filepath, all_resources[res_id])
                         except Exception:
                             logger.error("Error adding DOI '%s' to YAML '%s'", doi, short_filepath)
                 elif not no_update:

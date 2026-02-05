@@ -15,6 +15,8 @@ from pathlib import Path
 import requests
 import yaml
 
+from gen_pids import dump_yaml
+
 YAML_DIR = Path(__file__).parent.parent / "metadata" / "yaml"
 DMS_TARGET_URL_PREFIX = "https://spraakbanken.gu.se/resurser/"
 
@@ -76,32 +78,6 @@ def export_resources_to_tsv() -> None:
 # Update filed 'updated'
 # ------------------------------------------------------------------------------
 
-def str_presenter(dumper: yaml.Dumper, data: str) -> yaml.ScalarNode:
-    """Configure yaml package for dumping multiline strings (for preserving format).
-
-    # https://github.com/yaml/pyyaml/issues/240
-    # https://pythonhint.com/post/9957829820118202/yamldump-adding-unwanted-newlines-in-multiline-strings
-    # Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
-    """
-    if data.count("\n") > 0:  # check for multiline string
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
-
-
-class IndentDumper(yaml.Dumper):
-    """Indent list items (for preserving format).
-
-    https://reorx.com/blog/python-yaml-tips/#enhance-list-indentation-dump
-    """
-
-    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:  # noqa: ARG002
-        """Increase the indentation level."""
-        return super().increase_indent(flow, indentless=False)
-
-
-yaml.add_representer(str, str_presenter)
-IndentDumper.add_representer(str, str_presenter)
-
 
 def _get_download_date_(url: str, resource: str) -> datetime.date | None:
     """Check headers of file from url and return the last modified date."""
@@ -151,8 +127,7 @@ def update_field_updated(add_missing_only: bool = False) -> None:
         if updated is not None and str(updated) != str(old_updated):
             res["updated"] = updated
             logger.info("Info: '%s': modified field 'updated': '%s' -> '%s'", resource, old_updated, updated)
-            with filepath.open(mode="w", encoding="utf-8") as file_yaml:
-                yaml.dump(res, file_yaml, Dumper=IndentDumper, sort_keys=False, allow_unicode=True)
+            dump_yaml.dump_with_header(filepath, res)
 
 
 if __name__ == "__main__":

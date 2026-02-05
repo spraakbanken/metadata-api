@@ -1,5 +1,7 @@
 """Utility functions for dumping YAML files with preserved formatting."""
 
+from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -29,3 +31,48 @@ class IndentDumper(yaml.Dumper):
 
 yaml.add_representer(str, str_presenter)
 IndentDumper.add_representer(str, str_presenter)
+
+
+def read_header_comment(filepath: Path) -> str:
+    """Return the leading comment block (and blank lines) from a YAML file."""
+    header_lines: list[str] = []
+    saw_comment = False
+    try:
+        with filepath.open(encoding="utf-8") as file_yaml:
+            for line in file_yaml:
+                stripped = line.lstrip()
+                if stripped.startswith("#"):
+                    header_lines.append(line.rstrip("\n"))
+                    saw_comment = True
+                    continue
+                if not stripped:
+                    if saw_comment:
+                        header_lines.append(line.rstrip("\n"))
+                    continue
+                break
+    except Exception:
+        return ""
+
+    if not saw_comment:
+        return ""
+
+    # Remove trailing blank lines
+    while header_lines and not header_lines[-1].strip():
+        header_lines.pop()
+
+    return "\n".join(header_lines) + "\n"
+
+
+def dump_with_header(filepath: Path, data: Any) -> None:
+    """Dump YAML with preserved top-of-file comment block."""
+    header = read_header_comment(filepath)
+    dumped = yaml.dump(
+        data,
+        Dumper=IndentDumper,
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    with filepath.open(mode="w", encoding="utf-8") as file_yaml:
+        if header:
+            file_yaml.write(header)
+        file_yaml.write(dumped)
