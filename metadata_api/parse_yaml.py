@@ -1,4 +1,8 @@
-"""Read YAML metadata files, compile and prepare information for the API."""
+"""Read YAML metadata files, compile and prepare information for the API.
+
+Note: If you run this script directly, ensure you execute it from the directory containing your .env file (typically the
+project root).
+"""
 
 from __future__ import annotations
 
@@ -11,11 +15,10 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-import jsonschema
+import jsonschema_rs
 import pycountry
 import requests
 import yaml
-from jsonschema.exceptions import ValidationError
 
 from metadata_api.settings import settings
 
@@ -183,8 +186,8 @@ def _process_yaml_file(
             # Validate YAML
             if resource_schema is not None:
                 try:
-                    jsonschema.validate(instance=res, schema=resource_schema)
-                except ValidationError as e:
+                    jsonschema_rs.validate(instance=res, schema=resource_schema)
+                except jsonschema_rs.ValidationError as e:
                     logger.error("Validation error for '%s/%s': %s", res_type, fileid, e.message)
                     return fileid, {}, False
                 except Exception:
