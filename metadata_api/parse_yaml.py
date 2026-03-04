@@ -59,17 +59,16 @@ def process_resources(
     if debug:
         logger.setLevel(logging.DEBUG)
 
-    resource_schema = None
+    schema_validator = None
     if validate:
         try:
-            resource_schema = _get_schema(settings.METADATA_DIR / settings.SCHEMA_FILE)
+            schema_validator = _get_validator(settings.METADATA_DIR / settings.SCHEMA_FILE)
             # YAML safe_load() - handle dates as strings
             yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
                 yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
             )
         except Exception:
             logger.exception("Failed to load schema, skipping validation")
-            resource_schema = None
 
     if not resource_paths:
         # No resource_paths given: process all YAML files
@@ -93,7 +92,7 @@ def process_resources(
             filepath,
             resource_texts,
             collection_mappings,
-            resource_schema,
+            schema_validator,
             localizations,
             license_info,
             offline=offline,
@@ -141,7 +140,7 @@ def _process_yaml_file(
     filepath: Path,
     resource_texts: defaultdict,
     collection_mappings: dict,
-    resource_schema: dict | None,
+    schema_validator: jsonschema_rs.Validator | None,
     localizations: dict,
     license_info: dict,
     offline: bool = False,
@@ -154,7 +153,7 @@ def _process_yaml_file(
         filepath: Path to the YAML file.
         resource_texts: Dictionary to store resource texts.
         collection_mappings: Mapping from collection IDs to a list of resource IDs {collection_id: [resource_id, ...]}
-        resource_schema: JSON schema for validation.
+        schema_validator: JSON schema validator.
         localizations: Dictionary of localizations.
         offline: Skip getting file info for downloadables.
         license_info: License information dictionary.
@@ -184,9 +183,9 @@ def _process_yaml_file(
             res_type = filepath.parent.name  # Resource type, used for logging
 
             # Validate YAML
-            if resource_schema is not None:
+            if schema_validator is not None:
                 try:
-                    jsonschema_rs.validate(instance=res, schema=resource_schema)
+                    schema_validator.validate(res)
                 except jsonschema_rs.ValidationError as e:
                     logger.error("Validation error for '%s/%s': %s", res_type, fileid, e.message)
                     return fileid, {}, False
@@ -329,23 +328,17 @@ def _update_collections(collection_mappings: dict, all_resources: dict) -> dict:
     return collections_data
 
 
-def _get_schema(filepath: Path) -> dict | None:
-    """Load and return the JSON schema from the given file path.
-
-    Args:
-        filepath: Path to the JSON schema file.
-
-    Returns:
-        The loaded JSON schema.
-    """
+def _get_validator(filepath: Path) -> jsonschema_rs.Validator | None:
+    """Load the JSON schema from the given file path and return a validator."""
     try:
         with filepath.open(encoding="utf-8") as schema_file:
             schema = json.load(schema_file)
+            validator = jsonschema_rs.validator_for(schema)
     except Exception:
         logger.exception("Failed to get schema '%s'", filepath)
-        schema = None
+        validator = None
 
-    return schema
+    return validator
 
 
 def _get_download_metadata(url: str, name: str, res_type: str) -> tuple[int | None, str | None]:
