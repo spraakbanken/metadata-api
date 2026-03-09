@@ -10,11 +10,18 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 - `gen_pids.py`: is now called as a module using `uv run -m gen_pids.gen_pids`.
 - Changed names and behavior of flags in `gen_pids.py`. Run with `--help` to see the new options.
 - `gen_pids.py` now handles git commits and log rotation.
+- Exchanged jsonschema lib for jsonschema-rs for validating metadata against the schema for better error messages and
+  performance.
 
 ### Fixed
 
-- Fixed bug in `gen_pids.py` which didn not expand resource references with wildcards when generating `HasPart`
+- Fixed bug in `gen_pids.py` which did not expand resource references with wildcards when generating `HasPart`
   relations for collections.
+<<<<<<< Updated upstream
+=======
+- Fixed the response model for the `/` route to correctly reflect the possible return types when using different query
+  parameters (except for the legacy format).
+>>>>>>> Stashed changes
 
 ### Removed
 
