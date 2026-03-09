@@ -110,6 +110,7 @@ def process_resources(
 
     # Get collections_data and update all_resources with in_collections info
     collections_data = _update_collections(collection_mappings, all_resources)
+    _set_description_bool(collections_data, resource_texts)
     _write_json(collections_file, collections_data)
 
     # Dump resource-texts json
