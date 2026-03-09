@@ -3,6 +3,12 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.3.1] - 2026-03-09
+
+### Fixed
+
+- Fixed a bug in `parse_yaml.py` that caused the `has_description` field to be missing from collection metadata.
+
 ## [3.3.0] - 2026-01-15
 
 ### Added
@@ -101,6 +107,7 @@ Please refer to the git commit log for more information.
 - Added a route for listing utilities: `/utilities`
 - Added a script for generating PIDs and registering resources at Datacite.
 
+[3.3.1]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.3.1
 [3.3.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.3.0
 [3.2.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.2.0
 [3.1]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.1
