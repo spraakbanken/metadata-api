@@ -28,7 +28,12 @@ redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
 # Metadata retrieval endpoints
 # ------------------------------------------------------------------------------
 
-@router.get("/", response_model=models.AllResouresList, tags=["Metadata retrieval"], summary="List all resources")
+@router.get(
+    "/",
+    response_model=models.AllResouresList | models.ResourceList | models.Resource,
+    tags=["Metadata retrieval"],
+    summary="List resources",
+)
 def list_resources(
     resource_type: utils.ResourceTypes | None = Query(  # type: ignore
         default=None, alias="resource-type", title="Resource type", examples=["corpus"], enum=settings.RESOURCE_TYPES

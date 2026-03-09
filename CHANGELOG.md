@@ -17,11 +17,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Fixed bug in `gen_pids.py` which did not expand resource references with wildcards when generating `HasPart`
   relations for collections.
-<<<<<<< Updated upstream
-=======
 - Fixed the response model for the `/` route to correctly reflect the possible return types when using different query
   parameters (except for the legacy format).
->>>>>>> Stashed changes
 
 ### Removed
 
