@@ -11,18 +11,18 @@ authors = [
 dependencies = [
     "beautifulsoup4>=4.14.3",
     "celery[redis]>=5.6.2",
-    "fastapi>=0.128.0",
+    "fastapi>=0.135.1",
     "gitpython>=3.1.46",
-    "jsonschema-rs>=0.42.0",
+    "jsonschema-rs>=0.45.0",
     "lxml>=6.0.2",
-    "markdown>=3.10",
-    "pycountry>=24.6.1",
-    "pydantic-settings>=2.12.0",
+    "markdown>=3.10.2",
+    "pycountry>=26.2.16",
+    "pydantic-settings>=2.13.1",
     "pymemcache>=4.0.0",
     "pyyaml>=6.0.3",
     "redis~=6.0",
     "requests>=2.32.5",
-    "uvicorn[standard]>=0.40.0",
+    "uvicorn[standard]>=0.41.0",
 ]
 
 [dependency-groups]
