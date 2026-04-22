@@ -1,5 +1,6 @@
 # Custom config
 config.py
+.codex
 
 # Static files and metadata
 metadata
