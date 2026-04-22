@@ -11,15 +11,15 @@ For more technical details please refer to the [developer documentation](docs/de
 Available API calls (please note that the URL contains the API version, e.g. `/v3`, `/dev` etc):
 
 | Endpoint | Description |
-|----------|-------------|
+| -------- | ----------- |
 | 📁 [/](https://ws.spraakbanken.gu.se/ws/metadata/v3/) | List all resources |
 | 📁 [/?resource-type=[resource-type]](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource-type=corpus) | List all resources of a specific type.<br>Available types: `corpus`, `lexicon`, `model`, `analysis`, `utility`, `collection` |
 | 📁 [/list-ids](https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids) | List all existing resource IDs |
 | 🔍 [/?resource=saldo](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo) | Retrieve a specific resource and its description (if available) |
 | 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=attasidor) | Return BibTeX citation for the specified resource |
 | 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=attasidor) | Check if a given resource ID is available |
-| 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update all metadata files from git, re-process JSON, and update cache.|
-| 🔧 [/renew-cache?resource-paths=[resource-type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache?resource-paths=corpus/attasidor) | Update cache for specific resources, e.g.:<br><code>resource-paths=corpus/attasidor,lexicon/saldo</code>|
+| 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update all metadata files from git, re-process JSON, and update cache. |
+| 🔧 [/renew-cache?resource-paths=[resource-type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache?resource-paths=corpus/attasidor) | Update cache for specific resources, e.g.:<br>`resource-paths=corpus/attasidor,lexicon/saldo` |
 | 📘 [/schema](https://ws.spraakbanken.gu.se/ws/metadata/v3/schema) | Return JSON schema for resources |
 | 📘 [/openapi.json](https://ws.spraakbanken.gu.se/ws/metadata/v3/openapi.json) | Serve API documentation as JSON |
 
