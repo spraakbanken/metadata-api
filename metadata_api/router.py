@@ -6,7 +6,9 @@ from copy import deepcopy
 from typing import Any, cast
 
 import redis
+import yaml
 from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi import Path as FastAPIPath
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -35,7 +37,7 @@ redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
     summary="List resources",
 )
 def list_resources(
-    resource_type: utils.ResourceTypes | None = Query(  # type: ignore
+    resource_type: str | None = Query(
         default=None, alias="resource-type", title="Resource type", examples=["corpus"], enum=settings.RESOURCE_TYPES
     ),
     resource: str | None = Query(default=None, title="Resource ID", examples=["attasidor"]),
@@ -52,10 +54,14 @@ def list_resources(
             status_code=400,
             detail="Specify either 'resource' or 'resource_type', not both.",
         )
+    if resource_type and resource_type not in settings.RESOURCE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid resource type '{resource_type}'. Must be one of: {', '.join(settings.RESOURCE_TYPES)}.",
+        )
     with cache.get_client() as cache_client:
         if resource_type:
             # Return all resources of the given type
-            resource_type = resource_type.value
             resource_file = f"{resource_type}.json"
             filtered = utils.load_json(settings.STATIC / resource_file, cache_client=cache_client)
             data = utils.dict_to_list(filtered)
@@ -69,6 +75,47 @@ def list_resources(
             settings.RESOURCES, settings.STATIC, cache_client=cache_client, legacy=legacy
         )
         return JSONResponse({k: utils.dict_to_list(v) for k, v in resources_dict.items()})
+
+
+@router.get(
+    "/source/{resource_type}/{resource_id}",
+    response_model=dict[str, Any],
+    tags=["Metadata retrieval"],
+    summary="Get source metadata YAML as JSON",
+)
+def get_source_metadata(
+    resource_type: str = FastAPIPath(..., title="Resource type", examples=["corpus"]),
+    resource_id: str = FastAPIPath(..., title="Resource ID", examples=["attasidor"]),
+) -> JSONResponse:
+    """Return the source metadata YAML file from disk as JSON without applying metadata processing."""
+    if resource_type not in settings.RESOURCE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid resource type '{resource_type}'. Must be one of: {', '.join(settings.RESOURCE_TYPES)}.",
+        )
+
+    yaml_root = (settings.METADATA_DIR / settings.YAML_DIR).resolve()
+    filepath = (yaml_root / resource_type / f"{resource_id}.yaml").resolve()
+    # Ensure filepath is inside the YAML directory
+    try:
+        filepath.relative_to(yaml_root)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid resource path.") from e
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Resource source file not found.")
+
+    try:
+        # YAML safe_load() - handle dates as strings
+        yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
+            yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
+        )
+        with filepath.open(encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except yaml.YAMLError:
+        logger.exception("Invalid YAML in source metadata file '%s'", filepath)
+        raise HTTPException(status_code=500, detail="Failed to parse source metadata YAML.") from None
+
+    return JSONResponse(data)
 
 
 def _resource_list_factory(resource_type: str) -> Any:

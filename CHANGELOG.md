@@ -5,6 +5,11 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
 
+### Added
+
+- Added a new route `/source/[resource_type]/[resource-id]` for retrieving the source metadata for a resource (without
+  applying metadata processing).
+
 ### Changed
 
 - `gen_pids.py`: is now called as a module using `uv run -m gen_pids.gen_pids`.

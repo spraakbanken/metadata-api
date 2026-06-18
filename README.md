@@ -17,6 +17,7 @@ Available API calls (please note that the URL contains the API version, e.g. `/v
 | 📁 [/list-ids](https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids) | List all existing resource IDs |
 | 🔍 [/?resource=saldo](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo) | Retrieve a specific resource and its description (if available) |
 | 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=attasidor) | Return BibTeX citation for the specified resource |
+| 🔍 [/source/[resource_type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/source/corpus/attasidor) | Retrieve the source metadata for a resource (without applying metadata processing) |
 | 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=attasidor) | Check if a given resource ID is available |
 | 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update all metadata files from git, re-process JSON, and update cache. |
 | 🔧 [/renew-cache?resource-paths=[resource-type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache?resource-paths=corpus/attasidor) | Update cache for specific resources, e.g.:<br>`resource-paths=corpus/attasidor,lexicon/saldo` |
