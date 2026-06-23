@@ -16,6 +16,22 @@ license: MIT license
 type: utility
 """
 
+YAML_WITH_EMPTY_LANGUAGE: str = """
+name:
+    swe: temp
+license: MIT license
+type: utility
+languages:
+  - code: ''
+    name:
+      swe: ''
+      eng: ''
+  - code: sv-FI
+    name:
+      swe: finlandssvenska
+      eng: Finland Swedish
+"""
+
 
 def test__process_yaml_file_fails_with_bad_instance(caplog: pytest.LogCaptureFixture) -> None:
     """Test that _process_yaml_file logs an error when the license is not valid."""
@@ -32,3 +48,28 @@ def test__process_yaml_file_fails_with_bad_instance(caplog: pytest.LogCaptureFix
             filepath, resource_texts, collection_mappings, validator, localizations, license_info, offline=True
         )
     assert '"MIT license" is not one of' in caplog.text
+
+
+def test__process_yaml_file_removes_empty_language_entries() -> None:
+    """Test that empty language objects are removed from the parsed resource."""
+    filepath = Path("tests/assets/gen/tempfile.yaml")
+    filepath.write_text(YAML_WITH_EMPTY_LANGUAGE, encoding="utf-8")
+    resource_texts = defaultdict(dict)
+    collection_mappings = {}
+    localizations = {}
+    license_info = {}
+
+    _, resource, success = _process_yaml_file(
+        filepath,
+        resource_texts,
+        collection_mappings,
+        schema_validator=None,
+        localizations=localizations,
+        license_info=license_info,
+        offline=True,
+    )
+
+    assert success is True
+    assert resource["languages"] == [
+        {"code": "sv-FI", "name": {"swe": "finlandssvenska", "eng": "Finland Swedish"}}
+    ]

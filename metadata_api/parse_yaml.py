@@ -211,7 +211,7 @@ def _process_yaml_file(
             res.pop("description", None)
 
             # Get full language info
-            langs = res.get("languages", [])
+            langs = _normalize_languages(res.get("languages", []))
             for langcode in res.get("language_codes", []):
                 if langcode not in [l.get("code") for l in langs]:
                     try:
@@ -556,6 +556,31 @@ def _translate_licenses(item: Any, license_info: dict, res_type: str, fileid: st
     elif isinstance(item, list):
         for elem in item:
             _translate_licenses(elem, license_info, res_type, fileid)
+
+
+def _is_nonempty_string(value: Any) -> bool:
+    """Return whether value is a string containing non-whitespace content."""
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _normalize_languages(languages: Any) -> list[dict[str, Any]]:
+    """Remove empty language entries from a languages list."""
+    if not isinstance(languages, list):
+        return []
+
+    normalized_languages = []
+    for language in languages:
+        if not isinstance(language, dict):
+            continue
+
+        code = language.get("code")
+        names = language.get("name", {})
+        has_name = isinstance(names, dict) and any(_is_nonempty_string(value) for value in names.values())
+
+        if _is_nonempty_string(code) or has_name:
+            normalized_languages.append(language)
+
+    return normalized_languages
 
 
 def _write_json(filename: Path, data: dict) -> None:
