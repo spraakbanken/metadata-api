@@ -1,6 +1,5 @@
 # Custom config
 config.py
-.codex
 
 # Static files and metadata
 metadata
@@ -11,20 +10,16 @@ logs
 # Editors
 .vscode
 *.code-workspace
+.codex
+.agents/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Flask stuff:
-instance/
-.webassets-cache
-
-# pyenv
-.python-version
-
 # Environments
+.python-version
 .env
 .venv
 env/
@@ -33,4 +28,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Pytest
+.pytest_cache/
 /tests/assets/gen/
+
+# MISC
+.ruff_cache/
