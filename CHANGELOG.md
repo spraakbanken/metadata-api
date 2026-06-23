@@ -9,6 +9,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Added a new route `/source/[resource_type]/[resource-id]` for retrieving the source metadata for a resource (without
   applying metadata processing).
+- Collections now have a `updated` field in the metadata, which - if not set explicitly - is set to the latest `updated`
+  date of all resources in the collection.
 
 ### Changed
 
@@ -24,6 +26,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
   relations for collections.
 - Fixed the response model for the `/` route to correctly reflect the possible return types when using different query
   parameters (except for the legacy format).
+- Empty entries in the `languages` field of the metadata are now removed from the API response.
 
 ### Removed
 

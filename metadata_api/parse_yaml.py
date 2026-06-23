@@ -263,7 +263,7 @@ def _process_yaml_file(
 
 
 def _update_collections(collection_mappings: dict, all_resources: dict) -> dict:
-    """Create collections_data dict and add resource lists and sizes (number of resources) to collections.
+    """Create collections_data dict and add resource lists, sizes (no of resources) and updated dates to collections.
 
     Args:
         collection_mappings: Mappings of collections to resources.
@@ -272,10 +272,12 @@ def _update_collections(collection_mappings: dict, all_resources: dict) -> dict:
     Returns:
         The updated collections data. Modifies all_resources in-place to add in_collections info to resources.
     """
+    logger.debug("Updating collections with resource lists, sizes and updated dates...")
     # Get data for all resources that are collections
     collections_data = {k: v for k, v in all_resources.items() if v.get("collection")}
 
     for collection, res_list in collection_mappings.items():
+        logger.debug("Processing collection '%s'", collection)
         col = collections_data.get(collection)
         if not col:
             logger.warning(
@@ -319,6 +321,8 @@ def _update_collections(collection_mappings: dict, all_resources: dict) -> dict:
             col["size"] = col.get("size", {})
             col["size"]["resources"] = len(new_res_list)
             col["resources"] = new_res_list
+            if not col.get("updated"):
+                col["updated"] = _get_latest_updated(new_res_list, all_resources)
 
             # Add in_collections info to resource json data (all_resources)
             for res_id in new_res_list:
@@ -328,6 +332,22 @@ def _update_collections(collection_mappings: dict, all_resources: dict) -> dict:
                     res_item["in_collections"].append(col_id)
 
     return collections_data
+
+
+def _get_latest_updated(resource_ids: list[str], all_resources: dict) -> str:
+    """Return the latest updated date among the given resources as an ISO date string."""
+    latest = None
+    for res_id in resource_ids:
+        resource = all_resources.get(res_id, {})
+        updated = resource.get("updated")
+        if isinstance(updated, str):
+            try:
+                updated = datetime.date.fromisoformat(resource.get("updated"))
+            except (TypeError, ValueError):
+                updated = None
+        if updated is not None and (latest is None or updated > latest):
+            latest = updated
+    return latest.isoformat() if latest is not None else ""
 
 
 def _get_validator(filepath: Path) -> jsonschema_rs.Validator | None:
