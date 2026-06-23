@@ -27,6 +27,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyright>=1.1.410",
     "pytest>=9.0.2",
 ]
 
@@ -94,3 +95,11 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "metadata_api"
 module-root = ""
+
+[tool.pyright]
+typeCheckingMode = "standard"
+include = [
+    "metadata_api/**/*.py",
+    "batch_jobs/**/*.py",
+    "gen_pids/**/*.py",
+]

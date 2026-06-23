@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import redis
 import yaml
+from celery import Task
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi import Path as FastAPIPath
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
@@ -240,7 +241,7 @@ def _renew_cache(
         raise HTTPException(status_code=409, detail="Too many cache renewals queued. Try again later.")
 
     try:
-        task = renew_cache_task.apply_async(kwargs={
+        task = cast(Task, renew_cache_task).apply_async(kwargs={
             "request_method": request_method,
             "resource_paths": paths_list,
             "debug": debug,
