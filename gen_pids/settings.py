@@ -11,14 +11,17 @@ YAML_DIR = YAML_REPO_ROOT / "yaml"
 
 DOI_KEY = "doi"  # DOI = Digital Object Identifier
 
-# DMS (DataCite Metadata Schema) constants
+# DMS repository credentials
 DMS_URL = "https://api.datacite.org/dois"
+DMS_PREFIX = "10.23695"
+DMS_REPOID = "SND.SPRKB"
+DMS_AUTH_PASSWORD = ""
+
+# DMS (DataCite Metadata Schema) constants
 DMS_HEADERS = {
     "content-type": "application/json",
     "User-agent": "GenPids/1.0 (https://spraakbanken.gu.se; mailto:sb-webb@svenska.gu.se)",
 }
-DMS_PREFIX = "10.23695"
-DMS_REPOID = "SND.SPRKB"
 DMS_CREATOR_NAME = "Språkbanken Text"
 DMS_CREATOR_ROR = "https://ror.org/03xfh2n14"
 DMS_TARGET_RESOURCE_PREFIX = "https://spraakbanken.gu.se/resurser/"

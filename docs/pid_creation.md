@@ -43,6 +43,9 @@ In more technical detail:
 * update records at DataCite (check "updated" date)
 * login to DataCite saved in `/home/fksbwww/.netrc` on `k2` (credentials were received from SND and can be found in
   Språkbanken Text's safe)
+* When testing locally with one of the test repositories, you can enter the credentials in `gen_pids/settings.py`
+  (DMS_URL, DMS_REPOID and DMS_AUTH_PASSWORD) instead of using the netrc file. Remember to remove them before committing
+  the code.
 * tag ”identifiers” in JSON is called ”alternateIdentifiers” in XML-formatet (<https://support.datacite.org/docs/what-is-the-identifiers-attribute-in-the-rest-api>)
 
 ### Datacite Metadata Schema (DMS)

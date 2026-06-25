@@ -25,6 +25,7 @@ import yaml
 from gen_pids import dump_yaml, git_utils, log_utils, utils
 from gen_pids.datacite import DataCiteClient, build_datacite_client
 from gen_pids.settings import (
+    DMS_AUTH_PASSWORD,
     DMS_CREATOR_NAME,
     DMS_CREATOR_ROR,
     DMS_LANG_ENG,
@@ -34,6 +35,7 @@ from gen_pids.settings import (
     DMS_RELATION_TYPE_ISOBSOLETEDBY,
     DMS_RELATION_TYPE_ISPARTOF,
     DMS_RELATION_TYPE_OBSOLETES,
+    DMS_REPOID,
     DMS_RESOURCE_TYPE_ANALYSIS,
     DMS_RESOURCE_TYPE_COLLECTION,
     DMS_RESOURCE_TYPE_DATASET,
@@ -119,7 +121,13 @@ def main(
         sys.exit(2)
 
     log_utils.configure_logging(LOG_DIR, logger)
-    datacite_client = build_datacite_client(logger)
+
+    if DMS_AUTH_PASSWORD:
+        logger.debug("Using credentials from settings.py (user: %s) for DataCite client.", DMS_REPOID)
+        datacite_client = DataCiteClient(DMS_REPOID, DMS_AUTH_PASSWORD, logger)
+    else:
+        logger.debug("Using credentials from netrc for DataCite client.")
+        datacite_client = build_datacite_client(logger)
 
     if dry_run:
         logger.info("Running in dry-run mode - no YAML writes and no Datacite writes.")
