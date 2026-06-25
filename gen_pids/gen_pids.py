@@ -73,7 +73,7 @@ mode_group.add_argument(
     action="store_true",
     help="Do not update Datacite metadata, only create DOIs for resources without them",
 )
-mode_group.add_argument("--force-update", "-u", action="store_true", help="Force update of all metadata at Datacite")
+mode_group.add_argument("--force-update", "-u", action="store_true", help="Force update of metadata at Datacite")
 parser.add_argument(
     "--file",
     "-f",
@@ -81,7 +81,7 @@ parser.add_argument(
     dest="single_file",
     type=str,
     help="Process only the given YAML file, e.g. 'lexicon/saldo.yaml'. "
-    "Collections and successors are still processed for all resources.",
+    "With --force-update, collection and successor updates are limited to the selected resource's dependency closure.",
 )
 
 
@@ -137,12 +137,14 @@ def main(
             "but DOIs will be created for resources missing them."
         )
     elif force_update:
-        logger.info("Running in force-update mode - all Datacite metadata will be updated.")
+        logger.info("Running in force-update mode - eligible Datacite metadata will be updated.")
 
     yaml_paths = {}  # YAML file paths {resource_id: filepath, ...}
     all_resources = {}  # All resources {resource_id: resource_dict, ...}
     process_resources = all_resources  # Resources to process, all by default
+    related_resources = None  # Relation mapping to update, all by default
     read_all_resources = True  # Whether to read all resources or just a specific one
+    res_id = ""  # Resource ID of the single file to process, if applicable
 
     # 1. Read YAML file(s)
     logger.info("Reading resources from YAML.")
@@ -170,18 +172,27 @@ def main(
                 continue  # already read above
             read_resource_file(filepath, all_resources, yaml_paths)
 
+    if not no_update:
+        # Build relation map for collections and successors
+        related_resources = build_related_resource_map(all_resources, yaml_paths)
+        if single_file is not None and force_update:
+            closure_ids = get_related_resource_closure(res_id, related_resources)
+            process_resources = {resource_id: all_resources[resource_id] for resource_id in closure_ids}
+            related_resources = filter_related_resource_map(related_resources, closure_ids)
+            logger.info(
+                "Limiting force-update to '%s' and its dependency closure (%d resources).",
+                single_file,
+                len(process_resources),
+            )
+
     # 2. Assign DOIs
     assign_doi(process_resources, all_resources, yaml_paths, datacite_client, dry_run, no_update, force_update)
     if not no_update:
-        # 3a. Map Collections and Resources in both directions
-        collections = map_collections(all_resources, yaml_paths)
-        # 3b. Successors
-        map_successors(all_resources, yaml_paths, collections)
         # 3c. Update DMS
         if dry_run:
             logger.info("Dry run: not updating relation metadata at Datacite.")
         else:
-            update_dms_related(all_resources, yaml_paths, collections, datacite_client)
+            update_dms_related(all_resources, yaml_paths, related_resources or {}, datacite_client)
 
     if dry_run:
         logger.info("Dry run: skipping git commit and push.")
@@ -208,6 +219,43 @@ def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict) ->
                 all_resources[res_id] = res
     except Exception:
         logger.exception("Error when opening/reading YAML file '%s'", filepath)
+
+
+def build_related_resource_map(all_resources: dict, yaml_paths: dict) -> dict:
+    """Build the full relation map for collections and successors."""
+    # 3a. Map Collections and Resources in both directions
+    related_resources = map_collections(all_resources, yaml_paths)
+    # 3b. Successors
+    map_successors(all_resources, yaml_paths, related_resources)
+    return related_resources
+
+
+def get_related_resource_closure(seed_res_id: str, related_resources: dict) -> set[str]:
+    """Return the transitive closure of collection/successor relations for a resource."""
+    closure = {seed_res_id}
+    pending = [seed_res_id]
+
+    while pending:
+        res_id = pending.pop()
+        for related_ids in related_resources.get(res_id, {}).values():
+            for related_res_id in related_ids:
+                if related_res_id not in closure:
+                    closure.add(related_res_id)
+                    pending.append(related_res_id)
+
+    return closure
+
+
+def filter_related_resource_map(related_resources: dict, resource_ids: set[str]) -> dict:
+    """Restrict the relation map to a selected set of resources."""
+    return {
+        res_id: {
+            relation_type: [related_res_id for related_res_id in related_ids if related_res_id in resource_ids]
+            for relation_type, related_ids in relations.items()
+        }
+        for res_id, relations in related_resources.items()
+        if res_id in resource_ids
+    }
 
 
 def assign_doi(

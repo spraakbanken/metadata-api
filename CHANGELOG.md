@@ -22,6 +22,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- `gen_pids.py --file --force-update` now limits Datacite updates to the selected resource and its transitive
+  collection/successor closure instead of updating unrelated relation groups.
 - Fixed bug in `gen_pids.py` which did not expand resource references with wildcards when generating `HasPart`
   relations for collections.
 - Fixed the response model for the `/` route to correctly reflect the possible return types when using different query
