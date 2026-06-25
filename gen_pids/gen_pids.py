@@ -98,20 +98,20 @@ def main(
         debug: Print messages about what it is doing.
         dry_run: Do not write back YAML metadata or create/update records at Datacite.
         no_update: Do not update Datacite metadata, only create DOIs for resources without them.
-        force_update: Force update of all metadata at Datacite.
+        force_update: Force update of metadata at Datacite.
         single_file: Pass a filename that will be handled -- else all files are read.
 
-    1. Get all resources YAML metadata
-    2. Assign DOIs
+    1. Read metadata from YAML file(s)
+    2. Build relation map for collections and successors (relatedIdentifiers) (offline)
+    3. Assign DOIs
         if metadata has no DOI
             look up in DataCite repos (using slug/name) if it exists anyway, and get DOI
             put metadata into Datacite repos and get a DOI
             add DOI to YAML metadata file
         if it has DOI, update ALL information depending on dates
-    3. Map collections and successors into relatedIdentifiers
-        update Datacite repos
-    4. Commit and push changes to Git repository
-    5. Remove logs older than 6 months
+    4. Update Datacite repos with relatedIdentifiers
+    5. Commit and push changes to Git repository
+    6. Remove logs older than 6 months
     """
     if debug:
         logger.setLevel(logging.DEBUG)
@@ -123,10 +123,10 @@ def main(
     log_utils.configure_logging(LOG_DIR, logger)
 
     if DMS_AUTH_PASSWORD:
-        logger.debug("Using credentials from settings.py (user: %s) for DataCite client.", DMS_REPOID)
+        logger.info("Using credentials from settings.py (user: %s) for DataCite client.", DMS_REPOID)
         datacite_client = DataCiteClient(DMS_REPOID, DMS_AUTH_PASSWORD, logger)
     else:
-        logger.debug("Using credentials from netrc for DataCite client.")
+        logger.info("Using credentials from netrc for DataCite client.")
         datacite_client = build_datacite_client(logger)
 
     if dry_run:
@@ -145,9 +145,10 @@ def main(
     related_resources = None  # Relation mapping to update, all by default
     read_all_resources = True  # Whether to read all resources or just a specific one
     res_id = ""  # Resource ID of the single file to process, if applicable
+    read_resource_count = 0
 
-    # 1. Read YAML file(s)
-    logger.info("Reading resources from YAML.")
+    # 1. Read metadata from YAML file(s)
+    logger.debug("Reading resources from YAML...")
 
     if single_file is not None:
         # Quit early if file does not exist
@@ -155,8 +156,9 @@ def main(
         res_id = filepath.stem
         if not filepath.exists():
             logger.error("File '%s' does not exist. Exiting.", filepath)
-            sys.exit()
+            sys.exit(2)
         read_resource_file(filepath, all_resources, yaml_paths)
+        read_resource_count += 1
         process_resources = {res_id: all_resources[res_id]}
 
         # In most cases we need to read all YAML files because of collections and successors,
@@ -171,34 +173,41 @@ def main(
             if single_file is not None and filepath == YAML_DIR / single_file:
                 continue  # already read above
             read_resource_file(filepath, all_resources, yaml_paths)
+            read_resource_count += 1
+
+    logger.info("Read %d resources from YAML.", read_resource_count)
 
     if not no_update:
-        # Build relation map for collections and successors
+        # 2. Build relation map for collections and successors (relatedIdentifiers)
         related_resources = build_related_resource_map(all_resources, yaml_paths)
         if single_file is not None and force_update:
             closure_ids = get_related_resource_closure(res_id, related_resources)
             process_resources = {resource_id: all_resources[resource_id] for resource_id in closure_ids}
             related_resources = filter_related_resource_map(related_resources, closure_ids)
+            # Get IDs of related resources, excluding the resource itself
+            related_list = [relation for relation in related_resources if relation != res_id]
             logger.info(
-                "Limiting force-update to '%s' and its dependency closure (%d resources).",
+                "Limiting force-update to '%s' and its dependencies (%d resources).",
                 single_file,
-                len(process_resources),
+                len(related_list),
             )
 
-    # 2. Assign DOIs
+    # 3. Assign DOIs, add new data to Datacite, do dms_update for resources that already have DOIs
     assign_doi(process_resources, all_resources, yaml_paths, datacite_client, dry_run, no_update, force_update)
     if not no_update:
-        # 3c. Update DMS
         if dry_run:
             logger.info("Dry run: not updating relation metadata at Datacite.")
         else:
+            # 4. Update Datacite repos with relatedIdentifiers
             update_dms_related(all_resources, yaml_paths, related_resources or {}, datacite_client)
 
     if dry_run:
         logger.info("Dry run: skipping git commit and push.")
     else:
+        # 5. Commit and push changes to Git repository
         git_utils.commit_metadata_changes()
 
+    # 6. Remove logs older than 6 months
     log_utils.rotate_logs(LOG_DIR, logger)
 
 
@@ -223,9 +232,7 @@ def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict) ->
 
 def build_related_resource_map(all_resources: dict, yaml_paths: dict) -> dict:
     """Build the full relation map for collections and successors."""
-    # 3a. Map Collections and Resources in both directions
     related_resources = map_collections(all_resources, yaml_paths)
-    # 3b. Successors
     map_successors(all_resources, yaml_paths, related_resources)
     return related_resources
 
@@ -278,7 +285,7 @@ def assign_doi(
         no_update: flag indicating no update mode
         force_update: flag indicating force update mode
     """
-    logger.info("Checking DOIs for %d resources.", len(process_resources))
+    logger.debug("Checking DOIs for %d resources...", len(process_resources))
     if dry_run:
         logger.info("Dry run: skipping update checks.")
     for res_id, res in process_resources.items():
@@ -290,7 +297,7 @@ def assign_doi(
                 res_is_dataset = utils.is_dataset(res)
                 # Does the resource already have a DOI?
                 if DOI_KEY not in res:
-                    # Does resource already exist at Datacite? (a new metadata-YAML could have been autogenerated)
+                    # Does resource already exist at Datacite? (DOI may have been deleted from YAML)
                     doi = dms_doi_get(res_id, short_filepath, datacite_client)
                     if not doi:
                         # Generate DOI and Datacite metadata record
@@ -314,10 +321,13 @@ def assign_doi(
                     if dry_run:
                         # Skip update check in dry-run mode
                         continue
+                    # DOI found: update existing DMS metadata
                     dms_update(res_id, res, res_is_dataset, force_update, short_filepath, datacite_client)
         except Exception:
             logger.exception("Error while working on DOI for '%s'", short_filepath)
-            sys.exit()
+            sys.exit(2)
+
+    logger.info("Checked DOIs for %d resources.", len(process_resources))
 
 
 def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
@@ -336,8 +346,10 @@ def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
     Returns:
         collection mapping dictionary
     """
-    logger.info("Map collections and resources.")
+    logger.debug("Mapping collections and resources...")
     collections = {}
+    collections_count = 0
+    in_collections_count = 0
 
     for res_id, res in all_resources.items():
         short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
@@ -347,7 +359,8 @@ def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
                 collections[res_id][DMS_RELATION_TYPE_HASPART] = []
             member_list = utils.expand_res_ref(res.get("resources", []), all_resources)
             if member_list:
-                logger.debug("Map resources for collection '%s'", short_filepath)
+                # logger.debug("Map resources for collection '%s'", short_filepath)
+                collections_count += 1
                 for member_res_id in member_list:
                     if member_res_id not in collections:
                         collections[member_res_id] = {}
@@ -361,7 +374,8 @@ def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
                         collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
             parent_list = res.get("in_collections", [])
             if parent_list:
-                logger.debug("Map in_collections for resource '%s'", short_filepath)
+                # logger.debug("Map in_collections for resource '%s'", short_filepath)
+                in_collections_count += len(parent_list)
                 for parent_res_id in parent_list:
                     if parent_res_id not in collections:
                         collections[parent_res_id] = {}
@@ -376,6 +390,8 @@ def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
                         collections[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
         except Exception:
             logger.exception("Error when mapping collections for '%s'", short_filepath)
+
+    logger.info("Mapped %d collections and %d in_collections.", collections_count, in_collections_count)
 
     return collections
 
@@ -393,13 +409,15 @@ def map_successors(all_resources: dict, yaml_paths: dict, collections: dict) -> 
         yaml_paths: dictionary of YAML file paths
         collections: collection mapping dictionary
     """
-    logger.info("Map successors.")
+    logger.debug("Mapping successors...")
+    successor_count = 0
     for res_id, res in all_resources.items():
         short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
         try:
             successor_list = res.get("successors", [])
             if successor_list:
-                logger.debug("Map successors for '%s'", short_filepath)
+                successor_count += 1
+                # logger.debug("Map successors for '%s'", short_filepath)
                 utils.ensure_collection_entry(collections, res_id, DMS_RELATION_TYPE_ISOBSOLETEDBY)
                 collections[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
                 for successor_res_id in successor_list:
@@ -407,10 +425,11 @@ def map_successors(all_resources: dict, yaml_paths: dict, collections: dict) -> 
                     collections[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
         except Exception:
             logger.exception("Error when mapping successors for '%s'", short_filepath)
+    logger.info("Mapped %d succeeded resources.", successor_count)
 
 
 def update_dms_related(
-    all_resources: dict, yaml_paths: dict, collections: dict, datacite_client: DataCiteClient
+    all_resources: dict, yaml_paths: dict, related_resources: dict, datacite_client: DataCiteClient
 ) -> None:
     """Update DMS related identifiers for collections and successors.
 
@@ -420,12 +439,12 @@ def update_dms_related(
     Args:
         all_resources: dictionary of all resources
         yaml_paths: dictionary of YAML file paths
-        collections: collection mapping dictionary
+        related_resources: dictionary of resources with related identifiers
         datacite_client: DataCite client instance
     """
     logger.info("Update relation metadata at Datacite.")
 
-    for res in collections.items():
+    for res in related_resources.items():
         short_filepath = yaml_paths[res[0]].relative_to(YAML_DIR).with_suffix("")
         try:
             res_id = res[0]
@@ -541,11 +560,11 @@ def dms_update(
             data_json["data"]["attributes"]["publicationYear"] = datetime.date.today().strftime("%Y")
 
         # Update resource
-        logger.info("Updating DOI '%s' for '%s'", doi, filepath)
-        # logger.debug(json.dumps(data_json, indent=4, ensure_ascii=False))
+        logger.info("Updating data at Datacite for resource '%s' (DOI '%s')", filepath, doi)
+        # import json
+        # logger.debug(json.dumps(data_json["data"]["attributes"], indent=2, ensure_ascii=False))
         response = datacite_client.update_doi(doi, data_json)
 
-        # logger.debug("Response: %s", response.status_code)
         if response.status_code >= 300:  # noqa: PLR2004
             logger.error(
                 "Error updating '%s'. DOI: '%s'. status: '%s'. data: '%s'",
@@ -554,6 +573,8 @@ def dms_update(
                 response.status_code,
                 data_json,
             )
+        else:
+            logger.debug("Response from Datacite: %s", response.status_code)
 
     return updated
 
@@ -857,7 +878,7 @@ def dms_related(
 
 
 def dms_doi_get(res_id: str, filepath: str, datacite_client: DataCiteClient) -> str:
-    """Metadata.yaml could be autogenerated, so look up if existing at DataCite.
+    """Metadata file could be autogenerated and DOI may have been deleted, so look up if existing at DataCite.
 
     Args:
         res_id: resource id to look for
