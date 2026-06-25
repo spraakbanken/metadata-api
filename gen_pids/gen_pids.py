@@ -219,8 +219,8 @@ def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict) ->
         all_resources: dictionary of all resources
         yaml_paths: dictionary of YAML file paths
     """
+    res_id = filepath.stem
     try:
-        res_id = filepath.stem
         yaml_paths[res_id] = filepath
         with filepath.open(encoding="utf-8") as file_yaml:
             res = yaml.safe_load(file_yaml)
@@ -291,9 +291,9 @@ def assign_doi(
     for res_id, res in process_resources.items():
         filepath = yaml_paths[res_id]
         short_filepath = filepath.relative_to(YAML_DIR).with_suffix("")
-        try:
-            logger.debug("Checking DOI for resource '%s'", short_filepath)
-            if res:
+        logger.debug("Checking DOI for resource '%s'", short_filepath)
+        if res:
+            try:
                 res_is_dataset = utils.is_dataset(res)
                 # Does the resource already have a DOI?
                 if DOI_KEY not in res:
@@ -323,9 +323,9 @@ def assign_doi(
                         continue
                     # DOI found: update existing DMS metadata
                     dms_update(res_id, res, res_is_dataset, force_update, short_filepath, datacite_client)
-        except Exception:
-            logger.exception("Error while working on DOI for '%s'", short_filepath)
-            sys.exit(2)
+            except Exception:
+                logger.exception("Error while working on DOI for '%s'", short_filepath)
+                sys.exit(2)
 
     logger.info("Checked DOIs for %d resources.", len(process_resources))
 
@@ -413,18 +413,18 @@ def map_successors(all_resources: dict, yaml_paths: dict, collections: dict) -> 
     successor_count = 0
     for res_id, res in all_resources.items():
         short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
-        try:
-            successor_list = res.get("successors", [])
-            if successor_list:
-                successor_count += 1
-                # logger.debug("Map successors for '%s'", short_filepath)
+        successor_list = res.get("successors", [])
+        if successor_list:
+            try:
                 utils.ensure_collection_entry(collections, res_id, DMS_RELATION_TYPE_ISOBSOLETEDBY)
                 collections[res_id][DMS_RELATION_TYPE_ISOBSOLETEDBY] += successor_list
                 for successor_res_id in successor_list:
                     utils.ensure_collection_entry(collections, successor_res_id, DMS_RELATION_TYPE_OBSOLETES)
                     collections[successor_res_id][DMS_RELATION_TYPE_OBSOLETES].append(res_id)
-        except Exception:
-            logger.exception("Error when mapping successors for '%s'", short_filepath)
+                successor_count += 1
+                # logger.debug("Map successors for '%s'", short_filepath)
+            except Exception:
+                logger.exception("Error when mapping successors for '%s'", short_filepath)
     logger.info("Mapped %d succeeded resources.", successor_count)
 
 
@@ -446,13 +446,13 @@ def update_dms_related(
 
     for res in related_resources.items():
         short_filepath = yaml_paths[res[0]].relative_to(YAML_DIR).with_suffix("")
+        res_id = res[0]
+        res_doi = utils.get_doi_from_rid(all_resources, res_id)
+        if not res_doi:
+            logger.debug("Skipping related-identifier update for '%s' (missing DOI)", short_filepath)
+            continue
+        logger.debug("Update DMS for '%s'", short_filepath)
         try:
-            res_id = res[0]
-            res_doi = utils.get_doi_from_rid(all_resources, res_id)
-            if not res_doi:
-                logger.debug("Skipping related-identifier update for '%s' (missing DOI)", short_filepath)
-                continue
-            logger.debug("Update DMS for '%s'", short_filepath)
             dms_related(
                 all_resources,
                 res_doi,
