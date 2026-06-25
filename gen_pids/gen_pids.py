@@ -711,16 +711,9 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
     # Skip
 
     # 16. On. Rights
-    if res_is_dataset:
-        value = utils.get_key_value(res, "downloads")
-        if value:
-            dms_json["data"]["attributes"]["rightsList"] = utils.get_res_rights(value)
-    else:
-        value = utils.get_key_value(res, "license")
-        if value:
-            dms_json["data"]["attributes"]["rightsList"] = utils.get_res_rights_a(
-                value, res.get("tools", []), res.get("models", [])
-            )
+    rights_list = utils.get_res_rights(res, res_is_dataset)
+    if rights_list:
+        dms_json["data"]["attributes"]["rightsList"] = rights_list
     # 17. Rn. Descriptions
     dms_json["data"]["attributes"]["descriptions"] = []
     value_swe = utils.get_key_value(res, "description", "swe")

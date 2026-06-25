@@ -29,6 +29,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fixed the response model for the `/` route to correctly reflect the possible return types when using different query
   parameters (except for the legacy format).
 - Empty entries in the `languages` field of the metadata are now removed from the API response.
+- `gen_pids.py`: rightsList now only contains unique entries.
 
 ### Removed
 

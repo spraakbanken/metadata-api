@@ -124,8 +124,8 @@ def get_res_license(item: dict) -> dict:
         rightsList item
     """
     rights = item.get("license", "")  # eg "CC BY 4.0"
-
-    # rights_str = item["license_other"] if rights == DMS_LICENSE_OTHER else rights
+    if not rights:
+        return {}
 
     if rights == DMS_LICENSE_OTHER:  # noqa: SIM108
         rights_str = item.get("license_other", "")
@@ -141,48 +141,32 @@ def get_res_license(item: dict) -> dict:
     }
 
 
-def get_res_rights(downloads_list: list) -> list:
-    """Create dict of resource rights information.
+def get_res_rights(res: dict, is_dataset: bool) -> list:
+    """Create list of dict of resource rights information, unique by rightsIdentifier."""
+    def add_rights(somelist: list) -> None:
+        """Add rights from a list of items to the result list."""
+        if not somelist:
+            return
+        for item in somelist:
+            rights = get_res_license(item)
+            if rights and rights["rightsIdentifier"] not in rights_ids:
+                # Make sure rightsList is unique by rightsIdentifier
+                rights_ids.add(rights["rightsIdentifier"])
+                result_list.append(rights)
 
-    Returns:
-        list of rightsList items
-    """
     result_list = []
-    for item in downloads_list:
-        rights = get_res_license(item)
-        if rights:
-            result_list.append(rights)
-    # return [{"rights": rights} for rights in result_set]
-    return result_list
+    rights_ids = set()
 
+    if is_dataset:
+        add_rights(get_key_value(res, "downloads"))
 
-def get_res_rights_a(license_code: str, tools_list: list, models_list: list) -> list:
-    """Create dict of analysis rights information.
-
-    Analysis licenses has three ways of specifiying license:
-    - 'license': string (for code)
-    - 'tools' - 'license': string (for tool)
-    - 'models' - 'license': string (for model)
-
-    Returns:
-        list of rightsList items
-    """
-    result_list = []
-    if license_code:
-        rights = get_res_license({"license": license_code})
-        if rights:
-            result_list.append(rights)
-    for item in tools_list:
-        rights = get_res_license(item)
-        if rights:
-            result_list.append(rights)
-    for item in models_list:
-        rights = get_res_license(item)
-        if rights:
-            result_list.append(rights)
+    else:
+        # Resource is an analysis, so check for license in three places: top level, tools, models
+        add_rights([{"license": res.get("license", {})}])
+        add_rights(res.get("tools", []))
+        add_rights(res.get("models", []))
 
     return result_list
-    # return [{"rights": rights} for rights in result_set]
 
 
 def get_res_creators(res: dict) -> list:
