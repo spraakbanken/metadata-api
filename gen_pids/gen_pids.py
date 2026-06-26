@@ -653,11 +653,14 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
             "schemeURI": "https://www.scb.se/dokumentation/klassifikationer-och-standarder/standard-for-svensk-indelning-av-forskningsamnen",
         }
     ]
+    # Add languages
+    lang_code, languages_info = utils.get_res_languages(res)
+    if languages_info:
+        dms_json["data"]["attributes"]["subjects"].extend(languages_info)
     # Add keywords
     keywords = utils.get_res_keywords(res)
     if keywords:
-        for keyword in keywords:
-            dms_json["data"]["attributes"]["subjects"].append(keyword)
+        dms_json["data"]["attributes"]["subjects"].extend(keywords)
 
     # 7. Rn. Contributor
     # Skip
@@ -671,7 +674,8 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
         dms_json["data"]["attributes"]["dates"].append({"date": dms_updated, "dateType": "Updated"})
 
     # 9. O1. Primary language
-    dms_json["data"]["attributes"]["language"] = utils.get_res_lang_code(utils.get_key_value(res, "language_codes"))
+    if lang_code:
+        dms_json["data"]["attributes"]["language"] = lang_code
 
     # 10. M1. Resource type, Type/TypeGeneral forms a pair
     dms_resource_type = utils.get_key_value(res, "type")

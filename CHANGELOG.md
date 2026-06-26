@@ -19,6 +19,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 - `gen_pids.py` now handles git commits and log rotation.
 - Exchanged jsonschema lib for jsonschema-rs for validating metadata against the schema for better error messages and
   performance.
+- `gen_pids.py`: improved handling of resources with multiple languages.
 
 ### Fixed
 

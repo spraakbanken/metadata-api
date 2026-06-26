@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 import markdown
+import pycountry
 from bs4 import BeautifulSoup
 
 from gen_pids.settings import (
@@ -13,6 +14,7 @@ from gen_pids.settings import (
     DMS_CREATOR_ROR,
     DMS_LANG_ENG,
     DMS_LANG_MUL,
+    DMS_LANGUAGE_SCHEME_URI,
     DMS_LICENSE_OTHER,
     DMS_LICENSE_SCHEME_ID,
     DMS_LICENSE_SCHEME_URI,
@@ -101,13 +103,39 @@ def get_res_type_str(dataset: bool) -> str:
     return DMS_RESOURCE_TYPE_ANALYSIS
 
 
-def get_res_lang_code(language_list: list) -> str:
-    """Translate code to ISO right version."""
-    if language_list:
-        if len(language_list) == 1:
-            return language_list[0]
-        return DMS_LANG_MUL  # language_list[0]
-    return ""
+def get_res_languages(resource: dict) -> tuple[str, list]:
+    """Return primary language code and list of language info dicts for DMS metadata."""
+    language_codes = resource.get("language_codes", [])
+    languages = resource.get("languages", [])
+    total_langs = len(language_codes) + len(languages)
+
+    # No languages provided
+    if total_langs == 0:
+        return "", []
+
+    # Build list of language info dicts for DMS metadata
+    languages_info = []
+    for code in language_codes:
+        # Get English language name from pycountry
+        language = pycountry.languages.get(alpha_3=code)
+        english_name = language.name if language is not None else "Unknown"
+        lang = {
+            "subject": english_name,
+            "schemeURI": DMS_LANGUAGE_SCHEME_URI,
+            "valueURI": f"{DMS_LANGUAGE_SCHEME_URI}/{code}",
+            "classificationCode": code,
+            "lang": code
+        }
+        languages_info.append(lang)
+
+    # Multiple languages provided, "mul" will be set as primary language
+    if total_langs > 1:
+        return DMS_LANG_MUL, languages_info
+    # Exactly one language provided (as code), this will be the primary language
+    if len(language_codes) == 1:
+        return language_codes[0], languages_info
+    # Languages provided in "languages" field only, no primary language will be set
+    return "", languages_info
 
 
 def get_res_size(size_list: dict) -> str:
@@ -247,8 +275,7 @@ def get_clean_string(string: str) -> str:
 def get_key_value(dictionary: dict, key: str, key2: str | None = None) -> Any:
     """Return key value from dictionary, else empty string."""
     if key2 is None:
-        value = dictionary.get(key, "")
-        return value or ""
+        return dictionary.get(key, "")
     if key in dictionary:
         value = get_key_value(dictionary[key], key2)
         return value or ""
