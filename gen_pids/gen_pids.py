@@ -224,7 +224,7 @@ def read_resource_file(filepath: Path, all_resources: dict, yaml_paths: dict) ->
         yaml_paths[res_id] = filepath
         with filepath.open(encoding="utf-8") as file_yaml:
             res = yaml.safe_load(file_yaml)
-            if not utils.get_key_value(res, "unlisted"):
+            if not res.get("unlisted", ""):
                 all_resources[res_id] = res
     except Exception:
         logger.exception("Error when opening/reading YAML file '%s'", filepath)
@@ -354,7 +354,7 @@ def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
     for res_id, res in all_resources.items():
         short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
         try:
-            if utils.get_key_value(res, "collection") and res_id not in collections:
+            if res.get("collection") and res_id not in collections:
                 collections[res_id] = {}
                 collections[res_id][DMS_RELATION_TYPE_HASPART] = []
             member_list = utils.expand_res_ref(res.get("resources", []), all_resources)
@@ -456,10 +456,10 @@ def update_dms_related(
             dms_related(
                 all_resources,
                 res_doi,
-                utils.get_key_value(res[1], DMS_RELATION_TYPE_HASPART),
-                utils.get_key_value(res[1], DMS_RELATION_TYPE_ISPARTOF),
-                utils.get_key_value(res[1], DMS_RELATION_TYPE_OBSOLETES),
-                utils.get_key_value(res[1], DMS_RELATION_TYPE_ISOBSOLETEDBY),
+                res[1].get(DMS_RELATION_TYPE_HASPART, ""),
+                res[1].get(DMS_RELATION_TYPE_ISPARTOF, ""),
+                res[1].get(DMS_RELATION_TYPE_OBSOLETES, ""),
+                res[1].get(DMS_RELATION_TYPE_ISOBSOLETEDBY, ""),
                 short_filepath,
                 datacite_client,
             )
@@ -538,7 +538,7 @@ def dms_update(
     """
     updated = False
 
-    doi = utils.get_key_value(res, DOI_KEY)
+    doi = res.get(DOI_KEY, "")
     yaml_created, yaml_updated = utils.get_res_dates(res)
     dms_created, dms_updated, dms_publication_year = dms_doi_get_updated(doi, filepath, datacite_client)
 
@@ -617,17 +617,13 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
 
     # 3. Mn. Title
     dms_json["data"]["attributes"]["titles"] = []
-    value = utils.get_key_value(res, "name", "swe")
     # Since 20250515 no names are given to analyses, use id instead (to make Datacite happy, since it is mandatory)
-    if not value:
-        value = res_id
-    if value:
-        dms_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_SWE, "title": value})
-    value = utils.get_key_value(res, "name", "eng")
-    if not value:
-        value = res_id
-    if value:
-        dms_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_ENG, "title": value})
+    name_swe = utils.get_nested_value(res, "name", "swe") or res_id
+    if name_swe:
+        dms_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_SWE, "title": name_swe})
+    name_eng = utils.get_nested_value(res, "name", "eng") or res_id
+    if name_eng:
+        dms_json["data"]["attributes"]["titles"].append({"lang": DMS_LANG_ENG, "title": name_eng})
 
     # 4. M1. Publisher
     dms_json["data"]["attributes"]["publisher"] = {
@@ -678,19 +674,15 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
         dms_json["data"]["attributes"]["language"] = lang_code
 
     # 10. M1. Resource type, Type/TypeGeneral forms a pair
-    dms_resource_type = utils.get_key_value(res, "type")
-    if res_is_dataset:
+    dms_resource_type = res.get("type", "")
+    if res.get("collection"):
+        dms_resource_type_general = DMS_RESOURCE_TYPE_COLLECTION
+    elif res_is_dataset:
         # Dataset: corpus, lexicon, ...
-        if utils.get_key_value(res, "collection") is True:
-            dms_resource_type_general = DMS_RESOURCE_TYPE_COLLECTION
-        else:
-            dms_resource_type_general = DMS_RESOURCE_TYPE_DATASET
-    else:  # noqa: PLR5501
+        dms_resource_type_general = DMS_RESOURCE_TYPE_DATASET
+    else:
         # analysis/utility
-        if utils.get_key_value(res, "collection") is True:
-            dms_resource_type_general = DMS_RESOURCE_TYPE_COLLECTION
-        else:
-            dms_resource_type_general = DMS_RESOURCE_TYPE_ANALYSIS
+        dms_resource_type_general = DMS_RESOURCE_TYPE_ANALYSIS
     dms_json["data"]["attributes"]["types"] = {
         "resourceType": dms_resource_type,
         "resourceTypeGeneral": dms_resource_type_general,
@@ -707,7 +699,7 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
 
     # 13. On. Size
     if res_is_dataset:
-        value = utils.get_res_size(utils.get_key_value(res, "size"))
+        value = utils.get_res_size(res)
         if value:
             dms_json["data"]["attributes"]["size"] = value
 
@@ -720,21 +712,20 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
         dms_json["data"]["attributes"]["rightsList"] = rights_list
     # 17. Rn. Descriptions
     dms_json["data"]["attributes"]["descriptions"] = []
-    value_swe = utils.get_key_value(res, "description", "swe")
-    value_eng = utils.get_key_value(res, "description", "eng")
+    description_swe = utils.get_nested_value(res, "description", "swe")
+    description_eng = utils.get_nested_value(res, "description", "eng")
     # Swedish
-    if value_swe:
-        value = value_swe
-    elif value_eng:
-        value = value_eng
-    else:
-        value = utils.get_key_value(res, "short_description", "swe")
-
-    if value:
-        dms_description = utils.get_clean_string(value)
+    if not description_swe and description_eng:
+        # Backoff 1: use English description
+        description_swe = description_eng
+    if not description_swe:
+        # Backoff 2: use short description
+        description_swe = utils.get_nested_value(res, "short_description", "swe")
+    if description_swe:
+        dms_description = utils.get_clean_string(description_swe)
         if not res_is_dataset:
-            value = utils.get_key_value(res, "example")
-            dms_description += "\n" + DMS_TITLE_EXAMPLE_SWE + "\n" + utils.get_clean_string(value)
+            description_swe = res.get("example", "")
+            dms_description += "\n" + DMS_TITLE_EXAMPLE_SWE + "\n" + utils.get_clean_string(description_swe)
         dms_json["data"]["attributes"]["descriptions"].append(
             {
                 "lang": DMS_LANG_SWE,
@@ -743,15 +734,14 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
             }
         )
     # English
-    if not value_eng:  # noqa: SIM108
-        value = utils.get_key_value(res, "short_description", "eng")
-    else:
-        value = value_eng
-    if value:
-        dms_description = utils.get_clean_string(value)
+    if not description_eng:
+        # Backoff: use short description
+        description_eng = utils.get_nested_value(res, "short_description", "eng")
+    if description_eng:
+        dms_description = utils.get_clean_string(description_eng)
         if not res_is_dataset:
-            value = utils.get_key_value(res, "example")
-            dms_description += "\n" + DMS_TITLE_EXAMPLE_ENG + "\n" + utils.get_clean_string(value)
+            description_eng = res.get("example", "")
+            dms_description += "\n" + DMS_TITLE_EXAMPLE_ENG + "\n" + utils.get_clean_string(description_eng)
         dms_json["data"]["attributes"]["descriptions"].append(
             {
                 "lang": DMS_LANG_ENG,

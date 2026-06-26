@@ -85,22 +85,16 @@ def ensure_collection_entry(collections: dict, res_id: str, relation_type: str) 
 
 
 def is_dataset(resource: dict) -> bool:
-    """Return True is resource is a dataset (corpus, lexicon, model, training data), false if it is an analysis.
+    """Return True if resource is a dataset (corpus, lexicon, model, training data).
 
-    Args:
-        resource: a resource dict
-
-    Returns:
-        True if resource is dataset, i.e. not analysis/utility
+    Analyses and utilities are not datasets.
     """
-    return not (get_key_value(resource, "type") == "analysis" or get_key_value(resource, "type") == "utility")
+    return not (resource.get("type") == "analysis" or resource.get("type") == "utility")
 
 
 def get_res_type_str(dataset: bool) -> str:
     """Return string describing the resource."""
-    if dataset:
-        return DMS_RESOURCE_TYPE_DATASET
-    return DMS_RESOURCE_TYPE_ANALYSIS
+    return DMS_RESOURCE_TYPE_DATASET if dataset else DMS_RESOURCE_TYPE_ANALYSIS
 
 
 def get_res_languages(resource: dict) -> tuple[str, list]:
@@ -138,11 +132,10 @@ def get_res_languages(resource: dict) -> tuple[str, list]:
     return "", languages_info
 
 
-def get_res_size(size_list: dict) -> str:
+def get_res_size(res: dict) -> str:
     """Create string of resource size info, e.g. 'sentences: 10. tokens: 1000'."""
-    if not isinstance(size_list, dict):
-        return ""
-    return ". ".join(f"{key}: {value}" for key, value in size_list.items())
+    size_dict = res.get("size", {})
+    return ". ".join(f"{key}: {value}" for key, value in size_dict.items())
 
 
 def get_res_license(item: dict) -> dict:
@@ -151,14 +144,11 @@ def get_res_license(item: dict) -> dict:
     Returns:
         rightsList item
     """
-    rights = item.get("license", "")  # eg "CC BY 4.0"
+    rights = item.get("license")  # eg "CC BY 4.0"
     if not rights:
         return {}
 
-    if rights == DMS_LICENSE_OTHER:  # noqa: SIM108
-        rights_str = item.get("license_other", "")
-    else:
-        rights_str = rights
+    rights_str = item.get("license_other", "") if rights == DMS_LICENSE_OTHER else rights
 
     return {
         "rights": rights_str,
@@ -186,7 +176,7 @@ def get_res_rights(res: dict, is_dataset: bool) -> list:
     rights_ids = set()
 
     if is_dataset:
-        add_rights(get_key_value(res, "downloads"))
+        add_rights(res.get("downloads", []))
 
     else:
         # Resource is an analysis, so check for license in three places: top level, tools, models
@@ -199,59 +189,51 @@ def get_res_rights(res: dict, is_dataset: bool) -> list:
 
 def get_res_creators(res: dict) -> list:
     """Build creators structure."""
-    # Creator is Språkbanken Text as default, but could be people
     creators = res.get("creators", [])
-    # If creators are people
     if creators:
-        dms_creators = [{"name": creator, "nameType": "Personal"} for creator in creators]
-    else:
-        dms_creators = [
-            {
-                "name": DMS_CREATOR_NAME,
-                "nameType": "Organizational",
-                "nameIdentifiers": [
-                    {
-                        "schemeURI": "https://ror.org/",
-                        "nameIdentifier": DMS_CREATOR_ROR,
-                        "nameIdentifierScheme": "ROR",
-                    }
-                ],
-            }
-        ]
-    return dms_creators
+        return [{"name": creator, "nameType": "Personal"} for creator in creators]
+    # Return default creator (Språkbanken) if no creators are provided
+    return [
+        {
+            "name": DMS_CREATOR_NAME,
+            "nameType": "Organizational",
+            "nameIdentifiers": [
+                {
+                    "schemeURI": "https://ror.org/",
+                    "nameIdentifier": DMS_CREATOR_ROR,
+                    "nameIdentifierScheme": "ROR",
+                }
+            ],
+        }
+    ]
 
 
 def get_res_keywords(res: dict) -> list:
-    """Build keywords structure."""
+    """Build keywords structure, return empty list if no keywords."""
     keywords = res.get("keywords", [])
-    if keywords:  # noqa: SIM108
-        dms_keywords = [{"subject": keyword, "subjectScheme": "keyword"} for keyword in keywords]
-    else:
-        dms_keywords = []
-    return dms_keywords
+    return [{"subject": keyword, "subjectScheme": "keyword"} for keyword in keywords]
 
 
 def get_res_dates(res: dict) -> tuple[str, str]:
     """Return 'created' and 'updated' dates as strings and check that they are valid."""
-    created = get_key_value(res, "created")
-    if created:
-        if type(created) is str:
-            created_str = created
-        else:
-            # Assume type is date
-            created_str = datetime.datetime.strftime(created, "%Y-%m-%d") if created else ""
-    else:
-        created_str = ""
+    def get_date_str(date: Any) -> str:
+        if not date:
+            return ""
+        if isinstance(date, str):
+            try:
+                # Try to parse the string as a date
+                datetime.datetime.strptime(date, "%Y-%m-%d")
+            except Exception:
+                logger.warning("Invalid date format: %s. Expected YYYY-MM-DD.", date)
+                return ""
+            return date
+        if isinstance(date, datetime.date):
+            return date.strftime("%Y-%m-%d")
+        return ""
 
-    updated = get_key_value(res, "updated")
-    if updated:
-        if type(updated) is str:
-            updated_str = updated
-        else:
-            # Assume type is date
-            updated_str = datetime.datetime.strftime(updated, "%Y-%m-%d") if updated else ""
-    else:
-        updated_str = ""
+    created_str = get_date_str(res.get("created"))
+    updated_str = get_date_str(res.get("updated"))
+
     return created_str, updated_str
 
 
@@ -272,26 +254,15 @@ def get_clean_string(string: str) -> str:
     return re.sub(r"\n\s*\n", "\n\n", text)
 
 
-def get_key_value(dictionary: dict, key: str, key2: str | None = None) -> Any:
-    """Return key value from dictionary, else empty string."""
+def get_nested_value(dictionary: dict, key: str, key2: str | None = None) -> Any:
+    """Return the value for one or two nested dictionary keys, return an empty string if any key is missing."""
     if key2 is None:
         return dictionary.get(key, "")
-    if key in dictionary:
-        value = get_key_value(dictionary[key], key2)
-        return value or ""
-    return ""
+    return dictionary.get(key, {}).get(key2, "")
 
 
-def get_doi_from_rid(res: dict, rid: str) -> str:
-    """Return DOI belonging to a resource ID.
-
-    Args:
-        res: Resources
-        rid: resource ID
-
-    Returns:
-        DOI or "" if rid not found.
-    """
-    if rid in res and "doi" in res[rid]:
-        return res[rid]["doi"]
+def get_doi_from_rid(res: dict, res_id: str) -> str:
+    """Return DOI belonging to a resource ID or empty string if not found."""
+    if res_id in res and "doi" in res[res_id]:
+        return res[res_id]["doi"]
     return ""
