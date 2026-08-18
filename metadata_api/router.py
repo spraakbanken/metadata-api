@@ -42,9 +42,6 @@ def list_resources(
         default=None, alias="resource-type", title="Resource type", examples=["corpus"], enum=settings.RESOURCE_TYPES
     ),
     resource: str | None = Query(default=None, title="Resource ID", examples=["attasidor"]),
-    legacy: bool = Query(
-        default=True, description="If true, use legacy response format ('corpora' instead of 'corpus' etc.).",
-    ),
 ) -> JSONResponse:
     """List metadata for all resources, all resources of a given type or a single resource by ID.
 
@@ -71,10 +68,8 @@ def list_resources(
             # Return a single resource by ID
             resources_dict = utils.load_resources(settings.RESOURCES, settings.STATIC, cache_client=cache_client)
             return JSONResponse(utils.get_single_resource(resource, resources_dict, cache_client=cache_client))
-        # Return all resources in legacy or modern format
-        resources_dict = utils.load_resources(
-            settings.RESOURCES, settings.STATIC, cache_client=cache_client, legacy=legacy
-        )
+        # Return all resources
+        resources_dict = utils.load_resources(settings.RESOURCES, settings.STATIC, cache_client=cache_client)
         return JSONResponse({k: utils.dict_to_list(v) for k, v in resources_dict.items()})
 
 
@@ -119,22 +114,6 @@ def get_source_metadata(
     return JSONResponse(data)
 
 
-def _resource_list_factory(resource_type: str) -> Any:
-    """Create resource list endpoint functions.
-
-    Args:
-        resource_type: The resource type in plural (e.g. 'corpora').
-    """
-    def resource_list() -> JSONResponse:
-        with cache.get_client() as cache_client:
-            filtered = utils.load_json(
-                settings.STATIC / settings.RESOURCES.get(resource_type, ""),
-                cache_client=cache_client,
-            )
-        data = utils.dict_to_list(filtered)
-        return JSONResponse({"resource_type": resource_type, "hits": len(data), "resources": data})
-
-    return resource_list
 
 
 @router.get("/list-ids", response_model=list[str], tags=["Metadata retrieval"], summary="List resource IDs")
@@ -153,41 +132,6 @@ def bibtex(
     with cache.get_client() as cache_client:
         resources_dict = utils.load_resources(settings.RESOURCES, settings.STATIC, cache_client=cache_client)
         return JSONResponse({"bibtex": utils.get_bibtex(resource, resources_dict)})
-
-
-for resource_type in settings.RESOURCES:
-    res_type_name = settings.RESOURCES[resource_type].split(".")[0]
-    # Add deprecated route for backward compatibility
-    router.add_api_route(
-        f"/{resource_type}",
-        _resource_list_factory(resource_type),
-        response_model=models.ResourceList,
-        methods=["GET"],
-        deprecated=True,
-        tags=["Metadata retrieval"],
-        summary=f"List {res_type_name}",
-        description=f"List all resources of type '{res_type_name}'."
-        f"\n\nPlease use `/?resource_type={res_type_name}` route instead."
-        "\n\nRefer to the /schema endpoint for the exact JSON schema of the metadata.",
-    )
-
-
-@router.get(
-    "/collections",
-    response_model=models.CollectionsList,
-    deprecated=True,
-    tags=["Metadata retrieval"],
-    summary="List collections",
-)
-def list_collections() -> JSONResponse:
-    """List all resource collections.
-
-    Refer to the `/schema` endpoint for the exact JSON schema of the metadata.
-    """
-    with cache.get_client() as cache_client:
-        collections = utils.load_json(settings.STATIC / settings.COLLECTIONS_FILE, cache_client=cache_client)
-        data = utils.dict_to_list(collections)
-        return JSONResponse({"hits": len(data), "resources": data})
 
 
 # ------------------------------------------------------------------------------
@@ -316,12 +260,6 @@ async def openapi_json(request: Request) -> JSONResponse:
     if settings.ENV == "development":
         schema["servers"].insert(0, {"url": f"{base_url}{settings.ROOT_PATH}", "description": "Current server"})
     return JSONResponse(schema)
-
-
-@router.get("/doc", tags=["Documentation"], summary="OpenAPI schema", deprecated=True)
-async def openapi_alias(request: Request) -> dict:
-    """Serve the same JSON as /openapi.json (Backward-compatible alias)."""
-    return request.app.openapi()
 
 
 @router.get("/redoc", tags=["Documentation"], summary="ReDoc API documentation", response_class=HTMLResponse)

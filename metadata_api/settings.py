@@ -20,14 +20,9 @@ class Settings(BaseSettings):
     LOG_TO_FILE: bool = True  # Always log to console; if True, also log to a file in LOG_DIR
 
     RESOURCE_TYPES: list[str] = ["corpus", "lexicon", "model", "analysis", "utility", "collection"]
-    # Resource types and their corresponding data files (relative to "static" directory)
-    RESOURCES: dict[str, str] = {
-        "corpora": "corpus.json",
-        "lexicons": "lexicon.json",
-        "models": "model.json",
-        "analyses": "analysis.json",
-        "utilities": "utility.json",
-    }
+    # Resource data files (relative to "static" directory)
+    RESOURCES: list[str] = ["corpus.json", "lexicon.json", "model.json", "analysis.json", "utility.json"]
+
     # Other files relative to "static" directory
     RESOURCE_TEXTS_FILE: str = "resource-texts.json"
     COLLECTIONS_FILE: str = "collection.json"

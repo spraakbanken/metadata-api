@@ -9,8 +9,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Added a new route `/source/[resource_type]/[resource-id]` for retrieving the source metadata for a resource (without
   applying metadata processing).
-- Collections now have a `updated` field in the metadata, which - if not set explicitly - is set to the latest `updated`
-  date of all resources in the collection.
+- Collections now have an `updated` field in the metadata, which - if not set explicitly - is set to the latest
+  `updated` date of all resources in the collection.
 
 ### Changed
 
@@ -35,6 +35,11 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Removed
 
 - Removed `gen_pids.sh` script. Use `uv run -m gen_pids.gen_pids` instead.
+- Removed the deprecated `/corpora`, `/lexicons`, `/models`, `/analyses`, `/utilities` and `/collections` routes.
+  Use the main `/` route with the `resource` parameter instead.
+- Removed the `legacy` query parameter from the `/` route. The legacy response format (using `corpora`, `lexicons`,
+  etc.) is no longer supported.
+- Removed the deprecated `/doc` route serving the OpenAPI documentation in YAML format. Use `/openapi.json` instead.
 
 ## [3.3.1] - 2026-03-09
 

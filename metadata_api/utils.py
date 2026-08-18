@@ -108,12 +108,12 @@ def get_single_resource(
 
 
 def load_resources(
-    resource_mapping: dict[str, str], static_path: Path, cache_client: Client | None = None, legacy: bool = True
+    resource_files: list[str], static_path: Path, cache_client: Client | None = None
 ) -> dict[str, Any]:
     """Load all resource types from JSON from cache or files.
 
     Args:
-        resource_mapping: Mapping of resource types to their corresponding JSON files.
+        resource_files: List of JSON files to load.
         static_path: Path to the static folder.
         cache_client: Memcache client to use.
         legacy: Whether to use legacy keys (True) or singular keys (False).
@@ -122,11 +122,8 @@ def load_resources(
         Dictionary containing resource dictionaries.
     """
     resources = {}
-    for res_type, res_file in resource_mapping.items():
-        if legacy:
-            resources[res_type] = load_json(static_path / res_file, cache_client=cache_client)
-        else:
-            resources[res_file[:-5]] = load_json(static_path / res_file, cache_client=cache_client)
+    for res_file in resource_files:
+        resources[res_file[:-5]] = load_json(static_path / res_file, cache_client=cache_client)
     return resources
 
 
