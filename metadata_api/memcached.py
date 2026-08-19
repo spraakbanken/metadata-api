@@ -39,8 +39,8 @@ class CacheManager:
             return
 
         try:
-            from pymemcache import serde  # noqa: PLC0415
-            from pymemcache.client.base import Client  # noqa: PLC0415
+            from pymemcache import serde  # ruff: ignore[import-outside-top-level]
+            from pymemcache.client.base import Client  # ruff: ignore[import-outside-top-level]
         except ImportError:
             logger.warning("Library pymemcache not available, disabling caching.")
             yield None

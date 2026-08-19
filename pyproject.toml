@@ -27,7 +27,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pyright>=1.1.410",
+    "ruff",
+    "pyright>=1.1.411",
     "pytest>=9.0.2",
 ]
 
@@ -47,8 +48,8 @@ select = [
     "C4",     # flake8-comprehensions
     "COM",    # flake8-commas
     "D",      # pydocstyle
-    "D400",   # pydocstyle: ends-in-period
-    "D401",   # pydocstyle: non-imperative-mood
+    "missing-trailing-period",   # pydocstyle
+    "non-imperative-mood",   # pydocstyle
     "E",      # pycodestyle: errors
     "F",      # Pyflakes
     "FLY",    # flynt
@@ -73,13 +74,13 @@ select = [
     "W",      # pycodestyle: warnings
 ]
 ignore = [
-    "ANN401",  # flake8-annotations: any-type
-    "B008",    # flake8-bugbear: function-call-in-default-argument
-    "COM812",  # flake8-commas: missing-trailing-comma
-    "E741",    # pycodestyle: ambiguous-variable-name
-    "PLR09",   # Pylint: too-many-*
-    "PLR1702", # Pylint: too-many-nested-blocks
-    "SIM105",  # flake8-simplify: suppressible-exception
+    "any-type",  # flake8-annotations
+    "function-call-in-default-argument",  # flake8-bugbear
+    "missing-trailing-comma",  # flake8-commas
+    "ambiguous-variable-name",  # pycodestyle
+    "PLR09",  # Pylint: too-many-*
+    "too-many-nested-blocks",  # Pylint
+    "suppressible-exception",  # flake8-simplify
 ]
 
 preview = true

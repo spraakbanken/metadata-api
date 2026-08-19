@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator:  # noqa: RUF029
+async def lifespan(_app: FastAPI) -> AsyncGenerator:
     """Manage application startup and shutdown."""
     logger.info("Starting Metadata API version %s", API_VERSION)
     cache.initialize(settings.MEMCACHED_SERVER)
@@ -73,7 +73,7 @@ async def log_requests(request: Request, call_next: Callable) -> JSONResponse:
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:  # noqa: ARG001, RUF029
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:  # ruff: ignore[unused-function-argument, unused-async]
     """Handle request validation errors with detailed human-readable feedback."""
     logger.warning("Validation error: %s", exc)
     exc_errors = jsonable_encoder(exc.errors())
@@ -92,7 +92,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:  # noqa: ARG001, RUF029
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:  # ruff: ignore[unused-function-argument, unused-async]
     """Handle HTTP errors (e.g., 400/404) with concise messages."""
     if exc.status_code == status.HTTP_400_BAD_REQUEST:
         logger.warning("Bad Request: %s", exc.detail)
@@ -107,7 +107,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 
 
 @app.exception_handler(Exception)
-async def server_error_handler(request: Request, exc: Exception) -> JSONResponse:  # noqa: ARG001, RUF029
+async def server_error_handler(request: Request, exc: Exception) -> JSONResponse:  # ruff: ignore[unused-function-argument, unused-async]
     """Handle uncaught server errors (500)."""
     tb = traceback.format_exc()
     logger.error("Server Error: %s\nTraceback: %s", exc, tb)

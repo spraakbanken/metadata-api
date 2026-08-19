@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from metadata_api.parse_yaml import _get_validator, _process_yaml_file  # noqa: PLC2701
+from metadata_api.parse_yaml import _get_validator, _process_yaml_file  # ruff: ignore[import-private-name]
 from metadata_api.settings import settings
 
 YAML_CONTENT: str = """

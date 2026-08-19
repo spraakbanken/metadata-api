@@ -88,9 +88,9 @@ def build_datacite_client(logger: logging.Logger | None = None) -> DataCiteClien
     except Exception:
         log.critical("Failed to retrieve DataCite authenticators from netrc. Exiting.")
         log.critical(traceback.format_exc())
-        # TODO: when rewriting the API (https://github.com/spraakbanken/metadata-api/issues/26) this file might no longer
-        # be a script but instead a module which is imported. Then we don't want to exit the whole program here, but
-        # rather raise an exception that can be caught by the caller.
+        # TODO: when rewriting the API (https://github.com/spraakbanken/metadata-api/issues/26) this file might no
+        # longer be a script but instead a module which is imported. Then we don't want to exit the whole program here,
+        # but rather raise an exception that can be caught by the caller.
         sys.exit()
 
     return DataCiteClient(

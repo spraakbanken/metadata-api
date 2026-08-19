@@ -114,8 +114,6 @@ def get_source_metadata(
     return JSONResponse(data)
 
 
-
-
 @router.get("/list-ids", response_model=list[str], tags=["Metadata retrieval"], summary="List resource IDs")
 def list_ids() -> JSONResponse:
     """List all resource IDs."""

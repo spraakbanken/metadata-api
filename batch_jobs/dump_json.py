@@ -1,5 +1,7 @@
 """Get json metadata from SB's metadata API and save it (if it does not exist already)."""
 
+# ruff: file-ignore[print]
+
 import json
 import sys
 from pathlib import Path

@@ -24,7 +24,7 @@ class IndentDumper(yaml.Dumper):
     https://reorx.com/blog/python-yaml-tips/#enhance-list-indentation-dump
     """
 
-    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:  # noqa: ARG002
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:  # ruff: ignore[unused-method-argument]
         """Increase the indentation level."""
         return super().increase_indent(flow, indentless=False)
 
@@ -38,20 +38,22 @@ def read_header_comment(filepath: Path) -> str:
     header_lines: list[str] = []
     saw_comment = False
     try:
-        with filepath.open(encoding="utf-8") as file_yaml:
-            for line in file_yaml:
-                stripped = line.lstrip()
-                if stripped.startswith("#"):
-                    header_lines.append(line.rstrip("\n"))
-                    saw_comment = True
-                    continue
-                if not stripped:
-                    if saw_comment:
-                        header_lines.append(line.rstrip("\n"))
-                    continue
-                break
+        file_yaml = filepath.open(encoding="utf-8")
     except Exception:
         return ""
+
+    with file_yaml:
+        for line in file_yaml:
+            stripped = line.lstrip()
+            if stripped.startswith("#"):
+                header_lines.append(line.rstrip("\n"))
+                saw_comment = True
+                continue
+            if not stripped:
+                if saw_comment:
+                    header_lines.append(line.rstrip("\n"))
+                continue
+            break
 
     if not saw_comment:
         return ""

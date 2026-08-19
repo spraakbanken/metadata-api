@@ -86,7 +86,7 @@ def _get_download_date_(url: str, resource: str) -> datetime.date | None:
 
     if date:
         return datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").date()  # .strftime("%Y-%m-%d")
-    if res.status_code == 404:  # noqa: PLR2004
+    if res.status_code == 404:  # ruff: ignore[magic-value-comparison]
         logger.error("Error: Could not find downloadable for '%s': %s", resource, url)
     return None
 

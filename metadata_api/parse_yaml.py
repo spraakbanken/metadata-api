@@ -388,7 +388,7 @@ def _get_download_metadata(url: str, name: str, res_type: str) -> tuple[int | No
         return size, date
     if date:
         date = datetime.datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %Z").strftime("%Y-%m-%d")
-    if res.status_code == 404:  # noqa: PLR2004
+    if res.status_code == 404:  # ruff: ignore[magic-value-comparison]
         logger.error("Could not find downloadable for '%s/%s': %s", res_type, name, url)
     return size, date
 
@@ -514,7 +514,7 @@ def _get_license_info(purge_cache: bool = False) -> dict:
 
     if purge_cache or not license_file.exists():
         # Download license information from URL and save to static folder
-        try:  # noqa: PLW0717
+        try:  # ruff: ignore[too-many-statements-in-try-clause]
             res = requests.get(settings.LICENSE_INFO_URL, timeout=30)
             res.raise_for_status()
             license_data = res.json()

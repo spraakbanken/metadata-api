@@ -201,61 +201,56 @@ def create_bibtex(resource: dict[str, Any]) -> str:
     Returns:
         BibTeX entry as a string.
     """
-    try:
-        f_doi = resource.get("doi", "")
-        f_id = resource.get("id", "")  # id/slug/maskinnamn
-        f_creators = resource.get("creators", [])  # creators, "Skapad av"
-        f_author = " and ".join(f_creators) if len(f_creators) > 0 else "Språkbanken Text"
-        f_words = resource.get("keywords", [])
-        f_words.insert(0, "Language Technology (Computational Linguistics)")
-        f_keywords = ", ".join(f_words)
-        f_languages = resource.get("languages", [])
-        if len(f_languages) > 0:
-            f_language = f_languages[0].get("code", "")
-            for item in f_languages[1:]:
-                f_language += ", " + item.get("code", "")
-        else:
-            f_language = ""
-        f_title = resource["name"].get("eng", "")
-        if f_title:
-            f_title = resource["name"].get("swe", "")
-        # Get year, fallback to current year
-        f_year = str(datetime.datetime.now().date().year)
-        f_updated = resource.get("updated", "")
-        if f_updated:
-            f_year = f_updated[:4]
-        else:
-            f_created = resource.get("created", "")
-            if f_created:
-                f_year = f_created[:4]
+    f_doi = resource.get("doi", "")
+    f_id = resource.get("id", "")  # id/slug/maskinnamn
+    f_creators = resource.get("creators", [])  # creators, "Skapad av"
+    f_author = " and ".join(f_creators) if len(f_creators) > 0 else "Språkbanken Text"
+    f_words = resource.get("keywords", [])
+    f_words.insert(0, "Language Technology (Computational Linguistics)")
+    f_keywords = ", ".join(f_words)
+    f_languages = resource.get("languages", [])
+    if len(f_languages) > 0:
+        f_language = f_languages[0].get("code", "")
+        for item in f_languages[1:]:
+            f_language += ", " + item.get("code", "")
+    else:
+        f_language = ""
+    f_title = resource["name"].get("eng", "")
+    if f_title:
+        f_title = resource["name"].get("swe", "")
+    # Get year, fallback to current year
+    f_year = str(datetime.datetime.now().date().year)
+    f_updated = resource.get("updated", "")
+    if f_updated:
+        f_year = f_updated[:4]
+    else:
+        f_created = resource.get("created", "")
+        if f_created:
+            f_year = f_created[:4]
 
-        # Target URL
-        match resource["type"]:
-            case "analysis" | "utility":
-                f_url = "https://spraakbanken.gu.se/analyser/"
-            case "corpus" | "lexicon" | "model":
-                f_url = "https://spraakbanken.gu.se/resurser/"
-            case _:
-                # Fallback
-                f_url = "https://spraakbanken.gu.se/resurser/"
+    # Target URL
+    match resource["type"]:
+        case "analysis" | "utility":
+            f_url = "https://spraakbanken.gu.se/analyser/"
+        case "corpus" | "lexicon" | "model":
+            f_url = "https://spraakbanken.gu.se/resurser/"
+        case _:
+            # Fallback
+            f_url = "https://spraakbanken.gu.se/resurser/"
 
-        # Build bibtex string
-        return (
-            f"@misc{{{f_id},\n"
-            f"  doi = {{{f_doi}}},\n"
-            f"  url = {{{f_url}{f_id}}},\n"
-            f"  author = {{{f_author}}},\n"
-            f"  keywords = {{{f_keywords}}},\n"
-            f"  language = {{{f_language}}},\n"
-            f"  title = {{{f_title}}},\n"
-            f"  publisher = {{Språkbanken Text}},\n"
-            f"  year = {{{f_year}}}\n"
-            "}"
-        )
-
-    except Exception as e:
-        logger.exception("Error creating BibTeX entry")
-        return "Error:" + str(e)
+    # Build bibtex string
+    return (
+        f"@misc{{{f_id},\n"
+        f"  doi = {{{f_doi}}},\n"
+        f"  url = {{{f_url}{f_id}}},\n"
+        f"  author = {{{f_author}}},\n"
+        f"  keywords = {{{f_keywords}}},\n"
+        f"  language = {{{f_language}}},\n"
+        f"  title = {{{f_title}}},\n"
+        f"  publisher = {{Språkbanken Text}},\n"
+        f"  year = {{{f_year}}}\n"
+        "}"
+    )
 
 
 def send_to_slack(message: str, slack_webhook: str) -> None:

@@ -285,6 +285,40 @@ def assign_doi(
         no_update: flag indicating no update mode
         force_update: flag indicating force update mode
     """
+
+    def process_single_resource_doi(res_id: str, res: dict, filepath: Path, short_filepath: Path) -> None:
+        """Assign or update DOI metadata for a single resource."""
+        res_is_dataset = utils.is_dataset(res)
+
+        # Does the resource already have a DOI?
+        if DOI_KEY not in res:
+            # Does resource already exist at Datacite? (DOI may have been deleted from YAML)
+            doi = dms_doi_get(res_id, short_filepath, datacite_client)
+            if not doi:
+                # Generate DOI and Datacite metadata record
+                if dry_run:
+                    logger.debug("Dry run: would create DOI for '%s'", short_filepath)
+                    return
+                doi = dms_new(res_id, res, res_is_dataset, short_filepath, datacite_client)
+                if not doi:
+                    logger.error("Error creating DOI '%s' for YAML '%s'", doi, short_filepath)
+                    return
+
+            if not dry_run:
+                # Update YAML with new DOI
+                logger.debug("Assign DOI '%s' for '%s'", doi, short_filepath)
+                all_resources[res_id][DOI_KEY] = doi
+                try:
+                    dump_yaml.dump_with_header(filepath, all_resources[res_id])
+                except Exception:
+                    logger.error("Error adding DOI '%s' to YAML '%s'", doi, short_filepath)
+        elif not no_update:
+            if dry_run:
+                # Skip update check in dry-run mode
+                return
+            # DOI found: update existing DMS metadata
+            dms_update(res_id, res, res_is_dataset, force_update, short_filepath, datacite_client)
+
     logger.debug("Checking DOIs for %d resources...", len(process_resources))
     if dry_run:
         logger.info("Dry run: skipping update checks.")
@@ -294,35 +328,7 @@ def assign_doi(
         logger.debug("Checking DOI for resource '%s'", short_filepath)
         if res:
             try:
-                res_is_dataset = utils.is_dataset(res)
-                # Does the resource already have a DOI?
-                if DOI_KEY not in res:
-                    # Does resource already exist at Datacite? (DOI may have been deleted from YAML)
-                    doi = dms_doi_get(res_id, short_filepath, datacite_client)
-                    if not doi:
-                        # Generate DOI and Datacite metadata record
-                        if dry_run:
-                            logger.debug("Dry run: would create DOI for '%s'", short_filepath)
-                            continue
-                        doi = dms_new(res_id, res, res_is_dataset, short_filepath, datacite_client)
-                        if not doi:
-                            logger.error("Error creating DOI '%s' for YAML '%s'", doi, short_filepath)
-                            continue
-
-                    if not dry_run:
-                        # Update YAML with new DOI
-                        logger.debug("Assign DOI '%s' for '%s'", doi, short_filepath)
-                        all_resources[res_id][DOI_KEY] = doi
-                        try:
-                            dump_yaml.dump_with_header(filepath, all_resources[res_id])
-                        except Exception:
-                            logger.error("Error adding DOI '%s' to YAML '%s'", doi, short_filepath)
-                elif not no_update:
-                    if dry_run:
-                        # Skip update check in dry-run mode
-                        continue
-                    # DOI found: update existing DMS metadata
-                    dms_update(res_id, res, res_is_dataset, force_update, short_filepath, datacite_client)
+                process_single_resource_doi(res_id, res, filepath, short_filepath)
             except Exception:
                 logger.exception("Error while working on DOI for '%s'", short_filepath)
                 sys.exit(2)
@@ -351,43 +357,55 @@ def map_collections(all_resources: dict, yaml_paths: dict) -> dict:
     collections_count = 0
     in_collections_count = 0
 
+    def map_single_resource_collections(
+        res_id: str, res: dict, collections_count_ref: int, in_collections_count_ref: int
+    ) -> tuple[int, int]:
+        """Map collection membership relationships for a single resource."""
+        if res.get("collection") and res_id not in collections:
+            collections[res_id] = {}
+            collections[res_id][DMS_RELATION_TYPE_HASPART] = []
+
+        member_list = utils.expand_res_ref(res.get("resources", []), all_resources)
+        if member_list:
+            # logger.debug("Map resources for collection '%s'", short_filepath)
+            collections_count_ref += 1
+            for member_res_id in member_list:
+                if member_res_id not in collections:
+                    collections[member_res_id] = {}
+                    collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+
+                if DMS_RELATION_TYPE_HASPART not in collections[res_id]:
+                    collections[res_id][DMS_RELATION_TYPE_HASPART] = []
+                if member_res_id not in collections[res_id][DMS_RELATION_TYPE_HASPART]:
+                    collections[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
+                if res_id not in collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                    collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
+
+        parent_list = res.get("in_collections", [])
+        if parent_list:
+            # logger.debug("Map in_collections for resource '%s'", short_filepath)
+            in_collections_count_ref += len(parent_list)
+            for parent_res_id in parent_list:
+                if parent_res_id not in collections:
+                    collections[parent_res_id] = {}
+                    collections[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
+                if res_id not in collections:
+                    collections[res_id] = {}
+                if DMS_RELATION_TYPE_ISPARTOF not in collections[res_id]:
+                    collections[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
+                if parent_res_id not in collections[res_id][DMS_RELATION_TYPE_ISPARTOF]:
+                    collections[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
+                if res_id not in collections[parent_res_id][DMS_RELATION_TYPE_HASPART]:
+                    collections[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
+
+        return collections_count_ref, in_collections_count_ref
+
     for res_id, res in all_resources.items():
         short_filepath = yaml_paths[res_id].relative_to(YAML_DIR).with_suffix("")
         try:
-            if res.get("collection") and res_id not in collections:
-                collections[res_id] = {}
-                collections[res_id][DMS_RELATION_TYPE_HASPART] = []
-            member_list = utils.expand_res_ref(res.get("resources", []), all_resources)
-            if member_list:
-                # logger.debug("Map resources for collection '%s'", short_filepath)
-                collections_count += 1
-                for member_res_id in member_list:
-                    if member_res_id not in collections:
-                        collections[member_res_id] = {}
-                        collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF] = []
-
-                    if DMS_RELATION_TYPE_HASPART not in collections[res_id]:
-                        collections[res_id][DMS_RELATION_TYPE_HASPART] = []
-                    if member_res_id not in collections[res_id][DMS_RELATION_TYPE_HASPART]:
-                        collections[res_id][DMS_RELATION_TYPE_HASPART].append(member_res_id)
-                    if res_id not in collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                        collections[member_res_id][DMS_RELATION_TYPE_ISPARTOF].append(res_id)
-            parent_list = res.get("in_collections", [])
-            if parent_list:
-                # logger.debug("Map in_collections for resource '%s'", short_filepath)
-                in_collections_count += len(parent_list)
-                for parent_res_id in parent_list:
-                    if parent_res_id not in collections:
-                        collections[parent_res_id] = {}
-                        collections[parent_res_id][DMS_RELATION_TYPE_HASPART] = []
-                    if res_id not in collections:
-                        collections[res_id] = {}
-                    if DMS_RELATION_TYPE_ISPARTOF not in collections[res_id]:
-                        collections[res_id][DMS_RELATION_TYPE_ISPARTOF] = []
-                    if parent_res_id not in collections[res_id][DMS_RELATION_TYPE_ISPARTOF]:
-                        collections[res_id][DMS_RELATION_TYPE_ISPARTOF].append(parent_res_id)
-                    if res_id not in collections[parent_res_id][DMS_RELATION_TYPE_HASPART]:
-                        collections[parent_res_id][DMS_RELATION_TYPE_HASPART].append(res_id)
+            collections_count, in_collections_count = map_single_resource_collections(
+                res_id, res, collections_count, in_collections_count
+            )
         except Exception:
             logger.exception("Error when mapping collections for '%s'", short_filepath)
 
@@ -467,7 +485,9 @@ def update_dms_related(
             logger.exception("Error when updating DMS for '%s'", short_filepath)
 
 
-def dms_new(res_id: str, res: dict, res_is_dataset: bool, filepath: str, datacite_client: DataCiteClient) -> str:
+def dms_new(
+    res_id: str, res: dict, res_is_dataset: bool, filepath: str | Path, datacite_client: DataCiteClient
+) -> str:
     """Construct DMS and call Datacite API.
 
     Args:
@@ -521,7 +541,12 @@ def dms_new(res_id: str, res: dict, res_is_dataset: bool, filepath: str, datacit
 
 
 def dms_update(
-    res_id: str, res: dict, res_is_dataset: bool, force_update: bool, filepath: str, datacite_client: DataCiteClient
+    res_id: str,
+    res: dict,
+    res_is_dataset: bool,
+    force_update: bool,
+    filepath: str | Path,
+    datacite_client: DataCiteClient,
 ) -> bool:
     """Update existing DMS metadata.
 
@@ -565,7 +590,7 @@ def dms_update(
         # logger.debug(json.dumps(data_json["data"]["attributes"], indent=2, ensure_ascii=False))
         response = datacite_client.update_doi(doi, data_json)
 
-        if response.status_code >= 300:  # noqa: PLR2004
+        if response.status_code >= 300:  # ruff: ignore[magic-value-comparison]
             logger.error(
                 "Error updating '%s'. DOI: '%s'. status: '%s'. data: '%s'",
                 filepath,
@@ -592,7 +617,7 @@ def dms_create_json(res_id: str, res: dict, res_is_dataset: bool, dms_created: s
     Returns: Datacite records as JSON structure
     """
     # Target (landing page)
-    if res_is_dataset:  # noqa: SIM108
+    if res_is_dataset:  # ruff: ignore[if-else-block-instead-of-if-exp]
         # corpus, lexicon, model
         dms_target = DMS_TARGET_RESOURCE_PREFIX + res_id
     else:
@@ -769,7 +794,7 @@ def dms_related(
     is_part_of: list,
     obsoletes: list,
     is_obsoleted_by: list,
-    filepath: str,
+    filepath: str | Path,
     datacite_client: DataCiteClient,
 ) -> bool:
     """Set related identifiers for resource, both collections and members.
@@ -864,7 +889,7 @@ def dms_related(
     return False
 
 
-def dms_doi_get(res_id: str, filepath: str, datacite_client: DataCiteClient) -> str:
+def dms_doi_get(res_id: str, filepath: str | Path, datacite_client: DataCiteClient) -> str:
     """Metadata file could be autogenerated and DOI may have been deleted, so look up if existing at DataCite.
 
     Args:
@@ -909,7 +934,9 @@ def dms_doi_get(res_id: str, filepath: str, datacite_client: DataCiteClient) -> 
     return doi
 
 
-def dms_doi_get_updated(doi: str, filepath: str, datacite_client: DataCiteClient) -> tuple[str, str, str]:
+def dms_doi_get_updated(
+    doi: str, filepath: str | Path, datacite_client: DataCiteClient
+) -> tuple[str, str, str]:
     """Get date "Created", "Updated" and "publicationYear" of a DMS record.
 
     Args:
