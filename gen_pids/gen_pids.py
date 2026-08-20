@@ -485,9 +485,7 @@ def update_dms_related(
             logger.exception("Error when updating DMS for '%s'", short_filepath)
 
 
-def dms_new(
-    res_id: str, res: dict, res_is_dataset: bool, filepath: str | Path, datacite_client: DataCiteClient
-) -> str:
+def dms_new(res_id: str, res: dict, res_is_dataset: bool, filepath: str | Path, datacite_client: DataCiteClient) -> str:
     """Construct DMS and call Datacite API.
 
     Args:
@@ -934,9 +932,7 @@ def dms_doi_get(res_id: str, filepath: str | Path, datacite_client: DataCiteClie
     return doi
 
 
-def dms_doi_get_updated(
-    doi: str, filepath: str | Path, datacite_client: DataCiteClient
-) -> tuple[str, str, str]:
+def dms_doi_get_updated(doi: str, filepath: str | Path, datacite_client: DataCiteClient) -> tuple[str, str, str]:
     """Get date "Created", "Updated" and "publicationYear" of a DMS record.
 
     Args:

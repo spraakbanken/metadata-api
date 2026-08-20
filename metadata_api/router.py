@@ -31,6 +31,7 @@ redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
 # Metadata retrieval endpoints
 # ------------------------------------------------------------------------------
 
+
 @router.get(
     "/",
     response_model=models.AllResouresList | models.ResourceList | models.Resource,
@@ -164,6 +165,7 @@ def schema() -> JSONResponse:
 # Cache management endpoints
 # ------------------------------------------------------------------------------
 
+
 def _renew_cache(
     request_method: str,
     resource_paths: str | None,
@@ -183,14 +185,16 @@ def _renew_cache(
         raise HTTPException(status_code=409, detail="Too many cache renewals queued. Try again later.")
 
     try:
-        task = cast(Task, renew_cache_task).apply_async(kwargs={
-            "request_method": request_method,
-            "resource_paths": paths_list,
-            "debug": debug,
-            "offline": offline,
-            "payload": payload if request_method == "POST" else None,
-            "purge_license_cache": purge_license_cache,
-        })
+        task = cast(Task, renew_cache_task).apply_async(
+            kwargs={
+                "request_method": request_method,
+                "resource_paths": paths_list,
+                "debug": debug,
+                "offline": offline,
+                "payload": payload if request_method == "POST" else None,
+                "purge_license_cache": purge_license_cache,
+            }
+        )
     except Exception as e:
         # Roll back the slot if enqueue failed
         redis_client.decr(settings.PENDING_KEY)
@@ -249,6 +253,7 @@ def renew_cache_post(
 # ------------------------------------------------------------------------------
 # Documentation endpoints
 # ------------------------------------------------------------------------------
+
 
 @router.get("/openapi.json", tags=["Documentation"], summary="OpenAPI schema", response_class=JSONResponse)
 async def openapi_json(request: Request) -> JSONResponse:

@@ -160,9 +160,7 @@ def renew_cache_task(
 
         if errors or warnings:
             logger.warning("Cache renewal completed with errors or warnings:\n%s", "\n".join(errors + warnings))
-            utils.send_to_slack(
-                "Cache renewal completed.\n" + "\n".join(errors + warnings), settings.SLACK_WEBHOOK
-            )
+            utils.send_to_slack("Cache renewal completed.\n" + "\n".join(errors + warnings), settings.SLACK_WEBHOOK)
 
         logger.info("Cache renewal task finished successfully.")
         return success

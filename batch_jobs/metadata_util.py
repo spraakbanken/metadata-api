@@ -43,6 +43,7 @@ parser.add_argument("--add-missing-only", action="store_true", help="Only add 'u
 # Export
 # -----------------------------------------------------------------------------
 
+
 def get_key_value(dictionary: dict, key: str, key2: str | None = None) -> str:
     """Return value from dictionary with 'key' or 'key2' if present, else empty string."""
     if key2 is None:
@@ -67,11 +68,17 @@ def export_resources_to_tsv() -> None:
             with filepath.open(encoding="utf-8") as file_yaml:
                 res = yaml.safe_load(file_yaml)
                 res_type = "collection" if get_key_value(res, "collection") is True else get_key_value(res, "type")
-                file_csv.write(get_key_value(res, "name", "swe")
-                                        + export_tab + get_key_value(res, "name", "eng")
-                                        + export_tab + res_type
-                                        + export_tab + DMS_TARGET_URL_PREFIX + res_id
-                                        + export_newline)
+                file_csv.write(
+                    get_key_value(res, "name", "swe")
+                    + export_tab
+                    + get_key_value(res, "name", "eng")
+                    + export_tab
+                    + res_type
+                    + export_tab
+                    + DMS_TARGET_URL_PREFIX
+                    + res_id
+                    + export_newline
+                )
 
 
 # -----------------------------------------------------------------------------

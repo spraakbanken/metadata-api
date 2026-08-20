@@ -38,11 +38,13 @@ def expand_res_ref(res_refs: list[str], all_resources: dict) -> list[str]:
     for res_ref in res_refs:
         if "/" in res_ref:
             res_type, res_id_part = res_ref.split("/", 1)
-            expanded_res_ids.extend([
-                res_id
-                for res_id, res_data in all_resources.items()
-                if res_data.get("type") == res_type and wildcard_match(res_id_part, res_id)
-            ])
+            expanded_res_ids.extend(
+                [
+                    res_id
+                    for res_id, res_data in all_resources.items()
+                    if res_data.get("type") == res_type and wildcard_match(res_id_part, res_id)
+                ]
+            )
         if "*" in res_ref or "?" in res_ref:
             expanded_res_ids.extend([res_id for res_id in all_resources if wildcard_match(res_ref, res_id)])
         else:
@@ -118,7 +120,7 @@ def get_res_languages(resource: dict) -> tuple[str, list]:
             "schemeURI": DMS_LANGUAGE_SCHEME_URI,
             "valueURI": f"{DMS_LANGUAGE_SCHEME_URI}/{code}",
             "classificationCode": code,
-            "lang": code
+            "lang": code,
         }
         languages_info.append(lang)
 
@@ -161,6 +163,7 @@ def get_res_license(item: dict) -> dict:
 
 def get_res_rights(res: dict, is_dataset: bool) -> list:
     """Create list of dict of resource rights information, unique by rightsIdentifier."""
+
     def add_rights(somelist: list) -> None:
         """Add rights from a list of items to the result list."""
         if not somelist:
@@ -216,6 +219,7 @@ def get_res_keywords(res: dict) -> list:
 
 def get_res_dates(res: dict) -> tuple[str, str]:
     """Return 'created' and 'updated' dates as strings and check that they are valid."""
+
     def get_date_str(date: Any) -> str:
         if not date:
             return ""

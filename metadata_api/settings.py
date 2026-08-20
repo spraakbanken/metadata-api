@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     """Default app settings."""
+
     ENV: str = "production"  # Environment: production or development
     STATIC: Path = Path(__file__).parent / "static"
     ROOT_PATH: str = ""  # Root path for the API, e.g. "/metadata-api" if served from a subpath
@@ -29,7 +30,9 @@ class Settings(BaseSettings):
     LICENSE_INFO_FILE: str = "license-info.json"
 
     # URL to SPDX licenses JSON data
-    LICENSE_INFO_URL: str = "https://raw.githubusercontent.com/spdx/license-list-data/refs/heads/main/json/licenses.json"
+    LICENSE_INFO_URL: str = (
+        "https://raw.githubusercontent.com/spdx/license-list-data/refs/heads/main/json/licenses.json"
+    )
     # Name used for licenses that are not listed in the above license info
     LICENSE_OTHER_NAME: str = "LicenseRef-Other"
 

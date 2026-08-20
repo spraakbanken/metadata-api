@@ -21,11 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # Define ResourceTypes enum from settings
-ResourceTypes = Enum(
-    "ResourceTypes",
-    {name: name for name in settings.RESOURCE_TYPES},
-    type=str
-)
+ResourceTypes = Enum("ResourceTypes", {name: name for name in settings.RESOURCE_TYPES}, type=str)
 
 
 def load_json(json_path: Path, prefix: str = "", cache_client: Client | None = None) -> dict[str, Any]:
@@ -107,9 +103,7 @@ def get_single_resource(
     return resource
 
 
-def load_resources(
-    resource_files: list[str], static_path: Path, cache_client: Client | None = None
-) -> dict[str, Any]:
+def load_resources(resource_files: list[str], static_path: Path, cache_client: Client | None = None) -> dict[str, Any]:
     """Load all resource types from JSON from cache or files.
 
     Args:

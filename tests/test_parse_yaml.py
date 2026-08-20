@@ -70,6 +70,4 @@ def test__process_yaml_file_removes_empty_language_entries() -> None:
     )
 
     assert success is True
-    assert resource["languages"] == [
-        {"code": "sv-FI", "name": {"swe": "finlandssvenska", "eng": "Finland Swedish"}}
-    ]
+    assert resource["languages"] == [{"code": "sv-FI", "name": {"swe": "finlandssvenska", "eng": "Finland Swedish"}}]

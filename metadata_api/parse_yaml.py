@@ -222,9 +222,7 @@ def _process_yaml_file(
                     english_name, swedish_name = _get_lang_names(langcode)
                     langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
                 except LookupError:
-                    logger.error(
-                        "Could not find language code '%s' (resource: '%s/%s')", langcode, res_type, fileid
-                    )
+                    logger.error("Could not find language code '%s' (resource: '%s/%s')", langcode, res_type, fileid)
         res["languages"] = langs
         res.pop("language_codes", "")
 
@@ -453,8 +451,7 @@ def _log_wildcard_expansion(res_ref: str, matches: list[str], collection: str) -
     )
     if not matches:
         logger.warning(
-            "The wildcard '%s' in collection '%s' did not match any resources. "
-            "Removing from collection.",
+            "The wildcard '%s' in collection '%s' did not match any resources. Removing from collection.",
             res_ref,
             collection,
         )
