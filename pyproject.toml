@@ -102,4 +102,5 @@ include = [
     "metadata_api/**/*.py",
     "batch_jobs/**/*.py",
     "gen_pids/**/*.py",
+    "tests/**/*.py",
 ]

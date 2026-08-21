@@ -14,6 +14,7 @@ name:
     swe: temp
 license: MIT license
 type: utility
+origin: sbx
 """
 
 YAML_WITH_EMPTY_LANGUAGE: str = """
@@ -30,6 +31,7 @@ languages:
     name:
       swe: finlandssvenska
       eng: Finland Swedish
+origin: sbx
 """
 
 
@@ -59,7 +61,7 @@ def test__process_yaml_file_removes_empty_language_entries() -> None:
     localizations = {}
     license_info = {}
 
-    _, resource, success = _process_yaml_file(
+    resource, success = _process_yaml_file(
         filepath,
         resource_texts,
         collection_mappings,
