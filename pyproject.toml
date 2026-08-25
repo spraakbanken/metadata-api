@@ -9,6 +9,7 @@ authors = [
     { name = "Språkbanken Text", email = "sb-info@svenska.gu.se" }
 ]
 dependencies = [
+    "asgi-matomo==0.6.2",
     "beautifulsoup4>=4.15.0",
     "celery[redis]>=5.6.3",
     "fastapi>=0.141.1",

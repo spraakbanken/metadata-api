@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from asgi_matomo import MatomoMiddleware
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -70,6 +71,26 @@ async def log_requests(request: Request, call_next: Callable) -> JSONResponse:
     if request.method != "OPTIONS":
         logger.info("Request: %s %s", request.method, request.url)
     return await call_next(request)
+
+
+# Add Matomo middleware for tracking
+if settings.MATOMO_URL and settings.MATOMO_IDSITE:
+    logger.info("Enabling tracking to Matomo")
+    if settings.LOG_LEVEL == "DEBUG":
+        logging.getLogger("asgi_matomo").setLevel("DEBUG")
+    # Suppress some chatty logs
+    logging.getLogger("httpx").setLevel("WARNING")
+    # Add the Matomo middleware
+    app.add_middleware(
+        MatomoMiddleware,
+        matomo_url=settings.MATOMO_URL,
+        idsite=settings.MATOMO_IDSITE,
+        access_token=settings.MATOMO_AUTH_TOKEN,
+        http_timeout=settings.MATOMO_HTTP_TIMEOUT,
+        ignored_methods=["OPTIONS"],
+    )
+elif settings.ENV not in {"testing", "development"}:
+    logger.warning("Tracking to Matomo disabled, please set MATOMO_URL and MATOMO_IDSITE.")
 
 
 @app.exception_handler(RequestValidationError)

@@ -11,6 +11,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
   applying metadata processing).
 - Collections now have an `updated` field in the metadata, which - if not set explicitly - is set to the latest
   `updated` date of all resources in the collection.
+- Add support for tracking API usage with Matomo.
 
 ### Changed
 

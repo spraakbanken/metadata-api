@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     # Slack incoming webhook URL, used to send error messages to a Slack channel
     SLACK_WEBHOOK: str = ""
 
+    # Settings for tracking to Matomo
+    MATOMO_URL: str = ""
+    MATOMO_IDSITE: int = 0
+    MATOMO_AUTH_TOKEN: str = ""
+    MATOMO_HTTP_TIMEOUT: int = 5
+
     # Override Settings with variables from a .env file or environment variables
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
