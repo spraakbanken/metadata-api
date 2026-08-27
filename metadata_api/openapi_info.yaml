@@ -28,8 +28,8 @@ servers:
 tags:
   - name: Metadata retrieval
     description: Endpoints for retrieving metadata about resources
-  - name: MISC
-    description: Miscellaneous endpoints
+  - name: MISC tools
+    description: Endpoints for miscellaneous tools
   - name: Cache management
     description: Endpoints for managing the metadata cache
   - name: Documentation

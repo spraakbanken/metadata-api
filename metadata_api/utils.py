@@ -10,6 +10,7 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import jsonschema_rs
 import requests
 
 from metadata_api.settings import settings
@@ -278,3 +279,16 @@ def get_version_from_pyproject(path: Path = Path("pyproject.toml")) -> str:
     with path.open("rb") as f:
         data = tomllib.load(f)
     return data["project"]["version"]
+
+
+def get_schema_validator(filepath: Path) -> jsonschema_rs.Validator | None:
+    """Load the JSON schema from the given file path and return a validator."""
+    try:
+        with filepath.open(encoding="utf-8") as schema_file:
+            schema = json.load(schema_file)
+            validator = jsonschema_rs.validator_for(schema)
+    except Exception:
+        logger.exception("Failed to get schema '%s'", filepath)
+        validator = None
+
+    return validator

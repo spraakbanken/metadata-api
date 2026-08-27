@@ -21,6 +21,7 @@ import requests
 import yaml
 
 from metadata_api.settings import settings
+from metadata_api.utils import get_schema_validator
 
 # Swedish translations for language names
 SWEDISH = gettext.translation("iso639-3", pycountry.LOCALES_DIR, languages=["sv"])
@@ -62,7 +63,7 @@ def process_resources(
     schema_validator = None
     if validate:
         try:
-            schema_validator = _get_validator(settings.METADATA_DIR / settings.SCHEMA_FILE)
+            schema_validator = get_schema_validator(settings.METADATA_DIR / settings.SCHEMA_FILE)
             # YAML safe_load() - handle dates as strings
             yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
                 yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
@@ -346,19 +347,6 @@ def _get_latest_updated(resource_ids: list[str], all_resources: dict) -> str:
         if updated is not None and (latest is None or updated > latest):
             latest = updated
     return latest.isoformat() if latest is not None else ""
-
-
-def _get_validator(filepath: Path) -> jsonschema_rs.Validator | None:
-    """Load the JSON schema from the given file path and return a validator."""
-    try:
-        with filepath.open(encoding="utf-8") as schema_file:
-            schema = json.load(schema_file)
-            validator = jsonschema_rs.validator_for(schema)
-    except Exception:
-        logger.exception("Failed to get schema '%s'", filepath)
-        validator = None
-
-    return validator
 
 
 def _get_download_metadata(url: str, name: str, res_type: str) -> tuple[int | None, str | None]:
