@@ -57,7 +57,16 @@ will do the following:
 - If memcached caching is activated, the cache is flushed and repopulated with data from the updated JSON files.
 
 The `/renew-cache` route can be called manually (e.g. via curl) but it is usually also set up as a webhook in the
-metadata repository to be triggered automatically upon each push event to the main branch.
+metadata repository to be triggered automatically upon each push event. Configure the GitHub webhook to send a `POST`
+request with the `application/json` content type to the deployment's `/renew-cache` endpoint, for example:
+
+```text
+https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache
+```
+
+The endpoint returns `202 Accepted` after queueing the Celery task. Pushes to `main` use the webhook payload to
+identify the changed metadata YAML files; pushes to other branches are ignored. If GitHub reports more changed files
+than the configured limit, all metadata is renewed because the payload may not contain a complete file list.
 
 The response from the `/renew-cache` route will **not** contain the results of the cache renewal itself, since this is
 done in the background. If `SLACK_WEBHOOK_URL` is set in the configuration and any errors or warnings occur, a message
@@ -145,4 +154,6 @@ to install the dependencies. Don't forget to add your own configuration to the a
   5 1 * * * cd /home/fksbwww/metadata-api/v3 && uv run -m gen_pids.gen_pids --no-update > /dev/null
   # Update Datacite metadata once per week
   15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && uv run -m gen_pids.gen_pids > /dev/null
+  # Call /renew-cache every night (mainly for updating downloadables file sizes)
+  5 5 * * * curl --silent "localhost:1337/renew-cache" > /dev/null
   ```

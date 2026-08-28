@@ -7,7 +7,7 @@ Comments from SND are marked "SND:".
 * data sets: previously called resources
 * PID/DOI: the same thing in this project
 * Datacite Metadata Schema: what we construct and send to Datacite to get (or update) a DOI
-* [Metadata API]((https://github.com/spraakbanken/metadata-api)): Språkbanken Text's API for getting information out of
+* [Metadata API](https://github.com/spraakbanken/metadata-api): Språkbanken Text's API for getting information out of
   our repo
 * [SweClarin repository (Utter)](https://repo.spraakbanken.gu.se/xmlui/)
 
