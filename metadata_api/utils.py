@@ -305,9 +305,10 @@ def build_docs() -> None:
     docs_source_dir = docs_root / "mkdocs"
     developers_guide = docs_root / "dev-docs.md"
     pid_guide = docs_root / "pid_guide.md"
-    changelog = docs_root / "mkdocs" / "CHANGELOG.md"
-    readme = docs_root / "mkdocs" / "README.md"
+    changelog = Path("CHANGELOG.md")
+    readme = Path("README.md")
     site_dir = docs_root / "site"
+    build_lock = docs_root / ".mkdocs-build.lock"
 
     source_paths = [mkdocs_config, docs_source_dir, developers_guide, pid_guide, changelog, readme]
     freshness_paths = source_paths + ([env_file] if env_file.exists() else [])

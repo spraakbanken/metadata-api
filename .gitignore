@@ -36,3 +36,4 @@ venv.bak/
 .ruff_cache/
 site/
 docs/mkdocs/README.md
+docs/.mkdocs-build.lock
