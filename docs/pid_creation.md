@@ -4,49 +4,49 @@ Comments from SND are marked "SND:".
 
 ## Terminology - different sets of metadata
 
-* data sets: previously called resources
-* PID/DOI: the same thing in this project
-* Datacite Metadata Schema: what we construct and send to Datacite to get (or update) a DOI
-* [Metadata API](https://github.com/spraakbanken/metadata-api): Språkbanken Text's API for getting information out of
+- data sets: previously called resources
+- PID/DOI: the same thing in this project
+- Datacite Metadata Schema: what we construct and send to Datacite to get (or update) a DOI
+- [Metadata API](https://github.com/spraakbanken/metadata-api): Språkbanken Text's API for getting information out of
   our repo
-* [SweClarin repository (Utter)](https://repo.spraakbanken.gu.se/xmlui/)
+- [SweClarin repository (Utter)](https://repo.spraakbanken.gu.se/xmlui/)
 
 ## Goal
 
-* add PIDs to resource metadata (including collections)
-* show them on spraakbanken.gu.se
+- add PIDs to resource metadata (including collections)
+- show them on spraakbanken.gu.se
 
 ## Method
 
-* check Github Metadata repo for DOI
-  * if not existing, add to Metadata YAML file by creating DMS
-  * (add existing Handle if possible) No - Marcus' decision
-  * update DMS and fix relation between Collection and members
+- check Github Metadata repo for DOI
+  - if not existing, add to Metadata YAML file by creating DMS
+  - (add existing Handle if possible) No - Marcus' decision
+  - update DMS and fix relation between Collection and members
 
 In more technical detail:
 
-* `update_metadata.sh` is called periodically by cron on k2
-* calls `gen_pids.py`
-* `gen_pids.py` should
-  * read all data sets incl collections
-  * iterate over all data sets incl collections
-    * if data set has no AlternateIdentifier, lookup if it already has a Handle and set it
-    * if data set has no PID generate a DOI (API call, see below)
-  * iterate over all collections
-    * collection: set DMS-12-RelatedIdentifier to HasPart for all members (found in resources field in YAML)
-    * members: set DMS-12-RelatedIdentifier to IsPartOf for all collections
-    * update DOI metadata (API call)
+- `update_metadata.sh` is called periodically by cron on k2
+- calls `gen_pids.py`
+- `gen_pids.py` should
+  - read all data sets incl collections
+  - iterate over all data sets incl collections
+    - if data set has no AlternateIdentifier, lookup if it already has a Handle and set it
+    - if data set has no PID generate a DOI (API call, see below)
+  - iterate over all collections
+    - collection: set DMS-12-RelatedIdentifier to HasPart for all members (found in resources field in YAML)
+    - members: set DMS-12-RelatedIdentifier to IsPartOf for all collections
+    - update DOI metadata (API call)
 
 ### gen_pids.py
 
-* "unlisted" is respected
-* update records at DataCite (check "updated" date)
-* login to DataCite saved in `/home/fksbwww/.netrc` on `k2` (credentials were received from SND and can be found in
+- "unlisted" is respected
+- update records at DataCite (check "updated" date)
+- login to DataCite saved in `/home/fksbwww/.netrc` on `k2` (credentials were received from SND and can be found in
   Språkbanken Text's safe)
-* When testing locally with one of the test repositories, you can enter the credentials in `gen_pids/settings.py`
+- When testing locally with one of the test repositories, you can enter the credentials in `gen_pids/settings.py`
   (DMS_URL, DMS_REPOID and DMS_AUTH_PASSWORD) instead of using the netrc file. Remember to remove them before committing
   the code.
-* tag ”identifiers” in JSON is called ”alternateIdentifiers” in XML-formatet (<https://support.datacite.org/docs/what-is-the-identifiers-attribute-in-the-rest-api>)
+- tag ”identifiers” in JSON is called ”alternateIdentifiers” in XML-formatet (<https://support.datacite.org/docs/what-is-the-identifiers-attribute-in-the-rest-api>)
 
 ### Datacite Metadata Schema (DMS)
 
@@ -88,54 +88,54 @@ Also see [the SND guide](https://zenodo.org/records/8355878).
 
 ### Metadata repo and API
 
-* find successors in directory YAML: grep -lzrP "successors:\n  - .+\n" .
+- find successors in directory YAML: grep -lzrP "successors:\n  - .+\n" .
 
 ### SND
 
-* <https://snd.gu.se/sv/beskriv-och-dela-data/pid-tjanster-doi-epic>
-* <https://snd.gu.se/sv/hantera-data/fardigstalla-tillgangliggora/PID>
+- <https://snd.gu.se/sv/beskriv-och-dela-data/pid-tjanster-doi-epic>
+- <https://snd.gu.se/sv/hantera-data/fardigstalla-tillgangliggora/PID>
 
 ### DataCite
 
-* show record:
+- show record:
   <https://api.datacite.org/dois?client-id=SND.SPRKB&query=identifiers.identifier:standsriksdagen-adelsstandet%20AND%20identifiers.identifierType:slug&detail=true%22>
-* REST API
-  * create: <https://support.datacite.org/docs/api-create-dois>
-  * update: <https://support.datacite.org/docs/updating-metadata-with-the-rest-api>
-  * [test-prefix](https://support.datacite.org/docs/testing-guide), Support > Datacite.org > Support > Testing DOI
+- REST API
+  - create: <https://support.datacite.org/docs/api-create-dois>
+  - update: <https://support.datacite.org/docs/updating-metadata-with-the-rest-api>
+  - [test-prefix](https://support.datacite.org/docs/testing-guide), Support > Datacite.org > Support > Testing DOI
     domain, testprefix
-  * create code examples: <https://support.datacite.org/reference/put_dois-id>
-  * [API guide](https://support.datacite.org/docs/mds-api-guide)
-  * SND: För API-anrop så har DataCite relativt snälla regler med en ganska hög gräns:
+  - create code examples: <https://support.datacite.org/reference/put_dois-id>
+  - [API guide](https://support.datacite.org/docs/mds-api-guide)
+  - SND: För API-anrop så har DataCite relativt snälla regler med en ganska hög gräns:
     <https://support.datacite.org/docs/is-there-a-rate-limit-for-making-requests-against-the-datacite-apis>. Ibland kan
     API:et ha väldigt hög belastning så kan ta lite tid med första körningen. Det går göra flera anrop för att updatera
     metadatan så om metadatan för en collection ska updateras med nya relatedIdentifier så är det bara att köra en nytt
     anrop med den nya metadatan.
-* Datacite Metadata Schema
-  * <https://datacite-metadata-schema.readthedocs.io/en/4.5/>
-  * <https://schema.datacite.org/meta/kernel-4.5/>, inspiration snd.gu.se, använd 4.5 (inte 4.4)
-* DataCite firewall limit:
-  * 3000 requests in a 5 minute window. requests that come via doi.org Content Negotiation of 1000 requests in a 5
+- Datacite Metadata Schema
+  - <https://datacite-metadata-schema.readthedocs.io/en/4.5/>
+  - <https://schema.datacite.org/meta/kernel-4.5/>, inspiration snd.gu.se, använd 4.5 (inte 4.4)
+- DataCite firewall limit:
+  - 3000 requests in a 5 minute window. requests that come via doi.org Content Negotiation of 1000 requests in a 5
     minute window. But, since 2025Q3 there seems to be an "alternate limit" of 300-500 requests every 5 minutes. To
     handle this, gen_pids.py pauses for 5 minutes every 300 requests. We also add a User-agent to the header.
-    * <https://support.datacite.org/reference/introduction#upcoming-changes>
-    * <https://support.datacite.org/docs/api>
-    * <https://support.datacite.org/docs/rate-limit>
+    - <https://support.datacite.org/reference/introduction#upcoming-changes>
+    - <https://support.datacite.org/docs/api>
+    - <https://support.datacite.org/docs/rate-limit>
 
 ### Changing resource id (slug) from A to B
 
 #### Metadata-repository
 
-* rename A.yaml to B.yaml (A and B are resource id's)
+- rename A.yaml to B.yaml (A and B are resource id's)
 
 #### Datacite
 
-* go to datacite.org and "Sign in to Fabrica"
-* find metadata record/DOI
-* Click "Update DOI (form)"
-* Update
-  * URL
-  * Alternate identifier
+- Go to datacite.org and "Sign in to Fabrica"
+- Find metadata record/DOI
+- Click "Update DOI (form)"
+- Update:
+  - URL
+  - Alternate identifier
 
 #### Check
 
@@ -143,10 +143,10 @@ Also see [the SND guide](https://zenodo.org/records/8355878).
 
 ### Python
 
-* <https://github.com/papis/python-doi>
-* Python package [Datacite](https://pypi.org/project/datacite/)
+- <https://github.com/papis/python-doi>
+- Python package [Datacite](https://pypi.org/project/datacite/)
 
 ### SND Contacts
 
-<olof.olsson@snd.gu.se>
-<andre.jernung@gu.se>
+- <olof.olsson@snd.gu.se>
+- <andre.jernung@gu.se>
