@@ -14,6 +14,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added a new route `/resource-schema` for retrieving the JSON schema used to validate the metadata YAML files.
 - Added a new route `/validate-resource` for validating resource metadata (sent in the request body) against the JSON
   schema.
+- Added a html developer documentation page at `/docs/` (rendered with MkDocs).
 - Add support for tracking API usage with Matomo.
 
 ### Changed

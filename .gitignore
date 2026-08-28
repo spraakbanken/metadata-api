@@ -34,3 +34,5 @@ venv.bak/
 
 # MISC
 .ruff_cache/
+site/
+docs/mkdocs/README.md

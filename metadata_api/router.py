@@ -12,7 +12,7 @@ from celery import Task
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi import Path as FastAPIPath
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from metadata_api import models, utils
 from metadata_api.adapt_schema import adapt_schema
@@ -272,7 +272,14 @@ def renew_cache_post(
 # ------------------------------------------------------------------------------
 
 
-@router.get("/openapi.json", tags=["Documentation"], summary="OpenAPI schema", response_class=JSONResponse)
+@router.get("/docs", tags=["Documentation"])
+async def docs(request: Request) -> RedirectResponse:
+    """Render mkdocs HTML with the developer's guide."""
+    docs_url = request.scope.get("root_path", "") + "/docs/"
+    return RedirectResponse(url=docs_url)
+
+
+@router.get("/openapi.json", tags=["Documentation"], response_class=JSONResponse)
 async def openapi_json(request: Request) -> JSONResponse:
     """Serve the OpenAPI specification as JSON data."""
     schema = deepcopy(request.app.openapi())  # Avoid mutating the cached base
@@ -292,9 +299,9 @@ def response_schema() -> JSONResponse:
     return JSONResponse(adapt_schema(json.loads(schema_file.read_text(encoding="UTF-8"))))
 
 
-@router.get("/redoc", tags=["Documentation"], summary="ReDoc API documentation", response_class=HTMLResponse)
+@router.get("/redoc", tags=["Documentation"], response_class=HTMLResponse)
 def overridden_redoc(request: Request) -> HTMLResponse:
-    """Serve ReDoc documentation."""
+    """Serve the ReDoc API documentation."""
     root_path = request.scope.get("root_path", "") or ""
     openapi_path = request.app.router.url_path_for("openapi_json")
     return get_redoc_html(
@@ -304,9 +311,9 @@ def overridden_redoc(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/swagger", tags=["Documentation"], summary="Swagger UI documentation", response_class=HTMLResponse)
+@router.get("/swagger", tags=["Documentation"], response_class=HTMLResponse)
 def overridden_swagger(request: Request) -> HTMLResponse:
-    """Serve Swagger UI documentation."""
+    """Serve Swagger UI API documentation."""
     root_path = request.scope.get("root_path", "") or ""
     openapi_path = request.app.router.url_path_for("openapi_json")
     return get_swagger_ui_html(

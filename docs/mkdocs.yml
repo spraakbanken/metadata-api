@@ -1,0 +1,47 @@
+site_name: Sprakbanken Metadata API
+site_description: Developer documentation for the Sprakbanken Metadata API.
+repo_name: spraakbanken/metadata-api
+repo_url: https://github.com/spraakbanken/metadata-api
+docs_dir: mkdocs
+
+hooks:
+  - main.py
+
+theme:
+  name: material
+  palette:
+    primary: green
+    accent: deep orange
+  font:
+    text: Source Sans 3
+  # logo: images/favicon.png
+  favicon: images/favicon.png
+  custom_dir: mkdocs/overrides
+  language: en
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tracking
+    - navigation.top # Go to top button
+    - toc.integrate # Render table of contents for each page as part of the left navigation
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+nav:
+  - Start: README.md
+  - Developer's guide: dev-docs.md
+  - PID/DOI guide: pid_creation.md
+  - Changelog: CHANGELOG.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+plugins:
+  - search
+  - macros

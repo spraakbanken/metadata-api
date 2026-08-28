@@ -110,3 +110,8 @@ celery -A metadata_api.tasks worker --loglevel=INFO
 ```
 
 Please note that you need to have a running [Redis](https://redis.io/) server for Celery to work.
+
+## Viewing the Developer Documentation
+
+The application builds the MkDocs site at startup and serves the developer documentation, PID/DOI guide, and changelog
+from `/docs/`. When running a local server, open <http://127.0.0.1:8000/docs/>.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import os
 import tomllib
 from enum import Enum
 from pathlib import Path
@@ -12,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 import jsonschema_rs
 import requests
+from mkdocs.commands import build
+from mkdocs.config import load_config
 
 from metadata_api.settings import settings
 
@@ -292,3 +295,51 @@ def get_schema_validator(filepath: Path) -> jsonschema_rs.Validator | None:
         validator = None
 
     return validator
+
+
+def build_docs() -> None:
+    """Build the MkDocs documentation if source files are present and newer than the existing site output."""
+    docs_root = Path("docs")
+    env_file = Path(".env")
+    mkdocs_config = docs_root / "mkdocs.yml"
+    docs_source_dir = docs_root / "mkdocs"
+    developers_guide = docs_root / "dev-docs.md"
+    pid_creation = docs_root / "pid_creation.md"
+    changelog = docs_root / "mkdocs" / "CHANGELOG.md"
+    readme = docs_root / "mkdocs" / "README.md"
+    site_dir = docs_root / "site"
+
+    source_paths = [mkdocs_config, docs_source_dir, developers_guide, pid_creation, changelog, readme]
+    freshness_paths = source_paths + ([env_file] if env_file.exists() else [])
+    missing_sources = [path for path in source_paths if not path.exists()]
+    if missing_sources:
+        logger.warning("Skipping MkDocs build because required source path(s) are missing: %s", missing_sources)
+        return
+
+    def latest_mtime(paths: list[Path]) -> float:
+        latest = 0.0
+        for path in paths:
+            latest = max(latest, path.stat().st_mtime)
+            for p in path.rglob("*"):
+                latest = max(latest, p.stat().st_mtime)
+        return latest
+
+    # Check if the site output is at least as new as the source files; if so, skip the build
+    has_site_output = site_dir.exists() and site_dir.is_dir() and any(site_dir.iterdir())
+    if has_site_output:
+        newest_source = latest_mtime(freshness_paths)
+        newest_output = site_dir.stat().st_mtime
+        if newest_source <= newest_output:
+            logger.debug("Skipping MkDocs build: docs/site is up to date.")
+            return
+
+    try:
+        # Load the MkDocs configuration and build the documentation
+        os.environ["ROOT_PATH"] = settings.ROOT_PATH
+        config = load_config(str(mkdocs_config))
+        # Keep build warnings and errors without logging every copied theme asset.
+        logging.getLogger("mkdocs").setLevel(logging.INFO)
+        logging.getLogger("mkdocs.plugins.mkdocs_macros.util").setLevel(logging.WARNING)
+        build.build(config)
+    except Exception:
+        logger.exception("Error building MkDocs documentation.")

@@ -41,6 +41,9 @@ logger = logging.getLogger(__name__)
 async def lifespan(_app: FastAPI) -> AsyncGenerator:
     """Manage application startup and shutdown."""
     logger.info("Starting Metadata API version %s", API_VERSION)
+    # Build the mkdocs documentation
+    utils.build_docs()
+    # Initialize the cache
     cache.initialize(settings.MEMCACHED_SERVER)
     yield
 
@@ -62,7 +65,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Create docs/site directory if it does not exist (for mkdocs to serve the static files)
+docs_site_path = Path("docs/site")
+docs_site_path.mkdir(parents=True, exist_ok=True)
+
+# Mount directories for static files
 app.mount("/static", StaticFiles(directory=settings.STATIC), name="static")
+app.mount("/docs", StaticFiles(directory=docs_site_path, html=True), name="mkdocs")
 
 
 @app.middleware("http")
