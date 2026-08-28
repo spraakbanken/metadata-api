@@ -304,12 +304,12 @@ def build_docs() -> None:
     mkdocs_config = docs_root / "mkdocs.yml"
     docs_source_dir = docs_root / "mkdocs"
     developers_guide = docs_root / "dev-docs.md"
-    pid_creation = docs_root / "pid_creation.md"
+    pid_guide = docs_root / "pid_guide.md"
     changelog = docs_root / "mkdocs" / "CHANGELOG.md"
     readme = docs_root / "mkdocs" / "README.md"
     site_dir = docs_root / "site"
 
-    source_paths = [mkdocs_config, docs_source_dir, developers_guide, pid_creation, changelog, readme]
+    source_paths = [mkdocs_config, docs_source_dir, developers_guide, pid_guide, changelog, readme]
     freshness_paths = source_paths + ([env_file] if env_file.exists() else [])
     missing_sources = [path for path in source_paths if not path.exists()]
     if missing_sources:

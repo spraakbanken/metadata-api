@@ -33,7 +33,7 @@ theme:
 nav:
   - Start: README.md
   - Developer's guide: dev-docs.md
-  - PID/DOI guide: pid_creation.md
+  - PID guide: pid_guide.md
   - Changelog: CHANGELOG.md
 
 markdown_extensions:

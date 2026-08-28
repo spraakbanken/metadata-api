@@ -13,7 +13,7 @@ This project contains the following main components:
 - **`/metadata_api/tasks.py`** - Celery background tasks for the REST API, e.g. for cache renewal.
 - **`/gen_pids/gen_pids.py`** - A Python script that generates new PIDs (Datacite DOIs) by reading our
   metadata YAML files and registering resources at Datacite. It also handles log files, git add/commit/push, and log
-  rotation when run as a script. For documentation, see the code comments and [the PID/DOI guide](pid_creation.md).
+  rotation when run as a script. For documentation, see the code comments and [the PID guide](pid_guide.md).
 
 Furthermore there are some scripts in the `batch_jobs/` directory that are used for batch processing of resources, e.g.
 for adding new fields to all metadata YAML files or for extracting information.
@@ -143,7 +143,7 @@ the [Configuration section in the README file](README.md#configuration).
 - When the app is up and running, call the `/renew-cache` route in order to create the necessary JSON files and populate
   the cache.
 
-- Store Datacite login credentials in `/home/fksbwww/.netrc` (check [the PID/DOI guide](pid_creation.md) for more
+- Store Datacite login credentials in `/home/fksbwww/.netrc` (check [the PID guide](pid_guide.md) for more
   info).
 
 - Set up cron jobs that periodically run `gen_pids.py` to add DOIs to resources, update Datacite, and push metadata

@@ -46,7 +46,7 @@ def main() -> None:
             "metadata_api/static/*",
             "docs/mkdocs/index.md",
             "docs/dev-docs.md",
-            "docs/pid_creation.md",
+            "docs/pid_guide.md",
             "README.md",
             "CHANGELOG.md",
         ],
