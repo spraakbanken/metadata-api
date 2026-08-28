@@ -304,7 +304,7 @@ def overridden_redoc(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/docs", tags=["Documentation"], summary="Swagger UI documentation", response_class=HTMLResponse)
+@router.get("/swagger", tags=["Documentation"], summary="Swagger UI documentation", response_class=HTMLResponse)
 def overridden_swagger(request: Request) -> HTMLResponse:
     """Serve Swagger UI documentation."""
     root_path = request.scope.get("root_path", "") or ""
