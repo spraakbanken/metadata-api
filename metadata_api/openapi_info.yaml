@@ -1,18 +1,19 @@
 info:
-  title: Språkbanken Text Metadata API
+  title: Språkbanken Metadata API
   description: |
     This API provides a quick way to retrieve a list of resources (corpora, lexicons, models, analyses, and utilities)
-    available at Språkbanken Text. It is used to display resources on [Språkbanken Text's
+    available at Språkbanken. It is used to display resources on the [Språkbanken
     website](https://spraakbanken.gu.se/en/resources).
 
-    The main endpoint `/` lists metadata for all resources (unless the `resource` or `resource_type` parameter is used).
-    Each resource is represented as a JSON object that adheres to the JSON schema available from the `/schema` endpoint.
+    The main endpoint `/` lists metadata for all resources (unless the `resource` or `resource-type` parameter is used).
+    Each resource is represented as a JSON object that adheres to the JSON schema available from the `/response-schema`
+    endpoint.
 
     Some resources have detailed descriptions that are only displayed when using the `resource` parameter. For more
     information, please refer to the [GitHub repository](https://github.com/spraakbanken/metadata).
 
   contact:
-    name: Språkbanken Text
+    name: Språkbanken
     url: https://spraakbanken.gu.se/
     email: sb-info@svenska.gu.se
   license:
