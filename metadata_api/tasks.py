@@ -3,7 +3,7 @@
 import io
 import logging
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import redis
 from celery import Celery
@@ -169,6 +169,18 @@ def renew_cache_task(
         logger.info("Decrementing pending cache renewal counter.")
         try:
             redis_client.decr(settings.PENDING_KEY)
-            logger.debug("Current pending count: %s", cast(int, redis_client.get(settings.PENDING_KEY)) or 0)
+            logger.debug("Current pending count: %s", get_pending_task_count(redis_client, settings.PENDING_KEY))
         except Exception:
             logger.exception("Failed to decrement pending counter")
+
+
+def get_pending_task_count(redis_client: Any, key: str) -> int:
+    """Return the current pending-task count for the given Redis key."""
+    raw_value = redis_client.get(key)
+    if raw_value is None:
+        return 0
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        logger.warning("Invalid pending-task counter value for %s: %r", key, raw_value)
+        return 0

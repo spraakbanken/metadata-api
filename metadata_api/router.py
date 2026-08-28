@@ -18,7 +18,7 @@ from metadata_api import models, utils
 from metadata_api.adapt_schema import adapt_schema
 from metadata_api.memcached import cache
 from metadata_api.settings import settings
-from metadata_api.tasks import renew_cache_task
+from metadata_api.tasks import get_pending_task_count, renew_cache_task
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,7 @@ def _renew_cache(
     paths_list = resource_paths.split(",") if resource_paths else None
 
     # Do atomic increment of pending counter
-    logger.info("Pending renew-cache tasks: %s", int(cast(int, redis_client.get(settings.PENDING_KEY))) or 0)
+    logger.info("Pending renew-cache tasks: %s", get_pending_task_count(redis_client, settings.PENDING_KEY))
     pending = cast(int, redis_client.incr(settings.PENDING_KEY))
     if pending > settings.MAX_PENDING:
         # Too many pending tasks, roll back the increment

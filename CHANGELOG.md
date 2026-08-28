@@ -37,6 +37,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
   parameters (except for the legacy format).
 - Empty entries in the `languages` field of the metadata are now removed from the API response.
 - `gen_pids.py`: rightsList now only contains unique entries.
+- Fixed logging bug in cache renewal.
 
 ### Removed
 
