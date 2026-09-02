@@ -22,14 +22,14 @@ DMS_HEADERS = {
     "content-type": "application/json",
     "User-agent": "GenPids/1.0 (https://spraakbanken.gu.se; mailto:sb-webb@svenska.gu.se)",
 }
-DMS_CREATOR_NAME = "Språkbanken Text"
-DMS_CREATOR_ROR = "https://ror.org/03xfh2n14"
+DMS_CREATOR_NAME = "Språkbanken"
+DMS_CREATOR_ROR = "https://ror.org/05qhvy459"
 DMS_TARGET_RESOURCE_PREFIX = "https://spraakbanken.gu.se/resurser/"
 DMS_TARGET_ANALYSIS_PREFIX = "https://spraakbanken.gu.se/analyser/"
 DMS_RESOURCE_TYPE_DATASET = "Dataset"
 DMS_RESOURCE_TYPE_ANALYSIS = "Workflow"
 DMS_RESOURCE_TYPE_COLLECTION = "Collection"
-DMS_SLUG = "slug"  # Språkbanken Texts resource ID ("slug") type
+DMS_SLUG = "slug"  # Språkbanken's resource ID ("slug") type
 DMS_HANDLE = "handle"
 DMS_LANG_ENG = "en"
 DMS_LANG_SWE = "sv"
