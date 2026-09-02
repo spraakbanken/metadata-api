@@ -3,6 +3,8 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [unreleased]
+
 ## [4.0.0] - 2026-09-02
 
 ### Added
@@ -154,6 +156,7 @@ Please refer to the git commit log for more information.
 - Added a route for listing utilities: `/utilities`
 - Added a script for generating PIDs and registering resources at Datacite.
 
+[unreleased]: https://github.com/spraakbanken/metadata-api/compare/v4.0.0...dev/
 [4.0.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v4.0.0
 [3.3.1]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.3.1
 [3.3.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.3.0
