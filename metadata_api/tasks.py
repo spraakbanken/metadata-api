@@ -3,7 +3,7 @@
 import io
 import logging
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import redis
 from celery import Celery
@@ -68,46 +68,45 @@ def renew_cache_task(
         # Parse POST request payload from GitHub webhook
         if request_method == "POST":
             logger.info("Parsing POST request from GitHub webhook for changed files.")
-            try:
-                logger.debug("GitHub payload: %s", payload)
-                if payload:
-                    # Check if the webhook was triggered on the main branch
-                    if payload.get("ref", "") != "refs/heads/main":
-                        msg = "GitHub webhook triggered, but not on main branch. Nothing to do."
-                        logger.info(msg)
-                        return True
+            logger.debug("GitHub payload: %s", payload)
+            if payload:
+                # Check if the webhook was triggered on the main branch
+                if payload.get("ref", "") != "refs/heads/main":
+                    logger.info("GitHub webhook triggered, but not on main branch. Nothing to do.")
+                    return True
 
-                    # Check if payload contains a list of changed files
-                    changed_files = []
-                    git_commits = payload.get("commits", [])
-                    if not git_commits:
-                        msg = f"No commits detected in payload.\nPayload:\n{payload}"
-                        logger.error(msg)
-                        utils.send_to_slack(msg, settings.SLACK_WEBHOOK)
-                        return False
+                # Check if payload contains a list of changed files
+                changed_files = []
+                git_commits = payload.get("commits", [])
+                if not git_commits:
+                    msg = f"No commits detected in payload.\nPayload:\n{payload}"
+                    logger.error(msg)
+                    utils.send_to_slack(msg, settings.SLACK_WEBHOOK)
+                    return False
 
-                    for commit in git_commits:
-                        changed_files.extend(commit.get("added", []))
-                        changed_files.extend(commit.get("modified", []))
-                        changed_files.extend(commit.get("removed", []))
+                for commit in git_commits:
+                    changed_files.extend(commit.get("added", []))
+                    changed_files.extend(commit.get("modified", []))
+                    changed_files.extend(commit.get("removed", []))
 
-                    # If too many files were changed, GitHub will not provide a complete list, so update all data.
-                    file_limit = settings.GITHUB_FILE_LIMIT
-                    if len(changed_files) > file_limit:
-                        resource_paths = None
-                    # Format paths (strip first component and file ending) to create input for process_resources
-                    else:
-                        resource_paths = []
+                # If too many files were changed, GitHub will not provide a complete list, so update all data.
+                file_limit = settings.GITHUB_FILE_LIMIT
+                if len(changed_files) > file_limit:
+                    resource_paths = None
+                # Format paths (strip first component and file ending) to create input for process_resources
+                else:
+                    resource_paths = []
+                    try:
                         for p in changed_files:
                             # Only process resource metadata YAML files
                             if Path(p).parts[0] == "yaml" and Path(p).suffix == ".yaml":
                                 resource_paths.append(str(Path(*Path(p).parts[1:-1]) / Path(p).stem))
 
-            except Exception as e:
-                msg = f"Error parsing GitHub payload: {e}.\nPayload:\n{payload}"
-                logger.exception(msg)
-                utils.send_to_slack(msg, settings.SLACK_WEBHOOK)
-                return False
+                    except Exception as e:
+                        msg = f"Error parsing file paths in GitHub payload: {e}.\nPayload:\n{payload}"
+                        logger.exception(msg)
+                        utils.send_to_slack(msg, settings.SLACK_WEBHOOK)
+                        return False
 
         # Create a string buffer to capture logs from process_resources
         log_capture_string = io.StringIO()
@@ -115,8 +114,8 @@ def renew_cache_task(
         log_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
         parse_yaml_logger.addHandler(log_handler)
 
+        logger.info("Calling 'process_resources'...")
         try:
-            logger.info("Calling 'process_resources'...")
             # Update data and rebuild all JSON files (reprocess all data if resource_paths is None)
             process_resources(
                 resource_paths=resource_paths,
@@ -125,6 +124,12 @@ def renew_cache_task(
                 offline=offline,
                 purge_license_cache=purge_license_cache,
             )
+        except Exception as e:
+            logger.exception("Error during cache renewal")
+            success = False
+            errors = [str(e)]
+        else:
+            success = True
             logger.info("Cache renewal task: process_resources completed.")
 
             with cache.get_client() as cache_client:
@@ -138,12 +143,6 @@ def renew_cache_task(
                     settings.STATIC / settings.RESOURCE_TEXTS_FILE, prefix="res_descr", cache_client=cache_client
                 )
                 utils.load_json(settings.STATIC / settings.COLLECTIONS_FILE, cache_client=cache_client)
-            success = True
-
-        except Exception as e:
-            logger.exception("Error during cache renewal")
-            success = False
-            errors = [str(e)]
 
         # Get the process_resources logs from the string buffer
         log_messages = log_capture_string.getvalue().splitlines()
@@ -161,9 +160,7 @@ def renew_cache_task(
 
         if errors or warnings:
             logger.warning("Cache renewal completed with errors or warnings:\n%s", "\n".join(errors + warnings))
-            utils.send_to_slack(
-                "Cache renewal completed.\n" + "\n".join(errors + warnings), settings.SLACK_WEBHOOK
-            )
+            utils.send_to_slack("Cache renewal completed.\n" + "\n".join(errors + warnings), settings.SLACK_WEBHOOK)
 
         logger.info("Cache renewal task finished successfully.")
         return success
@@ -172,6 +169,18 @@ def renew_cache_task(
         logger.info("Decrementing pending cache renewal counter.")
         try:
             redis_client.decr(settings.PENDING_KEY)
-            logger.debug("Current pending count: %s", cast(int, redis_client.get(settings.PENDING_KEY)) or 0)
+            logger.debug("Current pending count: %s", get_pending_task_count(redis_client, settings.PENDING_KEY))
         except Exception:
             logger.exception("Failed to decrement pending counter")
+
+
+def get_pending_task_count(redis_client: Any, key: str) -> int:
+    """Return the current pending-task count for the given Redis key."""
+    raw_value = redis_client.get(key)
+    if raw_value is None:
+        return 0
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        logger.warning("Invalid pending-task counter value for %s: %r", key, raw_value)
+        return 0

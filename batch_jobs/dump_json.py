@@ -1,5 +1,7 @@
 """Get json metadata from SB's metadata API and save it (if it does not exist already)."""
 
+# ruff: file-ignore[print]
+
 import json
 import sys
 from pathlib import Path
@@ -18,7 +20,6 @@ for resources in jsonresponse.values():
         rid = resource.get("id")
         metadata_path = Path(JSON_PATH) / rtype / (rid + ".json")
         if not metadata_path.is_file() and not resource.get("collection"):
-
             # Remove download info (is added automatically)
             for d in resource.get("downloads", []):
                 d.pop("size", None)

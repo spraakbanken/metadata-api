@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     """Default app settings."""
+
     ENV: str = "production"  # Environment: production or development
     STATIC: Path = Path(__file__).parent / "static"
     ROOT_PATH: str = ""  # Root path for the API, e.g. "/metadata-api" if served from a subpath
@@ -20,21 +21,18 @@ class Settings(BaseSettings):
     LOG_TO_FILE: bool = True  # Always log to console; if True, also log to a file in LOG_DIR
 
     RESOURCE_TYPES: list[str] = ["corpus", "lexicon", "model", "analysis", "utility", "collection"]
-    # Resource types and their corresponding data files (relative to "static" directory)
-    RESOURCES: dict[str, str] = {
-        "corpora": "corpus.json",
-        "lexicons": "lexicon.json",
-        "models": "model.json",
-        "analyses": "analysis.json",
-        "utilities": "utility.json",
-    }
+    # Resource data files (relative to "static" directory)
+    RESOURCES: list[str] = ["corpus.json", "lexicon.json", "model.json", "analysis.json", "utility.json"]
+
     # Other files relative to "static" directory
     RESOURCE_TEXTS_FILE: str = "resource-texts.json"
     COLLECTIONS_FILE: str = "collection.json"
     LICENSE_INFO_FILE: str = "license-info.json"
 
     # URL to SPDX licenses JSON data
-    LICENSE_INFO_URL: str = "https://raw.githubusercontent.com/spdx/license-list-data/refs/heads/main/json/licenses.json"
+    LICENSE_INFO_URL: str = (
+        "https://raw.githubusercontent.com/spdx/license-list-data/refs/heads/main/json/licenses.json"
+    )
     # Name used for licenses that are not listed in the above license info
     LICENSE_OTHER_NAME: str = "LicenseRef-Other"
 
@@ -58,6 +56,12 @@ class Settings(BaseSettings):
 
     # Slack incoming webhook URL, used to send error messages to a Slack channel
     SLACK_WEBHOOK: str = ""
+
+    # Settings for tracking to Matomo
+    MATOMO_URL: str = ""
+    MATOMO_IDSITE: int = 0
+    MATOMO_AUTH_TOKEN: str = ""
+    MATOMO_HTTP_TIMEOUT: int = 5
 
     # Override Settings with variables from a .env file or environment variables
     model_config = SettingsConfigDict(

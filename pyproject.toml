@@ -1,6 +1,6 @@
 [project]
 name = "metadata-api"
-version = "3.3.1"
+version = "4.0.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,20 +9,30 @@ authors = [
     { name = "Språkbanken Text", email = "sb-info@svenska.gu.se" }
 ]
 dependencies = [
-    "beautifulsoup4>=4.14.3",
-    "celery[redis]>=5.6.2",
-    "fastapi>=0.128.0",
-    "uvicorn[standard]>=0.40.0",
-    "pydantic-settings>=2.12.0",
-    "gitpython>=3.1.46",
-    "jsonschema>=4.26.0",
-    "lxml>=6.0.2",
-    "markdown>=3.10",
-    "pycountry>=24.6.1",
+    "asgi-matomo==0.6.2",
+    "beautifulsoup4>=4.15.0",
+    "celery[redis]>=5.6.3",
+    "fastapi>=0.141.1",
+    "gitpython>=3.1.59",
+    "jsonschema-rs>=0.49.9",
+    "lxml>=6.1.1",
+    "markdown>=3.10.3",
+    "mkdocs-macros-plugin==1.5.0",
+    "mkdocs-material>=9.7.1",
+    "pycountry>=26.2.16",
+    "pydantic-settings>=2.15.0",
     "pymemcache>=4.0.0",
     "pyyaml>=6.0.3",
-    "redis~=6.0",
-    "requests>=2.32.5",
+    "redis~=6.0.0",
+    "requests>=2.34.2",
+    "uvicorn[standard]>=0.49.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "pyright>=1.1.411",
+    "pytest>=9.1.1",
 ]
 
 [tool.black]
@@ -41,8 +51,8 @@ select = [
     "C4",     # flake8-comprehensions
     "COM",    # flake8-commas
     "D",      # pydocstyle
-    "D400",   # pydocstyle: ends-in-period
-    "D401",   # pydocstyle: non-imperative-mood
+    "missing-trailing-period",   # pydocstyle
+    "non-imperative-mood",   # pydocstyle
     "E",      # pycodestyle: errors
     "F",      # Pyflakes
     "FLY",    # flynt
@@ -67,14 +77,13 @@ select = [
     "W",      # pycodestyle: warnings
 ]
 ignore = [
-    "ANN401",  # flake8-annotations: any-type
-    "B008",    # flake8-bugbear: function-call-in-default-argument
-    "COM812",  # flake8-commas: missing-trailing-comma
-    "E741",    # pycodestyle: ambiguous-variable-name
-    "PLR09",   # Pylint: too-many-*
-    "PLR1702", # Pylint: too-many-nested-blocks
-    "SIM105",  # flake8-simplify: suppressible-exception
-    "T201",    # flake8-print: print-statement
+    "any-type",  # flake8-annotations
+    "function-call-in-default-argument",  # flake8-bugbear
+    "missing-trailing-comma",  # flake8-commas
+    "ambiguous-variable-name",  # pycodestyle
+    "PLR09",  # Pylint: too-many-*
+    "too-many-nested-blocks",  # Pylint
+    "suppressible-exception",  # flake8-simplify
 ]
 
 preview = true
@@ -89,3 +98,12 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "metadata_api"
 module-root = ""
+
+[tool.pyright]
+typeCheckingMode = "standard"
+include = [
+    "metadata_api/**/*.py",
+    "batch_jobs/**/*.py",
+    "gen_pids/**/*.py",
+    "tests/**/*.py",
+]

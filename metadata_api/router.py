@@ -5,16 +5,20 @@ import logging
 from copy import deepcopy
 from typing import Any, cast
 
+import jsonschema_rs
 import redis
+import yaml
+from celery import Task
 from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi import Path as FastAPIPath
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from metadata_api import models, utils
 from metadata_api.adapt_schema import adapt_schema
 from metadata_api.memcached import cache
 from metadata_api.settings import settings
-from metadata_api.tasks import renew_cache_task
+from metadata_api.tasks import get_pending_task_count, renew_cache_task
 
 logger = logging.getLogger(__name__)
 
@@ -28,29 +32,36 @@ redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
 # Metadata retrieval endpoints
 # ------------------------------------------------------------------------------
 
-@router.get("/", response_model=models.AllResouresList, tags=["Metadata retrieval"], summary="List all resources")
+
+@router.get(
+    "/",
+    response_model=models.AllResouresList | models.ResourceList | models.Resource,
+    tags=["Metadata retrieval"],
+    summary="List resources",
+)
 def list_resources(
-    resource_type: utils.ResourceTypes | None = Query(  # type: ignore
-        default=None, alias="resource-type", title="Resource type", example="corpus", enum=settings.RESOURCE_TYPES
+    resource_type: str | None = Query(
+        default=None, alias="resource-type", title="Resource type", examples=["corpus"], enum=settings.RESOURCE_TYPES
     ),
-    resource: str | None = Query(default=None, title="Resource ID", example="attasidor"),
-    legacy: bool = Query(
-        default=True, description="If true, use legacy response format ('corpora' instead of 'corpus' etc.)."
-    ),
+    resource: str | None = Query(default=None, title="Resource ID", examples=["attasidor"]),
 ) -> JSONResponse:
     """List metadata for all resources, all resources of a given type or a single resource by ID.
 
-    Refer to the `/schema` endpoint for the exact JSON schema of the metadata.
+    Refer to the `/response-schema` endpoint for the exact JSON schema of a `/resource=<resource_id>` response.
     """
     if resource and resource_type:
         raise HTTPException(
             status_code=400,
             detail="Specify either 'resource' or 'resource_type', not both.",
         )
+    if resource_type and resource_type not in settings.RESOURCE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid resource type '{resource_type}'. Must be one of: {', '.join(settings.RESOURCE_TYPES)}.",
+        )
     with cache.get_client() as cache_client:
         if resource_type:
             # Return all resources of the given type
-            resource_type = resource_type.value
             resource_file = f"{resource_type}.json"
             filtered = utils.load_json(settings.STATIC / resource_file, cache_client=cache_client)
             data = utils.dict_to_list(filtered)
@@ -59,29 +70,50 @@ def list_resources(
             # Return a single resource by ID
             resources_dict = utils.load_resources(settings.RESOURCES, settings.STATIC, cache_client=cache_client)
             return JSONResponse(utils.get_single_resource(resource, resources_dict, cache_client=cache_client))
-        # Return all resources in legacy or modern format
-        resources_dict = utils.load_resources(
-            settings.RESOURCES, settings.STATIC, cache_client=cache_client, legacy=legacy
-        )
+        # Return all resources
+        resources_dict = utils.load_resources(settings.RESOURCES, settings.STATIC, cache_client=cache_client)
         return JSONResponse({k: utils.dict_to_list(v) for k, v in resources_dict.items()})
 
 
-def _resource_list_factory(resource_type: str) -> Any:
-    """Create resource list endpoint functions.
+@router.get(
+    "/source/{resource_type}/{resource_id}",
+    response_model=dict[str, Any],
+    tags=["Metadata retrieval"],
+    summary="Get source metadata YAML as JSON",
+)
+def get_source_metadata(
+    resource_type: str = FastAPIPath(..., title="Resource type", examples=["corpus"]),
+    resource_id: str = FastAPIPath(..., title="Resource ID", examples=["attasidor"]),
+) -> JSONResponse:
+    """Return the source metadata YAML file from disk as JSON without applying metadata processing."""
+    if resource_type not in settings.RESOURCE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid resource type '{resource_type}'. Must be one of: {', '.join(settings.RESOURCE_TYPES)}.",
+        )
 
-    Args:
-        resource_type: The resource type in plural (e.g. 'corpora').
-    """
-    def resource_list() -> JSONResponse:
-        with cache.get_client() as cache_client:
-            filtered = utils.load_json(
-                settings.STATIC / settings.RESOURCES.get(resource_type, ""),
-                cache_client=cache_client,
-            )
-        data = utils.dict_to_list(filtered)
-        return JSONResponse({"resource_type": resource_type, "hits": len(data), "resources": data})
+    yaml_root = (settings.METADATA_DIR / settings.YAML_DIR).resolve()
+    filepath = (yaml_root / resource_type / f"{resource_id}.yaml").resolve()
+    # Ensure filepath is inside the YAML directory
+    try:
+        filepath.relative_to(yaml_root)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Invalid resource path.") from e
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Resource source file not found.")
 
-    return resource_list
+    try:
+        # YAML safe_load() - handle dates as strings
+        yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:timestamp"] = (
+            yaml.constructor.SafeConstructor.yaml_constructors["tag:yaml.org,2002:str"]
+        )
+        with filepath.open(encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except yaml.YAMLError:
+        logger.exception("Invalid YAML in source metadata file '%s'", filepath)
+        raise HTTPException(status_code=500, detail="Failed to parse source metadata YAML.") from None
+
+    return JSONResponse(data)
 
 
 @router.get("/list-ids", response_model=list[str], tags=["Metadata retrieval"], summary="List resource IDs")
@@ -94,7 +126,7 @@ def list_ids() -> JSONResponse:
 
 @router.get("/bibtex", response_model=models.BibtexResponse, tags=["Metadata retrieval"], summary="Get BibTeX citation")
 def bibtex(
-    resource: str = Query(title="Resource ID", example="attasidor"),
+    resource: str = Query(title="Resource ID", examples=["attasidor"]),
 ) -> JSONResponse:
     """Return bibtex citation as text."""
     with cache.get_client() as cache_client:
@@ -102,54 +134,19 @@ def bibtex(
         return JSONResponse({"bibtex": utils.get_bibtex(resource, resources_dict)})
 
 
-for resource_type in settings.RESOURCES:
-    res_type_name = settings.RESOURCES[resource_type].split(".")[0]
-    # Add deprecated route for backward compatibility
-    router.add_api_route(
-        f"/{resource_type}",
-        _resource_list_factory(resource_type),
-        response_model=models.ResourceList,
-        methods=["GET"],
-        deprecated=True,
-        tags=["Metadata retrieval"],
-        summary=f"List {res_type_name}",
-        description=f"List all resources of type '{res_type_name}'."
-        f"\n\nPlease use `/?resource_type={res_type_name}` route instead."
-        "\n\nRefer to the /schema endpoint for the exact JSON schema of the metadata.",
-    )
-
-
-@router.get(
-    "/collections",
-    response_model=models.CollectionsList,
-    deprecated=True,
-    tags=["Metadata retrieval"],
-    summary="List collections",
-)
-def list_collections() -> JSONResponse:
-    """List all resource collections.
-
-    Refer to the `/schema` endpoint for the exact JSON schema of the metadata.
-    """
-    with cache.get_client() as cache_client:
-        collections = utils.load_json(settings.STATIC / settings.COLLECTIONS_FILE, cache_client=cache_client)
-        data = utils.dict_to_list(collections)
-        return JSONResponse({"hits": len(data), "resources": data})
-
-
 # ------------------------------------------------------------------------------
-# MISC endpoints
+# MISC tools endpoints
 # ------------------------------------------------------------------------------
 
 
 @router.get(
     "/check-id-availability",
     response_model=models.IdAvailabilityResponse,
-    tags=["MISC"],
+    tags=["MISC tools"],
     summary="Check resource ID availability",
 )
 def check_id(
-    resource_id: str = Query(alias="id", title="Resource ID", example="my-new-resource"),
+    resource_id: str = Query(alias="id", title="Resource ID", examples=["my-new-resource"]),
 ) -> JSONResponse:
     """Check if a given resource ID is available."""
     with cache.get_client() as cache_client:
@@ -158,16 +155,33 @@ def check_id(
         return JSONResponse({"id": resource_id, "available": resource_id not in resource_ids})
 
 
-@router.get("/schema", response_model=dict, tags=["MISC"])
-def schema() -> JSONResponse:
-    """Return JSON schema for the metadata."""
+@router.get("/resource-schema", response_model=dict, tags=["MISC tools"])
+def resource_schema() -> JSONResponse:
+    """Return the JSON schema which is used to validate the metadata YAML files."""
     schema_file = settings.METADATA_DIR / settings.SCHEMA_FILE
-    return JSONResponse(adapt_schema(json.loads(schema_file.read_text(encoding="UTF-8"))))
+    return JSONResponse(json.loads(schema_file.read_text(encoding="UTF-8")))
+
+
+@router.post("/validate-resource", response_model=models.ValidateResourceResponse, tags=["MISC tools"])
+def validate_resource(resource: dict = Body(..., description="The resource metadata to validate")) -> JSONResponse:
+    """Validate the provided resource metadata against the resource JSON schema."""
+    schema_validator = utils.get_schema_validator(settings.METADATA_DIR / settings.SCHEMA_FILE)
+    if schema_validator is None:
+        raise HTTPException(status_code=500, detail="Failed to load schema validator.")
+    try:
+        schema_validator.validate(resource)
+    except jsonschema_rs.ValidationError as e:
+        return JSONResponse({"valid": False, "message": e.message})
+    except Exception:
+        return JSONResponse({"valid": False, "message": "An unexpected error occurred during validation."})
+
+    return JSONResponse({"valid": True, "message": "Resource metadata is valid."})
 
 
 # ------------------------------------------------------------------------------
 # Cache management endpoints
 # ------------------------------------------------------------------------------
+
 
 def _renew_cache(
     request_method: str,
@@ -180,7 +194,7 @@ def _renew_cache(
     paths_list = resource_paths.split(",") if resource_paths else None
 
     # Do atomic increment of pending counter
-    logger.info("Pending renew-cache tasks: %s", cast(int, redis_client.get(settings.PENDING_KEY)) or 0)
+    logger.info("Pending renew-cache tasks: %s", get_pending_task_count(redis_client, settings.PENDING_KEY))
     pending = cast(int, redis_client.incr(settings.PENDING_KEY))
     if pending > settings.MAX_PENDING:
         # Too many pending tasks, roll back the increment
@@ -188,14 +202,16 @@ def _renew_cache(
         raise HTTPException(status_code=409, detail="Too many cache renewals queued. Try again later.")
 
     try:
-        task = renew_cache_task.apply_async(kwargs={
-            "request_method": request_method,
-            "resource_paths": paths_list,
-            "debug": debug,
-            "offline": offline,
-            "payload": payload if request_method == "POST" else None,
-            "purge_license_cache": purge_license_cache,
-        })
+        task = cast(Task, renew_cache_task).apply_async(
+            kwargs={
+                "request_method": request_method,
+                "resource_paths": paths_list,
+                "debug": debug,
+                "offline": offline,
+                "payload": payload if request_method == "POST" else None,
+                "purge_license_cache": purge_license_cache,
+            }
+        )
     except Exception as e:
         # Roll back the slot if enqueue failed
         redis_client.decr(settings.PENDING_KEY)
@@ -215,7 +231,7 @@ def renew_cache_get(
         default=None,
         alias="resource-paths",
         description="Comma-separated list of specific resources to reprocess (<resource_type/resource_id>).",
-        example="corpus/attasidor,lexicon/saldo",
+        examples=["corpus/attasidor,lexicon/saldo"],
     ),
     debug: bool = Query(default=False, description="If true, log debug info while parsing YAML files."),
     offline: bool = Query(default=False, description="If true, skip getting file info for downloadables."),
@@ -255,7 +271,15 @@ def renew_cache_post(
 # Documentation endpoints
 # ------------------------------------------------------------------------------
 
-@router.get("/openapi.json", tags=["Documentation"], summary="OpenAPI schema", response_class=JSONResponse)
+
+@router.get("/docs", tags=["Documentation"])
+async def docs(request: Request) -> RedirectResponse:
+    """Render mkdocs HTML with the developer's guide."""
+    docs_url = request.scope.get("root_path", "") + "/docs/"
+    return RedirectResponse(url=docs_url)
+
+
+@router.get("/openapi.json", tags=["Documentation"], response_class=JSONResponse)
 async def openapi_json(request: Request) -> JSONResponse:
     """Serve the OpenAPI specification as JSON data."""
     schema = deepcopy(request.app.openapi())  # Avoid mutating the cached base
@@ -265,15 +289,19 @@ async def openapi_json(request: Request) -> JSONResponse:
     return JSONResponse(schema)
 
 
-@router.get("/doc", tags=["Documentation"], summary="OpenAPI schema", deprecated=True)
-async def openapi_alias(request: Request) -> dict:
-    """Serve the same JSON as /openapi.json (Backward-compatible alias)."""
-    return request.app.openapi()
+@router.get("/response-schema", response_model=dict, tags=["Documentation"])
+def response_schema() -> JSONResponse:
+    """Return JSON schema for the resource listings generated by the `/?resource=<resource_id>` endpoint.
+
+    This schema is adapted from the resource metadata schema to reflect the structure of the API response data.
+    """
+    schema_file = settings.METADATA_DIR / settings.SCHEMA_FILE
+    return JSONResponse(adapt_schema(json.loads(schema_file.read_text(encoding="UTF-8"))))
 
 
-@router.get("/redoc", tags=["Documentation"], summary="ReDoc API documentation", response_class=HTMLResponse)
+@router.get("/redoc", tags=["Documentation"], response_class=HTMLResponse)
 def overridden_redoc(request: Request) -> HTMLResponse:
-    """Serve ReDoc documentation."""
+    """Serve the ReDoc API documentation."""
     root_path = request.scope.get("root_path", "") or ""
     openapi_path = request.app.router.url_path_for("openapi_json")
     return get_redoc_html(
@@ -283,9 +311,9 @@ def overridden_redoc(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/docs", tags=["Documentation"], summary="Swagger UI documentation", response_class=HTMLResponse)
+@router.get("/swagger", tags=["Documentation"], response_class=HTMLResponse)
 def overridden_swagger(request: Request) -> HTMLResponse:
-    """Serve Swagger UI documentation."""
+    """Serve Swagger UI API documentation."""
     root_path = request.scope.get("root_path", "") or ""
     openapi_path = request.app.router.url_path_for("openapi_json")
     return get_swagger_ui_html(

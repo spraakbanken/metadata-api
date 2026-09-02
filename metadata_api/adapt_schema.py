@@ -1,39 +1,26 @@
 """Adapt JSON schema to the resource data that is output by the API."""
 
-
 # Changes to be applied to the JSON schema
 SCHEMA_CHANGES = {
     # Properties to add or update
     "update_properties": {
-        "id": {
-            "description": "Unique identifier for the resource",
-            "type": "string",
-            "pattern": "^[a-z0-9_-]+$"
-        },
+        "id": {"description": "Unique identifier for the resource", "type": "string", "pattern": "^[a-z0-9_-]+$"},
         "has_description": {
             "description": "If set to true, the resource has a description",
             "type": "boolean",
-            "default": False
+            "default": False,
         },
         "downloads": {
             "items": {
                 "properties": {
-                    "size": {
-                        "type": "integer",
-                        "description": "File size in bytes"
-                    },
-                    "last-modified": {
-                        "type": "string",
-                        "description": "Last modified date"
-                    }
+                    "size": {"type": "integer", "description": "File size in bytes"},
+                    "last-modified": {"type": "string", "description": "Last modified date"},
                 }
             }
         },
     },
-
     # Required properties to add
     "update_required": ["id"],
-
     # Conditional properties to update. The key can be one of the following:
     #   - a string in an enum inside and if condition
     #   - the name of a property inside an "if" condition
@@ -44,30 +31,18 @@ SCHEMA_CHANGES = {
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "eng": {
-                        "description": "Task name in English",
-                        "type": "string"
-                    },
-                    "swe": {
-                        "description": "Task name in Swedish",
-                        "type": "string"
-                    }
-                }
+                    "eng": {"description": "Task name in English", "type": "string"},
+                    "swe": {"description": "Task name in Swedish", "type": "string"},
+                },
             },
             "analysis_unit": {
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "eng": {
-                        "description": "Unit name in English",
-                        "type": "string"
-                    },
-                    "swe": {
-                        "description": "Unit name in Swedish",
-                        "type": "string"
-                    }
-                }
-            }
+                    "eng": {"description": "Unit name in English", "type": "string"},
+                    "swe": {"description": "Unit name in Swedish", "type": "string"},
+                },
+            },
         },
         "collection": {
             "size": {
@@ -75,13 +50,10 @@ SCHEMA_CHANGES = {
                 "type": "object",
                 "additionalProperties": True,
                 "properties": {
-                    "resources": {
-                        "description": "Number of resources in the collection",
-                        "type": "integer"
-                    }
-                }
+                    "resources": {"description": "Number of resources in the collection", "type": "integer"}
+                },
             }
-        }
+        },
     },
 }
 

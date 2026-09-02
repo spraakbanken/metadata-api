@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from asgi_matomo import MatomoMiddleware
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -37,9 +38,12 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator:  # noqa: RUF029
+async def lifespan(_app: FastAPI) -> AsyncGenerator:
     """Manage application startup and shutdown."""
     logger.info("Starting Metadata API version %s", API_VERSION)
+    # Build the mkdocs documentation
+    utils.build_docs()
+    # Initialize the cache
     cache.initialize(settings.MEMCACHED_SERVER)
     yield
 
@@ -61,7 +65,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Create docs/site directory if it does not exist (for mkdocs to serve the static files)
+docs_site_path = Path("docs/site")
+docs_site_path.mkdir(parents=True, exist_ok=True)
+
+# Mount directories for static files
 app.mount("/static", StaticFiles(directory=settings.STATIC), name="static")
+app.mount("/docs", StaticFiles(directory=docs_site_path, html=True), name="mkdocs")
 
 
 @app.middleware("http")
@@ -72,8 +83,28 @@ async def log_requests(request: Request, call_next: Callable) -> JSONResponse:
     return await call_next(request)
 
 
+# Add Matomo middleware for tracking
+if settings.MATOMO_URL and settings.MATOMO_IDSITE:
+    logger.info("Enabling tracking to Matomo")
+    if settings.LOG_LEVEL == "DEBUG":
+        logging.getLogger("asgi_matomo").setLevel("DEBUG")
+    # Suppress some chatty logs
+    logging.getLogger("httpx").setLevel("WARNING")
+    # Add the Matomo middleware
+    app.add_middleware(
+        MatomoMiddleware,
+        matomo_url=settings.MATOMO_URL,
+        idsite=settings.MATOMO_IDSITE,
+        access_token=settings.MATOMO_AUTH_TOKEN,
+        http_timeout=settings.MATOMO_HTTP_TIMEOUT,
+        ignored_methods=["OPTIONS"],
+    )
+elif settings.ENV not in {"testing", "development"}:
+    logger.warning("Tracking to Matomo disabled, please set MATOMO_URL and MATOMO_IDSITE.")
+
+
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:  # noqa: ARG001, RUF029
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:  # ruff: ignore[unused-function-argument, unused-async]
     """Handle request validation errors with detailed human-readable feedback."""
     logger.warning("Validation error: %s", exc)
     exc_errors = jsonable_encoder(exc.errors())
@@ -92,7 +123,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:  # noqa: ARG001, RUF029
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:  # ruff: ignore[unused-function-argument, unused-async]
     """Handle HTTP errors (e.g., 400/404) with concise messages."""
     if exc.status_code == status.HTTP_400_BAD_REQUEST:
         logger.warning("Bad Request: %s", exc.detail)
@@ -107,7 +138,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 
 
 @app.exception_handler(Exception)
-async def server_error_handler(request: Request, exc: Exception) -> JSONResponse:  # noqa: ARG001, RUF029
+async def server_error_handler(request: Request, exc: Exception) -> JSONResponse:  # ruff: ignore[unused-function-argument, unused-async]
     """Handle uncaught server errors (500)."""
     tb = traceback.format_exc()
     logger.error("Server Error: %s\nTraceback: %s", exc, tb)

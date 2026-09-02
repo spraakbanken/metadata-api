@@ -10,20 +10,16 @@ logs
 # Editors
 .vscode
 *.code-workspace
+.codex
+.agents/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Flask stuff:
-instance/
-.webassets-cache
-
-# pyenv
-.python-version
-
 # Environments
+.python-version
 .env
 .venv
 env/
@@ -31,3 +27,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Pytest
+.pytest_cache/
+/tests/assets/gen/
+
+# MISC
+.ruff_cache/
+site/
+docs/mkdocs/README.md
+docs/.mkdocs-build.lock

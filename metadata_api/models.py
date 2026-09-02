@@ -86,3 +86,14 @@ class IdAvailabilityResponse(BaseModel):
         description="Indicates whether the resource ID is available",
         examples=[True, False],
     )
+
+
+class ValidateResourceResponse(BaseModel):
+    """Response model for resource validation against schema."""
+
+    valid: bool = Field(..., description="Indicates whether the resource metadata is valid", examples=[True, False])
+    message: str = Field(
+        ...,
+        description="Message indicating the result of the validation",
+        examples=["Resource metadata is valid.", "An unexpected error occurred during validation."],
+    )

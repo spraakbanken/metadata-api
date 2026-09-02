@@ -4,18 +4,16 @@
 
 This project contains the following main components:
 
-- [**`metadata_api`**](/metadata_api/) - A REST API that serves [metadata](https://github.com/spraakbanken/metadata) for
+- **`metadata_api`** - A REST API that serves [metadata](https://github.com/spraakbanken/metadata) for
   Språkbanken Text's corpora, lexicons, models, analyses, and utilities (mainly used by our site at spraakbanken.gu.se).
   For documentation, see below.
-- [**`parse_yaml.py`**](/metadata_api/parse_yaml.py) - A script that prepares data for the REST API. This component is
+- **`/metadata_api/parse_yaml.py`** - A script that prepares data for the REST API. This component is
   called automatically upon [cache renewal](#cache-renewal) but can also be run as a script locally (although this
   functionality is deprecated).
-- [**`tasks.py`**](/metadata_api/tasks.py) - Celery background tasks for the REST API, e.g. for cache renewal.
-- [**`gen_pids.py`**](/gen_pids/gen_pids.py) - A Python script that generates new PIDs (Datacite DOIs) by reading our
-  metadata YAML files and registering resources at Datacite. For documentation, see the code comments and
-  [`pid_creation.md`](/docs/pid_creation.md).
-- [**`gen_pids.sh`**](gen_pids.sh) - A shell script that runs periodically on the server (via cron) and calls
-  [`gen_pids.py`](/gen_pids/gen_pids.py).
+- **`/metadata_api/tasks.py`** - Celery background tasks for the REST API, e.g. for cache renewal.
+- **`/gen_pids/gen_pids.py`** - A Python script that generates new PIDs (Datacite DOIs) by reading our
+  metadata YAML files and registering resources at Datacite. It also handles log files, git add/commit/push, and log
+  rotation when run as a script. For documentation, see the code comments and [the PID guide](pid_guide.md).
 
 Furthermore there are some scripts in the `batch_jobs/` directory that are used for batch processing of resources, e.g.
 for adding new fields to all metadata YAML files or for extracting information.
@@ -59,7 +57,16 @@ will do the following:
 - If memcached caching is activated, the cache is flushed and repopulated with data from the updated JSON files.
 
 The `/renew-cache` route can be called manually (e.g. via curl) but it is usually also set up as a webhook in the
-metadata repository to be triggered automatically upon each push event to the main branch.
+metadata repository to be triggered automatically upon each push event. Configure the GitHub webhook to send a `POST`
+request with the `application/json` content type to the deployment's `/renew-cache` endpoint, for example:
+
+```text
+https://ws.spraakbanken.gu.se/ws/metadata/dev/renew-cache
+```
+
+The endpoint returns `202 Accepted` after queueing the Celery task. Pushes to `main` use the webhook payload to
+identify the changed metadata YAML files; pushes to other branches are ignored. If GitHub reports more changed files
+than the configured limit, all metadata is renewed because the payload may not contain a complete file list.
 
 The response from the `/renew-cache` route will **not** contain the results of the cache renewal itself, since this is
 done in the background. If `SLACK_WEBHOOK_URL` is set in the configuration and any errors or warnings occur, a message
@@ -68,15 +75,15 @@ from the task will also be logged to the celery worker log.
 
 ## Bumping the version number
 
-If you want to bump the app version number, update the `version` field in [`pyproject.toml`](pyproject.toml). If you
-change the major version, run [`set_version.sh`](set_version.sh) to automatically update all version references in the
-URLs in the [README file](README.md).
+If you want to bump the app version number, update the `version` field in `pyproject.toml`. If you
+change the major version, run `./set_version.sh` to automatically update all version references in the
+URLs in [the README file](README.md).
 
 ## Deployment (SBX-specific)
 
 Set up the metadata-api app by following the [installation instructions](../README.md#installation) in the README file
 to install the dependencies. Don't forget to add your own configuration to the app as described under
-[Configuration](../README.md#configuration).
+the [Configuration section in the README file](README.md#configuration).
 
 ### Setting up the metadata repository
 
@@ -136,15 +143,18 @@ to install the dependencies. Don't forget to add your own configuration to the a
 - When the app is up and running, call the `/renew-cache` route in order to create the necessary JSON files and populate
   the cache.
 
-- Store Datacite login credentials in `/home/fksbwww/.netrc` (check [pid_creation.md](docs/pid_creation.md) for more
+- Store Datacite login credentials in `/home/fksbwww/.netrc` (check [the PID guide](pid_guide.md) for more
   info).
 
-- Set up cron jobs that periodically run `gen_pids.sh` to add DOIs to resources and update Datacite. The following cron
-  jobs are run on `fksbwww@k2`:
+- Set up cron jobs that periodically run `gen_pids.py` to add DOIs to resources, update Datacite, and push metadata
+  changes. The following cron jobs are run on `fksbwww@k2` (but `/dev` and `localhost:1337` should be replaced with the
+  actual deployment path and host/port):
 
   ```bash
   # Generate pids every night
-  5 1 * * * cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh --analyses --noupdate > /dev/null
+  5 1 * * * cd /home/fksbwww/metadata-api/dev && uv run -m gen_pids.gen_pids --no-update > /dev/null
   # Update Datacite metadata once per week
-  15 23 * * 0 cd /home/fksbwww/metadata-api/v3 && ./gen_pids.sh > /dev/null
+  15 23 * * 0 cd /home/fksbwww/metadata-api/dev && uv run -m gen_pids.gen_pids > /dev/null
+  # Call /renew-cache every night (mainly for updating downloadables file sizes)
+  5 5 * * * curl --silent "localhost:1337/renew-cache" > /dev/null
   ```
