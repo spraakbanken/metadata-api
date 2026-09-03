@@ -24,8 +24,8 @@ DMS_HEADERS = {
 }
 DMS_CREATOR_NAME = "Språkbanken"
 DMS_CREATOR_ROR = "https://ror.org/05qhvy459"
-DMS_TARGET_RESOURCE_PREFIX = "https://spraakbanken.gu.se/resurser/"
-DMS_TARGET_ANALYSIS_PREFIX = "https://spraakbanken.gu.se/analyser/"
+DMS_TARGET_RESOURCE_PREFIX = "https://sprakbanken.se/resurser/"
+DMS_TARGET_ANALYSIS_PREFIX = "https://sprakbanken.se/analyser/"
 DMS_RESOURCE_TYPE_DATASET = "Dataset"
 DMS_RESOURCE_TYPE_ANALYSIS = "Workflow"
 DMS_RESOURCE_TYPE_COLLECTION = "Collection"
