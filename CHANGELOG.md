@@ -3,6 +3,12 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.1]
+
+### Fixed
+
+- Fixed a git path calculation bug in gen_pids.
+
 ## [4.0.0] - 2026-09-02
 
 ### Added

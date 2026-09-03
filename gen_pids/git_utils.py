@@ -4,7 +4,7 @@ import logging
 
 from git import Actor, GitCommandError, Repo
 
-from gen_pids.settings import GIT_AUTHOR_EMAIL, GIT_AUTHOR_NAME, YAML_REPO_ROOT
+from gen_pids.settings import GIT_AUTHOR_EMAIL, GIT_AUTHOR_NAME, YAML_DIR, YAML_REPO_ROOT
 
 logger = logging.getLogger("gen_pids")
 
@@ -20,7 +20,7 @@ def commit_metadata_changes() -> None:
 
     # Stage all changes
     try:
-        repo.git.add("--all", "metadata/yaml")
+        repo.git.add("--all", YAML_DIR.relative_to(YAML_REPO_ROOT))
     except GitCommandError:
         logger.exception("Git add failed for metadata/yaml")
         return
