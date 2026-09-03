@@ -3,7 +3,11 @@
 All notable API changes will be documented in this file. The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [4.0.1]
+## [4.0.1] - 2026-09-03
+
+### Changed
+
+- Improved error logging from `gen_pids.py` when updating Datacite metadata.
 
 ### Fixed
 
@@ -160,6 +164,7 @@ Please refer to the git commit log for more information.
 - Added a route for listing utilities: `/utilities`
 - Added a script for generating PIDs and registering resources at Datacite.
 
+[4.0.1]: https://github.com/spraakbanken/metadata-api/releases/tag/v4.0.1
 [4.0.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v4.0.0
 [3.3.1]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.3.1
 [3.3.0]: https://github.com/spraakbanken/metadata-api/releases/tag/v3.3.0
