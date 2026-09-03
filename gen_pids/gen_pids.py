@@ -16,6 +16,7 @@ Usage with a virtual environment:
 
 import argparse
 import datetime
+import json
 import logging
 import sys
 from pathlib import Path
@@ -584,17 +585,17 @@ def dms_update(
 
         # Update resource
         logger.info("Updating data at Datacite for resource '%s' (DOI '%s')", filepath, doi)
-        # import json
         # logger.debug(json.dumps(data_json["data"]["attributes"], indent=2, ensure_ascii=False))
         response = datacite_client.update_doi(doi, data_json)
 
         if response.status_code >= 300:  # ruff: ignore[magic-value-comparison]
             logger.error(
-                "Error updating '%s'. DOI: '%s'. status: '%s'. data: '%s'",
+                "Error updating '%s'. DOI: '%s'. status: '%s'. response: '%s'\ndata sent: '%s'",
                 filepath,
                 doi,
                 response.status_code,
-                data_json,
+                response.text,
+                json.dumps(data_json, indent=2, ensure_ascii=False),
             )
         else:
             logger.debug("Response from Datacite: %s", response.status_code)
