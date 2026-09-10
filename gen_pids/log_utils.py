@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import sys
 from pathlib import Path
 
 from gen_pids.settings import LOG_FORMAT
@@ -23,6 +24,10 @@ def configure_logging(log_dir: Path, logger: logging.Logger) -> None:
     file_handler = logging.FileHandler(log_file)
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    logger.addHandler(stream_handler)
 
 
 def rotate_logs(log_dir: Path, logger: logging.Logger, keep_months: int = 6) -> None:
