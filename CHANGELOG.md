@@ -8,6 +8,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Updated version number in README.md and openapi_info.yaml to v4.
+- Removed "language_codes" property from the JSON schema from `/response-schema`.
 
 ## [4.0.1] - 2026-09-03
 

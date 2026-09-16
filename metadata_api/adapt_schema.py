@@ -19,6 +19,8 @@ SCHEMA_CHANGES = {
             }
         },
     },
+    # Properties to remove
+    "remove_properties": ["language_codes"],
     # Required properties to add
     "update_required": ["id"],
     # Conditional properties to update. The key can be one of the following:
@@ -73,6 +75,11 @@ def adapt_schema(schema: dict) -> dict:
             schema["properties"][key] = _deep_update(schema["properties"][key], value)
         else:
             schema["properties"][key] = value
+
+    # Remove properties
+    for key in SCHEMA_CHANGES.get("remove_properties", []):
+        if key in schema["properties"]:
+            del schema["properties"][key]
 
     # Update required properties
     schema["required"].extend(SCHEMA_CHANGES.get("update_required", []))
