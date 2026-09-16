@@ -21,7 +21,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://ws.spraakbanken.gu.se/ws/metadata/v3
+  - url: https://ws.spraakbanken.gu.se/ws/metadata/v4
     description: Production server
   - url: https://ws.spraakbanken.gu.se/ws/metadata/dev
     description: Development server

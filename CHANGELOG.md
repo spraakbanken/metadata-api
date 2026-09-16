@@ -5,6 +5,10 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
 
+### Fixed
+
+- Updated version number in README.md and openapi_info.yaml to v4.
+
 ## [4.0.1] - 2026-09-03
 
 ### Changed

@@ -4,27 +4,27 @@ The Språkbanken Text Metadata API is a RESTful web service that provides access
 maintained by Språkbanken Text, including corpora, lexicons, models, analyses, and utilities. The metadata is stored in
 YAML files in a separate [metadata repository](https://github.com/spraakbanken/metadata).
 
-For more technical details, see the [developer documentation](https://ws.spraakbanken.gu.se/ws/metadata/v3/docs/).
+For more technical details, see the [developer documentation](https://ws.spraakbanken.gu.se/ws/metadata/v4/docs/).
 
 ## Basic API Usage
 
-Available API calls (please note that the URL contains the API version, e.g. `/v3`, `/dev` etc):
+Available API calls (please note that the URL contains the API version, e.g. `/v4`, `/dev` etc):
 
 | Endpoint | Description |
 | -------- | ----------- |
-| 📁 [/](https://ws.spraakbanken.gu.se/ws/metadata/v3/) | List all resources |
-| 📁 [/?resource-type=[resource-type]](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource-type=corpus) | List all resources of a specific type.<br>Available types: `corpus`, `lexicon`, `model`, `analysis`, `utility`, `collection` |
-| 📁 [/list-ids](https://ws.spraakbanken.gu.se/ws/metadata/v3/list-ids) | List all existing resource IDs |
-| 🔍 [/?resource=saldo](https://ws.spraakbanken.gu.se/ws/metadata/v3/?resource=saldo) | Retrieve a specific resource and its description (if available) |
-| 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/bibtex?resource=attasidor) | Return BibTeX citation for the specified resource |
-| 🔍 [/source/[resource_type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/source/corpus/attasidor) | Retrieve the source metadata for a resource (without applying metadata processing) |
-| 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/check-id-availability?id=attasidor) | Check if a given resource ID is available |
-| 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache) | Update all metadata files from git, re-process JSON, and update cache. |
-| 🔧 [/renew-cache?resource-paths=[resource-type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v3/renew-cache?resource-paths=corpus/attasidor) | Update cache for specific resources, e.g.:<br>`resource-paths=corpus/attasidor,lexicon/saldo` |
-| 📘 [/redoc](https://ws.spraakbanken.gu.se/ws/metadata/v3/redoc) | View the API documentation. |
-| 📘 [/docs/dev-docs/](https://ws.spraakbanken.gu.se/ws/metadata/v3/docs/dev-docs/) | View the developer documentation. |
-| 📘 [/resource-schema](https://ws.spraakbanken.gu.se/ws/metadata/v3/resource-schema) | Return the JSON schema which is used to validate the metadata YAML files. |
-| 📘 [/openapi.json](https://ws.spraakbanken.gu.se/ws/metadata/v3/openapi.json) | Serve API documentation as JSON |
+| 📁 [/](https://ws.spraakbanken.gu.se/ws/metadata/v4/) | List all resources |
+| 📁 [/?resource-type=[resource-type]](https://ws.spraakbanken.gu.se/ws/metadata/v4/?resource-type=corpus) | List all resources of a specific type.<br>Available types: `corpus`, `lexicon`, `model`, `analysis`, `utility`, `collection` |
+| 📁 [/list-ids](https://ws.spraakbanken.gu.se/ws/metadata/v4/list-ids) | List all existing resource IDs |
+| 🔍 [/?resource=saldo](https://ws.spraakbanken.gu.se/ws/metadata/v4/?resource=saldo) | Retrieve a specific resource and its description (if available) |
+| 🔍 [/bibtex?resource=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v4/bibtex?resource=attasidor) | Return BibTeX citation for the specified resource |
+| 🔍 [/source/[resource_type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v4/source/corpus/attasidor) | Retrieve the source metadata for a resource (without applying metadata processing) |
+| 🔍 [/check-id-availability?id=[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v4/check-id-availability?id=attasidor) | Check if a given resource ID is available |
+| 🔧 [/renew-cache](https://ws.spraakbanken.gu.se/ws/metadata/v4/renew-cache) | Update all metadata files from git, re-process JSON, and update cache. |
+| 🔧 [/renew-cache?resource-paths=[resource-type]/[resource-id]](https://ws.spraakbanken.gu.se/ws/metadata/v4/renew-cache?resource-paths=corpus/attasidor) | Update cache for specific resources, e.g.:<br>`resource-paths=corpus/attasidor,lexicon/saldo` |
+| 📘 [/redoc](https://ws.spraakbanken.gu.se/ws/metadata/v4/redoc) | View the API documentation. |
+| 📘 [/docs/dev-docs/](https://ws.spraakbanken.gu.se/ws/metadata/v4/docs/dev-docs/) | View the developer documentation. |
+| 📘 [/resource-schema](https://ws.spraakbanken.gu.se/ws/metadata/v4/resource-schema) | Return the JSON schema which is used to validate the metadata YAML files. |
+| 📘 [/openapi.json](https://ws.spraakbanken.gu.se/ws/metadata/v4/openapi.json) | Serve API documentation as JSON |
 
 ## Requirements
 
