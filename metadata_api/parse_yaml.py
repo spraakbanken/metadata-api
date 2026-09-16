@@ -221,7 +221,12 @@ def _process_yaml_file(
             if langcode not in [l.get("code") for l in langs]:
                 try:
                     english_name, swedish_name = _get_lang_names(langcode)
-                    langs.append({"code": langcode, "name": {"swe": swedish_name, "eng": english_name}})
+                    langs.append(
+                        {
+                            "identifier": {"value": langcode, "scheme": "ISO 639-3"},
+                            "name": {"swe": swedish_name, "eng": english_name},
+                        }
+                    )
                 except LookupError:
                     logger.error("Could not find language code '%s' (resource: '%s/%s')", langcode, res_type, fileid)
         res["languages"] = langs
@@ -584,11 +589,12 @@ def _normalize_languages(languages: Any) -> list[dict[str, Any]]:
         if not isinstance(language, dict):
             continue
 
-        code = language.get("code")
+        code = language.get("identifier", {}).get("value", "")
         names = language.get("name", {})
         has_name = isinstance(names, dict) and any(_is_nonempty_string(value) for value in names.values())
+        variety = language.get("variety", "")
 
-        if _is_nonempty_string(code) or has_name:
+        if _is_nonempty_string(code) or has_name or _is_nonempty_string(variety):
             normalized_languages.append(language)
 
     return normalized_languages

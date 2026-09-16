@@ -5,6 +5,10 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
 
+### Changed
+
+- Adapted the `languages` object in the metadata responses according to the current JSONschema changes.
+
 ### Fixed
 
 - Updated version number in README.md and openapi_info.yaml to v4.
