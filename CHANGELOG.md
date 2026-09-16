@@ -13,6 +13,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Updated version number in README.md and openapi_info.yaml to v4.
 - Removed "language_codes" property from the JSON schema from `/response-schema`.
+- Logging configuration in `gen_pids.py` now uses a filter to send log messages below ERROR to stdout and ERROR and
+  above to stderr.
 
 ## [4.0.1] - 2026-09-03
 

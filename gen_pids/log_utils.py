@@ -10,24 +10,51 @@ from pathlib import Path
 from gen_pids.settings import LOG_FORMAT
 
 
+class _BelowErrorFilter(logging.Filter):
+    """Allow records below ERROR through to stdout."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Return whether the record belongs on stdout."""
+        return super().filter(record) and record.levelno < logging.ERROR
+
+
+class _StdoutHandler(logging.StreamHandler):
+    """Stream handler used for non-error console output."""
+
+
+class _StderrHandler(logging.StreamHandler):
+    """Stream handler used for error console output."""
+
+
 def configure_logging(log_dir: Path, logger: logging.Logger) -> None:
     """Ensure logging is configured."""
-    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+    if logger.level == logging.NOTSET:
+        logger.setLevel(logging.INFO)
+    logger.propagate = False
 
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"{datetime.datetime.now():%Y-%m}.log"
 
-    for handler in logger.handlers:
-        if isinstance(handler, logging.FileHandler) and Path(handler.baseFilename) == log_file:
-            return
+    formatter = logging.Formatter(LOG_FORMAT)
+    if not any(
+        isinstance(handler, logging.FileHandler) and Path(handler.baseFilename) == log_file
+        for handler in logger.handlers
+    ):
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    logger.addHandler(file_handler)
+    if not any(isinstance(handler, _StdoutHandler) for handler in logger.handlers):
+        stdout_handler = _StdoutHandler(sys.stdout)
+        stdout_handler.addFilter(_BelowErrorFilter())
+        stdout_handler.setFormatter(formatter)
+        logger.addHandler(stdout_handler)
 
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    logger.addHandler(stream_handler)
+    if not any(isinstance(handler, _StderrHandler) for handler in logger.handlers):
+        stderr_handler = _StderrHandler(sys.stderr)
+        stderr_handler.setLevel(logging.ERROR)
+        stderr_handler.setFormatter(formatter)
+        logger.addHandler(stderr_handler)
 
 
 def rotate_logs(log_dir: Path, logger: logging.Logger, keep_months: int = 6) -> None:
