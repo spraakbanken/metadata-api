@@ -56,7 +56,10 @@ def renew_cache_task(
         # Pull changes from GitHub before parsing YAML files
         try:
             repo = Repo(settings.METADATA_DIR)
-            repo.remotes.origin.pull()
+            branch = repo.active_branch.name
+            # Fetch and reset instead of pull to avoid merge conflicts in case of force pushes to the remote branch
+            repo.remotes.origin.fetch()
+            repo.git.reset("--hard", f"origin/{branch}")
             logger.debug("Successfully pulled latest changes from GitHub (dir: %s)", repo.working_dir)
         except Exception as e:
             logger.exception("Failed to pull changes from GitHub")
