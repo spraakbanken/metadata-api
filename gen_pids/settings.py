@@ -39,7 +39,12 @@ DMS_TITLE_EXAMPLE_ENG = "Example"
 DMS_LICENSE_SCHEME_URI = "https://spdx.org/licenses/"
 DMS_LICENSE_SCHEME_ID = "SPDX"
 DMS_LICENSE_OTHER = "LicenseRef-Other"
-DMS_LANGUAGE_SCHEME_URI = "http://lexvo.org/id/iso639-3"
+DMS_DEFAULT_LANGUAGE_SCHEME_URI = "http://lexvo.org/id/iso639-3"
+
+DMS_LANGUAGE_SCHEME_DICT = {
+    "ISO 639-3": "http://lexvo.org/id/iso639-3",
+    "BCP 47": "https://www.rfc-editor.org/info/bcp47/",
+}
 
 DMS_RELATION_TYPE_ISPARTOF = "IsPartOf"
 DMS_RELATION_TYPE_HASPART = "HasPart"

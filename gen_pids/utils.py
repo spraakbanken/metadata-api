@@ -12,9 +12,10 @@ from bs4 import BeautifulSoup
 from gen_pids.settings import (
     DMS_CREATOR_NAME,
     DMS_CREATOR_ROR,
+    DMS_DEFAULT_LANGUAGE_SCHEME_URI,
     DMS_LANG_ENG,
     DMS_LANG_MUL,
-    DMS_LANGUAGE_SCHEME_URI,
+    DMS_LANGUAGE_SCHEME_DICT,
     DMS_LICENSE_OTHER,
     DMS_LICENSE_SCHEME_ID,
     DMS_LICENSE_SCHEME_URI,
@@ -117,12 +118,27 @@ def get_res_languages(resource: dict) -> tuple[str, list]:
         english_name = language.name if language is not None else "Unknown"
         lang = {
             "subject": english_name,
-            "schemeURI": DMS_LANGUAGE_SCHEME_URI,
-            "valueURI": f"{DMS_LANGUAGE_SCHEME_URI}/{code}",
+            "schemeUri": DMS_DEFAULT_LANGUAGE_SCHEME_URI,  # scheme URI for ISO 639-3 language codes
+            "valueUri": f"{DMS_DEFAULT_LANGUAGE_SCHEME_URI}/{code}",
             "classificationCode": code,
-            "lang": code,
+            "lang": "en",  # language of the subject label
         }
         languages_info.append(lang)
+
+    for lang in languages:
+        identifier = lang.get("identifier", {})
+        code = identifier.get("value", "")
+        scheme = identifier.get("scheme", "")
+        scheme_uri = DMS_LANGUAGE_SCHEME_DICT.get(scheme, "")
+        english_name = lang.get("name", {}).get("eng", "Unknown")
+        lang_info = {
+            "subject": english_name,
+            "subjectScheme": scheme,
+            "schemeUri": scheme_uri,
+            "classificationCode": code,
+            "lang": "en",  # language of the subject label
+        }
+        languages_info.append(lang_info)
 
     # Multiple languages provided, "mul" will be set as primary language
     if total_langs > 1:
