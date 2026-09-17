@@ -302,6 +302,12 @@ echo -e "Updating pyproject.toml"
 next_dev_version="$major.$((minor + 1)).0.dev"
 sed -i "s/^version = \".*\"/version = \"$next_dev_version\"/" pyproject.toml
 
+# Upon major upgrade run set_version.sh (updates README.md and metadata_api/openapi_info.yaml)
+if [[ $major -gt 0 ]]; then
+  echo -e "Running set_version.sh for major version upgrade."
+  ./set_version.sh
+fi
+
 # Update CHANGELOG.md
 echo -e "Updating CHANGELOG.md"
 # Add new ## [unreleased] section above the latest version header
@@ -311,7 +317,7 @@ escaped_github_url=$(echo "$github_url" | sed 's/\//\\\//g')
 sed -i "/^\[$new_version\]:/i\\[unreleased]: ${escaped_github_url}\/compare/v$new_version...dev/" CHANGELOG.md
 
 # Show git diff for confirmation
-git add pyproject.toml CHANGELOG.md
+git add pyproject.toml CHANGELOG.md README.md metadata_api/openapi_info.yaml
 echo -e "\nChanges to be committed for next development version:"
 git diff --cached
 read -p "$(echo -e "\nCommit these changes to ${GREEN}$development_branch${NC} for next development version? (y/n): ")" confirm_next
