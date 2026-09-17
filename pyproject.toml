@@ -13,25 +13,25 @@ dependencies = [
     "beautifulsoup4>=4.15.0",
     "celery[redis]>=5.6.3",
     "fastapi>=0.141.1",
-    "gitpython>=3.1.59",
-    "jsonschema-rs>=0.49.9",
-    "lxml>=6.1.1",
+    "gitpython>=3.1.62",
+    "jsonschema-rs>=0.55.1",
+    "lxml>=6.1.3",
     "markdown>=3.10.3",
     "mkdocs-macros-plugin==1.5.0",
-    "mkdocs-material>=9.7.1",
+    "mkdocs-material>=9.7.7",
     "pycountry>=26.2.16",
     "pydantic-settings>=2.15.0",
     "pymemcache>=4.0.0",
     "pyyaml>=6.0.3",
-    "redis~=6.0.0",
+    "redis<6.5.0",
     "requests>=2.34.2",
-    "uvicorn[standard]>=0.49.0",
+    "uvicorn[standard]>=0.52.4",
 ]
 
 [dependency-groups]
 dev = [
     "ruff",
-    "pyright>=1.1.411",
+    "pyright>=1.1.413",
     "pytest>=9.1.1",
 ]
 
