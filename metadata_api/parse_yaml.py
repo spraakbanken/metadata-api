@@ -232,6 +232,9 @@ def _process_yaml_file(
         res["languages"] = langs
         res.pop("language_codes", "")
 
+        # Remove "origin" from data, we are not exposing this in the API
+        res.pop("origin", None)
+
         # Add localizations to data
         for loc_name, loc in localizations.items():
             if loc_name in res:

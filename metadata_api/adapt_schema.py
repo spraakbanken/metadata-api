@@ -20,7 +20,7 @@ SCHEMA_CHANGES = {
         },
     },
     # Properties to remove
-    "remove_properties": ["language_codes"],
+    "remove_properties": ["language_codes", "origin"],
     # Required properties to add
     "update_required": ["id"],
     # Conditional properties to update. The key can be one of the following:
