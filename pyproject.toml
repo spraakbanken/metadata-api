@@ -1,6 +1,6 @@
 [project]
 name = "metadata-api"
-version = "4.1.0.dev"
+version = "4.1.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.11"
