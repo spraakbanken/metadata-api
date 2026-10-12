@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     COLLECTIONS_FILE: str = "collection.json"
     LICENSE_INFO_FILE: str = "license-info.json"
 
+    DEFAULT_AUTHOR: str = "Språkbanken"  # Publisher and default author for resources without a specified author
+
     # URL to SPDX licenses JSON data
     LICENSE_INFO_URL: str = (
         "https://raw.githubusercontent.com/spdx/license-list-data/refs/heads/main/json/licenses.json"

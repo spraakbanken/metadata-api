@@ -202,7 +202,7 @@ def create_bibtex(resource: dict[str, Any]) -> str:
     f_doi = resource.get("doi", "")
     f_id = resource.get("id", "")  # id/slug/maskinnamn
     f_creators = resource.get("creators", [])  # creators, "Skapad av"
-    f_author = " and ".join(f_creators) if len(f_creators) > 0 else "Språkbanken Text"
+    f_author = " and ".join(f_creators) if len(f_creators) > 0 else settings.DEFAULT_AUTHOR
     f_words = resource.get("keywords", [])
     f_words.insert(0, "Language Technology (Computational Linguistics)")
     f_keywords = ", ".join(f_words)
@@ -213,9 +213,7 @@ def create_bibtex(resource: dict[str, Any]) -> str:
             f_language += ", " + item.get("code", "")
     else:
         f_language = ""
-    f_title = resource["name"].get("eng", "")
-    if f_title:
-        f_title = resource["name"].get("swe", "")
+    f_title = resource.get("name", {}).get("swe", "") or resource.get("name", {}).get("eng", "") or f_id
     # Get year, fallback to current year
     f_year = str(datetime.datetime.now().date().year)
     f_updated = resource.get("updated", "")
@@ -237,18 +235,19 @@ def create_bibtex(resource: dict[str, Any]) -> str:
             f_url = "https://spraakbanken.gu.se/resurser/"
 
     # Build bibtex string
-    return (
-        f"@misc{{{f_id},\n"
-        f"  doi = {{{f_doi}}},\n"
-        f"  url = {{{f_url}{f_id}}},\n"
-        f"  author = {{{f_author}}},\n"
-        f"  keywords = {{{f_keywords}}},\n"
-        f"  language = {{{f_language}}},\n"
-        f"  title = {{{f_title}}},\n"
-        f"  publisher = {{Språkbanken Text}},\n"
-        f"  year = {{{f_year}}}\n"
-        "}"
-    )
+    bibtex_list = [
+        f"@misc{{{f_id},\n",
+        f"  doi = {{{f_doi}}},\n",
+        f"  url = {{{f_url}{f_id}}},\n",
+        f"  author = {{{f_author}}},\n",
+        f"  keywords = {{{f_keywords}}},\n",
+        f"  language = {{{f_language}}},\n",
+        f"  title = {{{f_title}}},\n" if f_title else "",
+        f"  publisher = {{{settings.DEFAULT_AUTHOR}}},\n",
+        f"  year = {{{f_year}}}\n",
+    ]
+
+    return "".join(bibtex_list)
 
 
 def send_to_slack(message: str, slack_webhook: str) -> None:
