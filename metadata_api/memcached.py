@@ -56,8 +56,6 @@ class CacheManager:
 
         try:
             yield client
-        except Exception:
-            logger.exception("Error using memcache client")
         finally:
             if client is not None:
                 try:

@@ -8,6 +8,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Fixed a bug in bibtext generation that caused a server error when a resource had no title.
+- Fixed a bug where exceptions were wrongfully labeled as cache errors.
 
 ## [4.1.0] - 2026-09-23
 
