@@ -41,7 +41,11 @@ redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
 )
 def list_resources(
     resource_type: str | None = Query(
-        default=None, alias="resource-type", title="Resource type", examples=["corpus"], enum=settings.RESOURCE_TYPES
+        default=None,
+        alias="resource-type",
+        title="Resource type",
+        examples=["corpus"],
+        json_schema_extra={"enum": settings.RESOURCE_TYPES},
     ),
     resource: str | None = Query(default=None, title="Resource ID", examples=["attasidor"]),
 ) -> JSONResponse:
