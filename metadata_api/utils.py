@@ -245,6 +245,7 @@ def create_bibtex(resource: dict[str, Any]) -> str:
         f"  title = {{{f_title}}},\n" if f_title else "",
         f"  publisher = {{{settings.DEFAULT_AUTHOR}}},\n",
         f"  year = {{{f_year}}}\n",
+        "}",
     ]
 
     return "".join(bibtex_list)
